@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model User {
+  id             String       @id @default(cuid())
+  name           String
+  email          String       @unique
+  password       String
+  emailVerified  DateTime?
+  image          String?
+  roleId         String
+  departmentId   String
+  employeeId     String       @unique
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  access         UserAccess?
+  userRoles      UserRole[]
+  role             Role         @relation(fields: [roleId], references: [id])
+  department       Department   @relation(fields: [departmentId], references: [id])
+  departmentHeadOf Department[] @relation("DepartmentHead")
+  activityHistory  ActivityHistory[]
+
+  @@index([roleId])
+  @@index([departmentId])
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Department {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?
+  headId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  head        User?     @relation("DepartmentHead", fields: [headId], references: [id])
+  users       User[]
+  budgetPlans BudgetPlan[]
+  budgetRequests BudgetRequest[]
+  approvalSchemas ApprovalSchema[]
+
+  @@index([headId])
+  @@map("departments")
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  roleCode        String           @unique
+  roleName        String
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  users           User[]
+  userRoles       UserRole[]
+  approvalLevels  ApprovalLevel[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  role      Role     @relation(fields: [roleId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model UserAccess {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  menuAccess      Json
+  activityAccess  Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("user_accesses")
+}
+
+model FiscalYear {
+  id        String   @id @default(cuid())
+  year      Int      @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fiscal_years")
+}
+
+model Project {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  name         String
+  description  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  budgetPlans  BudgetPlan[]
+
+  @@map("projects")
+}
+
+model ApprovalSchema {
+  id              String         @id @default(cuid())
+  name            String
+  type            String         // BudgetPlan | BudgetRequest
+  period          String         @default("Unlimited") // Unlimited | Custom
+  departmentId    String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  department      Department     @relation(fields: [departmentId], references: [id])
+  approvalLevels  ApprovalLevel[]
+  budgetPlans     BudgetPlan[]
+  budgetRequests  BudgetRequest[]
+
+  @@index([departmentId])
+  @@map("approval_schemas")
+}
+
+model ApprovalLevel {
+  id               String            @id @default(cuid())
+  schemaId         String
+  stepOrder        Int
+  levelType        String            // Reviewer | Approver
+  roleId           String
+  parallelGroup    Int?              @default(0) // For parallel approval
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  schema           ApprovalSchema    @relation(fields: [schemaId], references: [id], onDelete: Cascade)
+  role             Role              @relation(fields: [roleId], references: [id])
+  alternatingRules AlternatingRule[]
+
+  @@index([schemaId])
+  @@index([roleId])
+  @@map("approval_levels")
+}
+
+model AlternatingRule {
+  id             String       @id @default(cuid())
+  approvalLevelId String
+  userId         String
+  startDate      DateTime
+  endDate        DateTime
+  status         String       @default("Active") // Active | Expired
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  approvalLevel  ApprovalLevel @relation(fields: [approvalLevelId], references: [id], onDelete: Cascade)
+
+  @@index([approvalLevelId])
+  @@map("alternating_rules")
+}
+
+model BudgetPlan {
+  id               String               @id @default(cuid())
+  code             String               @unique
+  subject          String
+  description      String?              @db.Text
+  fiscalYear       Int
+  originOffice     String?
+  departmentId     String
+  projectId        String?
+  requestorId      String?
+  requestDate      DateTime
+  status           String               @default("Draft") // Draft | Pending | Reviewed | Approved
+  approvalSchemaId String?
+  supportingDocs   Json?                // Array of file URLs
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  department       Department           @relation(fields: [departmentId], references: [id])
+  project          Project?             @relation(fields: [projectId], references: [id])
+  approvalSchema   ApprovalSchema?      @relation(fields: [approvalSchemaId], references: [id])
+  allocations      BudgetPlanAllocation[]
+  budgetRequests   BudgetRequest[]
+
+  @@index([departmentId])
+  @@index([status])
+  @@map("budget_plans")
+}
+
+model BudgetPlanAllocation {
+  id          String     @id @default(cuid())
+  budgetPlanId String
+  month       Int        // 1-12
+  allocation  Decimal    @db.Decimal(18, 2)
+  budgetPlan  BudgetPlan @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetPlanId, month])
+  @@index([budgetPlanId])
+  @@map("budget_plan_allocations")
+}
+
+model BudgetRequest {
+  id               String                 @id @default(cuid())
+  code             String                 @unique
+  budgetPlanId     String
+  subject          String
+  description      String?                @db.Text
+  fiscalYear       Int
+  departmentId     String
+  requestorId      String?
+  requestDate      DateTime
+  status           String                 @default("Draft") // Draft | Pending | Approved
+  approvalSchemaId String?
+  notes            String?                @db.Text
+  supportingDocs   Json?
+  category         String?
+  coa              String?
+  type             String?                // OPEX etc
+  opexAllocation   String?
+  opexType         String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  budgetPlan       BudgetPlan             @relation(fields: [budgetPlanId], references: [id])
+  department       Department             @relation(fields: [departmentId], references: [id])
+  approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
+  lineItems        BudgetRequestLineItem[]
+
+  @@index([budgetPlanId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("budget_requests")
+}
+
+model BudgetRequestLineItem {
+  id             String        @id @default(cuid())
+  budgetRequestId String
+  item           String
+  qty            Int
+  unitPrice      Decimal       @db.Decimal(18, 2)
+  subtotal       Decimal       @db.Decimal(18, 2)
+  deduction      Decimal       @default(0) @db.Decimal(18, 2)
+  total          Decimal       @db.Decimal(18, 2)
+  months         Json?         // Array of month numbers
+  budgetRequest  BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+
+  @@index([budgetRequestId])
+  @@map("budget_request_line_items")
+}
+
+model ActivityHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  entityType String
+  entityId   String
+  entityCode String?
+  action     String
+  details    Json
+  timestamp  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("activity_histories")
+}
