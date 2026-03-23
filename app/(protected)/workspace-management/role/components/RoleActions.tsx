@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { MoreVertical, Edit, Trash } from 'lucide-react';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 import { useRouter } from 'next/navigation';
+import Card from '@/components/ui/Card';
 
 interface RoleActionsProps {
   roleId: string;
@@ -30,11 +31,11 @@ export default function RoleActions({ roleId, onDelete }: RoleActionsProps) {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setShow(!show)} className="p-1 hover:text-blue-600 rounded">
-        <MoreVertical className="w-4 h-4" />
+      <button onClick={() => setShow(!show)} className="p-1 rounded cursor-pointer">
+        <MoreVertical className="w-4 h-4 hover:text-blue-600" />
       </button>
       {show && (
-        <div className="absolute right-0 top-8 bg-white shadow-lg rounded-lg py-2 min-w-[100px] z-10 border">
+        <Card className="absolute right-8 top-0 !p-2">
           <button
             onClick={() => { router.push(`/workspace-management/role/${roleId}/edit`); setShow(false); }}
             className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
@@ -49,7 +50,7 @@ export default function RoleActions({ roleId, onDelete }: RoleActionsProps) {
             <Trash className="w-4 h-4" />
             Delete
           </button>
-        </div>
+        </Card>
       )}
     </div>
   );

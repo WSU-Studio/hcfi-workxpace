@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MoreVertical, Edit, Trash, Eye } from 'lucide-react';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 import { useRouter } from 'next/navigation';
+import Card from '@/components/ui/Card';
 
 interface DepartmentActionsProps {
   departmentId: string;
@@ -44,30 +45,30 @@ export default function DepartmentActions({ departmentId, onDelete }: Department
       </Link>
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="p-1 hover:text-blue-600 rounded"
+        className="p-1 rounded cursor-pointer"
       >
-        <MoreVertical className="w-4 h-4" />
+        <MoreVertical className="w-4 h-4 hover:text-blue-600" />
       </button>
       {showDropdown && (
-        <div className="absolute right-0 top-8 bg-white shadow-lg rounded-lg py-2 min-w-[120px] z-10 border">
+        <Card className="absolute right-8 top-0 !p-2">
           <button
             onClick={() => {
               router.push(`/workspace-management/department/${departmentId}/edit`);
               setShowDropdown(false);
             }}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
           >
             <Edit className="w-4 h-4" />
             Edit
           </button>
           <button
             onClick={handleDelete}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 flex items-center gap-2 cursor-pointer"
           >
             <Trash className="w-4 h-4" />
             Delete
           </button>
-        </div>
+        </Card>
       )}
     </div>
   );

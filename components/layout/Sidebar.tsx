@@ -107,7 +107,7 @@ const Sidebar = () => {
           href="/login"
           className={cn(
             'min-h-11 flex items-center w-full transition-colors py-3 rounded-lg text-gray-600 group',
-            isCollapsed ? 'h-11 justify-center' : ''
+            isCollapsed ? 'h-11' : ''
           )}
         >
           <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-all duration-300 shadow-sm">
