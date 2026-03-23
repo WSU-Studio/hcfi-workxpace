@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
+import SearchInput from '@/components/ui/SearchInput';
+import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 interface Plan {
   id: string;
@@ -72,16 +74,11 @@ export default function BudgetPlansPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Budget Plans</h1>
       <div className="flex justify-between gap-4">
-        <div className="relative w-80">
-          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="search"
-            placeholder="Search..."
-            className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-600"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-          />
-        </div>
+        <SearchInput 
+          placeholder="Search..."
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+        />
         <Link
           href="/budget-plans/new"
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -91,42 +88,39 @@ export default function BudgetPlansPage() {
         </Link>
       </div>
       <Card>
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px]">
+        <Table>
           <thead>
-            <tr className="border-b">
-              <th className="text-left py-3 px-4">#</th>
-              <th className="text-left py-3 px-4">ID</th>
-              <th className="text-left py-3 px-4">Subject</th>
-              <th className="text-left py-3 px-4">Status</th>
-              <th className="text-left py-3 px-4">Department</th>
-              <th className="text-left py-3 px-4">Total Budget</th>
-              <th className="text-left py-3 px-4">Month(s)</th>
-              <th className="w-16"></th>
-            </tr>
+            <TableHeaderRow>
+              <TableHead>#</TableHead>
+              <TableHead>ID</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Total Budget</TableHead>
+              <TableHead>Month(s)</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableHeaderRow>
           </thead>
           <tbody>
             {currentPlans.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-8 text-gray-500">
-                  No budget plans. <Link href="/budget-plans/new" className="text-blue-600 hover:underline">Create one</Link>
-                </td>
-              </tr>
+              <TableEmptyRow colSpan={8}>
+                No budget plans. <Link href="/budget-plans/new" className="text-blue-600 hover:underline">Create one</Link>
+              </TableEmptyRow>
             ) : (
               currentPlans.map((p, i) => (
-                <tr key={p.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4">{startIndex + i + 1}</td>
-                  <td className="py-3 px-4">{p.code}</td>
-                  <td className="py-3 px-4">{p.subject}</td>
-                  <td className="py-3 px-4">
+                <TableBodyRow key={p.id}>
+                  <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell>{p.code}</TableCell>
+                  <TableCell>{p.subject}</TableCell>
+                  <TableCell>
                     <span className={`px-2 py-0.5 rounded text-sm ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}>
                       {p.status}
                     </span>
-                  </td>
-                  <td className="py-3 px-4">{p.department?.name ?? '-'}</td>
-                  <td className="py-3 px-4">{formatCurrency(getTotal(p))}</td>
-                  <td className="py-3 px-4">{getMonthsLabel(p)}</td>
-                  <td className="py-3 px-4">
+                  </TableCell>
+                  <TableCell>{p.department?.name ?? '-'}</TableCell>
+                  <TableCell>{formatCurrency(getTotal(p))}</TableCell>
+                  <TableCell>{getMonthsLabel(p)}</TableCell>
+                  <TableCell>
                     <Link href={`/budget-plans/${p.id}`} className="text-blue-600 hover:underline">View</Link>
                     {p.status === 'Draft' && (
                       <>
@@ -136,13 +130,12 @@ export default function BudgetPlansPage() {
                         <Link href={`/budget-plans/${p.id}/review`} className="text-blue-600 hover:underline">Review</Link>
                       </>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableBodyRow>
               ))
             )}
           </tbody>
-        </table>
-        </div>
+        </Table>
       </Card>
       <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
     </div>
