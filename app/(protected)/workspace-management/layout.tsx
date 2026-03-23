@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { IconBuilding, IconIdBadge2, IconSchema, IconHistory } from '@tabler/icons-react';
+import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase } from '@tabler/icons-react';
 
 const subNavigation = [
   { name: 'Department', href: '/workspace-management/department', icon: IconBuilding },
+  { name: 'Project', href: '/workspace-management/project', icon: IconBriefcase },
   { name: 'Role', href: '/workspace-management/role', icon: IconIdBadge2 },
   { name: 'Approval Schema', href: '/workspace-management/approval-schema', icon: IconSchema },
   { name: 'Activity History', href: '/workspace-management/activity-history', icon: IconHistory },
