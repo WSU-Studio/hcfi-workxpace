@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { X } from 'lucide-react';
+import ButtonLink from '@/components/ui/ButtonLink';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import Textarea from '@/components/ui/Textarea';
+import Button from '@/components/ui/Button';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -49,11 +52,10 @@ export default function NewProjectPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block mb-1.5 font-medium">Code <span className="text-red-500">*</span></label>
-            <input
+            <Input
               type="text"
               value={formData.code}
               onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 ${errors.code ? 'border-red-500' : ''}`}
               placeholder="B1"
               required
             />
@@ -61,32 +63,30 @@ export default function NewProjectPage() {
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
-            <input
+            <Input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               placeholder="Non Project"
               required
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <textarea
+            <Textarea
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               rows={3}
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href="/workspace-management/project" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ButtonLink href="/workspace-management/project" variant="outline">
               <X className="w-4 h-4" />
               Cancel
-            </Link>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            </ButtonLink>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Submitting...' : 'Submit'}
-            </button>
+            </Button>
           </div>
         </form>
       </Card>
