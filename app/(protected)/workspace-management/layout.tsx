@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { IconBuilding, IconIdBadge2, IconSchema, IconHistory } from '@tabler/icons-react';
-import Card from '@/components/ui/Card';
 
 const subNavigation = [
   { name: 'Department', href: '/workspace-management/department', icon: IconBuilding },

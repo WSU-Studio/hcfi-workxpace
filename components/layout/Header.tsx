@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, LogOut, User } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useRef } from 'react';
 import { signOut, useSession } from 'next-auth/react';
@@ -10,6 +10,7 @@ import { cn, getInitials } from '@/lib/utils';
 import Avatar from '@/components/ui/Avatar';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 import { usePageTitleStore } from '@/store/usePageTitleStore';
+import Card from '../ui/Card';
 
 const Header = () => {
   const { isCollapsed } = useSidebarStore();
@@ -32,19 +33,19 @@ const Header = () => {
       <h1 className="text-xl font-semibold">{title}</h1>
 
       <div className="flex items-center gap-4">
-        <div className="relative">
+        {/* <div className="relative">
           <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="search"
             placeholder="Search..."
             className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        </div>
+        </div> */}
 
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-1 transition-colors"
+            className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-1 transition-colors cursor-pointer"
           >
             {userImage ? (
               <Image src={userImage} alt="Avatar" width={40} height={40} className="rounded-full bg-gray-200" />
@@ -67,7 +68,7 @@ const Header = () => {
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+            <Card className="absolute right-0 top-full mt-1 w-48 z-50 shadow-lg !p-2">
               <Link
                 href="/profile"
                 className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700"
@@ -86,7 +87,7 @@ const Header = () => {
                 <LogOut className="w-4 h-4" />
                 Logout
               </button>
-            </div>
+            </Card>
           )}
         </div>
       </div>
