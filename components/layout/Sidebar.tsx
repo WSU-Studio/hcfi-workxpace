@@ -7,7 +7,8 @@ import { useSidebarStore } from '@/store/useSidebarStore';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { IconBriefcaseFilled, IconCoins, IconId, IconLayoutDashboardFilled, IconSubtask, IconLogout } from '@tabler/icons-react';
-import Logo from '@/public/logo.svg';
+import Logo from '@/public/workxpace-logo.svg';
+import FullLogo from '@/public/workxpace-full-logo.svg';
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -50,10 +51,10 @@ const Sidebar = () => {
         isCollapsed ? 'w-16' : 'w-64'
       )}
     >
-      <div className="h-16 border-b flex items-center shrink-0">
-        <button onClick={toggleSidebar} className="w-full h-full flex items-center px-4">
-          <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
-            <Image src={Logo} alt="Workxpace Logo" width={40} height={40} />
+      <div className="h-16 flex items-center shrink-0">
+        <button onClick={toggleSidebar} className="w-full h-full flex items-center px-2 cursor-pointer">
+          <div className="w-full h-auto flex-shrink-0 flex items-center justify-center">
+            <Image src={isCollapsed ? Logo : FullLogo} alt="Workxpace Logo" width={180} height={40} />
           </div>
           <span
             className={cn(

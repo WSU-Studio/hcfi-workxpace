@@ -4,7 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import Image from 'next/image';
 import Card from '@/components/ui/Card';
-import Logo from '@/public/logo.svg';
+import Logo from '@/public/workxpace-logo.svg';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 
 export default function LoginPage() {
