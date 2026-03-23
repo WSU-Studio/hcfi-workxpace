@@ -12,6 +12,11 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: 'Workxpace - eBudgeting',
   description: 'eBudgeting System',
+  icons: {
+    icon: '/favicon.ico?v=2',
+    shortcut: '/favicon.ico?v=2',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
