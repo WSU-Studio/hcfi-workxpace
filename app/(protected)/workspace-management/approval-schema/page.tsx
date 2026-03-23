@@ -7,6 +7,8 @@ import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SchemaActions from './components/SchemaActions';
+import SearchInput from '@/components/ui/SearchInput';
+import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 interface Level {
   stepOrder: number;
@@ -61,16 +63,10 @@ export default function ApprovalSchemaPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Approval Scheme Management</h1>
       <div className="flex justify-between gap-4">
-        <div className="relative w-80">
-          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="search"
-            placeholder="Search..."
-            className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-600"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-          />
-        </div>
+        <SearchInput 
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+        />
         <Link
           href="/workspace-management/approval-schema/new"
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -80,38 +76,34 @@ export default function ApprovalSchemaPage() {
         </Link>
       </div>
       <Card>
-        <table className="w-full">
+        <Table>
           <thead>
-            <tr className="border-b">
-              <th className="text-left py-3 px-4">#</th>
-              <th className="text-left py-3 px-4">Name</th>
-              <th className="text-left py-3 px-4">Department</th>
-              <th className="text-left py-3 px-4">Status / Type</th>
-              <th className="w-16"></th>
-            </tr>
+            <TableHeaderRow>
+              <TableHead>#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Status / Type</TableHead>
+              <TableHead className="w-16"></TableHead>
+            </TableHeaderRow>
           </thead>
           <tbody>
             {currentSchemas.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-gray-500">
-                  No approval schemes
-                </td>
-              </tr>
+              <TableEmptyRow colSpan={6}>{searchKeyword.trim() ? 'No matches' : 'No approval schemas'}</TableEmptyRow>
             ) : (
               currentSchemas.map((s, i) => (
-                <tr key={s.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4">{startIndex + i + 1}</td>
-                  <td className="py-3 px-4">{s.name}</td>
-                  <td className="py-3 px-4">{s.department?.name ?? '-'}</td>
-                  <td className="py-3 px-4">{s.type} - Default</td>
-                  <td className="py-3 px-4">
+                <TableBodyRow key={s.id}>
+                  <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell>{s.name}</TableCell>
+                  <TableCell>{s.department?.name ?? '-'}</TableCell>
+                  <TableCell>{s.type} - Default</TableCell>
+                  <TableCell>
                     <SchemaActions schemaId={s.id} onDelete={fetchData} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableBodyRow>
               ))
             )}
           </tbody>
-        </table>
+        </Table>
       </Card>
       <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
     </div>

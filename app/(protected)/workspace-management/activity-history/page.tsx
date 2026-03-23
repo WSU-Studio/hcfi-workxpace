@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { formatDate } from '@/lib/utils';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 interface Activity {
   id: string;
@@ -32,44 +33,38 @@ export default function ActivityHistoryPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Activity History</h1>
       <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4">Date</th>
-                <th className="text-left py-3 px-4">User</th>
-                <th className="text-left py-3 px-4">Entity</th>
-                <th className="text-left py-3 px-4">Action</th>
-                <th className="text-left py-3 px-4">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activities.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-8 text-gray-500">
-                    No activity recorded yet.
-                  </td>
-                </tr>
-              ) : (
-                activities.map((a) => (
-                  <tr key={a.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 whitespace-nowrap">{formatDate(a.timestamp)}</td>
-                    <td className="py-3 px-4">{a.user?.name ?? '-'}</td>
-                    <td className="py-3 px-4">{a.entityType} {a.entityCode ? `(${a.entityCode})` : ''}</td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded text-sm bg-blue-100 text-blue-800 capitalize">
-                        {a.action}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      {JSON.stringify(a.details)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <thead>
+            <TableHeaderRow>
+              <TableHead>Date</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead>Entity</TableHead>
+              <TableHead>Action</TableHead>
+              <TableHead>Details</TableHead>
+            </TableHeaderRow>
+          </thead>
+          <tbody>
+            {activities.length === 0 ? (
+              <TableEmptyRow colSpan={5}>No activity recorded yet.</TableEmptyRow>
+            ) : (
+              activities.map((a) => (
+                <TableBodyRow key={a.id}>
+                  <TableCell>{formatDate(a.timestamp)}</TableCell>
+                  <TableCell>{a.user?.name ?? '-'}</TableCell>
+                  <TableCell>{a.entityType} {a.entityCode ? `(${a.entityCode})` : ''}</TableCell>
+                  <TableCell>
+                    <span className="px-2 py-0.5 rounded text-sm bg-blue-100 text-blue-800 capitalize">
+                      {a.action}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {JSON.stringify(a.details)}
+                  </TableCell>
+                </TableBodyRow>
+              ))
+            )}
+          </tbody>
+        </Table>
       </Card>
     </div>
   );

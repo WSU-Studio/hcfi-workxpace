@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
+import SearchInput from '@/components/ui/SearchInput';
+import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import RoleActions from './components/RoleActions';
 
 interface Role {
@@ -61,16 +63,7 @@ export default function RolePage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Role (Job Position)</h1>
       <div className="flex justify-between gap-4">
-        <div className="relative w-80">
-          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="search"
-            placeholder="Search..."
-            className="pl-10 pr-4 py-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:border-blue-500 transition-all duration-300"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-          />
-        </div>
+        <SearchInput value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
         <Link
           href="/workspace-management/role/new"
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -80,38 +73,34 @@ export default function RolePage() {
         </Link>
       </div>
       <Card>
-        <table className="w-full">
+        <Table>
           <thead>
-            <tr className="border-b border-gray-400">
-              <th className="text-left py-3 px-4">#</th>
-              <th className="text-left py-3 px-4">Code</th>
-              <th className="text-left py-3 px-4">Name</th>
-              <th className="text-left py-3 px-4">Description</th>
-              <th className="w-16"></th>
-            </tr>
+            <TableHeaderRow>
+              <TableHead>#</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="w-16" />
+            </TableHeaderRow>
           </thead>
           <tbody>
             {currentRoles.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-gray-500">
-                  No roles
-                </td>
-              </tr>
+              <TableEmptyRow colSpan={5}>No roles</TableEmptyRow>
             ) : (
               currentRoles.map((r, i) => (
-                <tr key={r.id} className="border-b border-gray-400 hover:bg-gray-50">
-                  <td className="py-3 px-4">{startIndex + i + 1}</td>
-                  <td className="py-3 px-4">{r.roleCode}</td>
-                  <td className="py-3 px-4">{r.roleName}</td>
-                  <td className="py-3 px-4">{r.description || '-'}</td>
-                  <td className="py-3 px-4">
+                <TableBodyRow key={r.id}>
+                  <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell>{r.roleCode}</TableCell>
+                  <TableCell>{r.roleName}</TableCell>
+                  <TableCell>{r.description || '-'}</TableCell>
+                  <TableCell>
                     <RoleActions roleId={r.id} onDelete={refetch} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableBodyRow>
               ))
             )}
           </tbody>
-        </table>
+        </Table>
       </Card>
       <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
     </div>
