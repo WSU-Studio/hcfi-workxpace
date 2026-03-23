@@ -47,7 +47,7 @@ const Sidebar = () => {
   return (
     <aside
       className={cn(
-        'relative left-0 top-0 h-screen bg-white border-r overflow-hidden transition-all duration-300 flex flex-col',
+        'relative left-0 top-0 h-screen bg-white border-r border-gray-200 overflow-hidden transition-all duration-300 flex flex-col',
         isCollapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -67,7 +67,7 @@ const Sidebar = () => {
         </button>
       </div>
 
-      <nav className="py-4 flex-1">
+      <nav className="py-4 flex-1 space-y-1">
         {navigation.map((item) => {
           const isActive =
             pathname === item.href || (pathname.startsWith(item.href) && pathname.charAt(item.href.length) === '/');
@@ -76,17 +76,22 @@ const Sidebar = () => {
               key={item.name}
               href={item.href}
               className={cn(
-                'min-h-11 flex items-center w-full transition-colors px-4 py-3',
-                isCollapsed ? 'h-11 justify-center' : 'h-auto',
-                isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+                'min-h-12 flex items-center w-full transition-colors px-4 group',
+                isCollapsed ? 'h-12' : 'h-auto',
+                isActive ? 'text-blue-600' : 'text-gray-700'
               )}
             >
-              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                <item.icon className={cn('w-5 h-5', isActive && 'text-blue-600')} />
+              <div className={
+                cn(
+                  'w-8 h-8 flex items-center justify-center flex-shrink-0 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-all duration-300 shadow-sm',
+                  isActive ? 'bg-blue-50' : 'bg-gray-100'
+                )
+              }>
+                <item.icon className={cn('w-5 h-5 group-hover:text-blue-600 transition-all duration-300', isActive && 'text-blue-600')} />
               </div>
               <span
                 className={cn(
-                  'ml-3 transition-all duration-300 leading-tight',
+                  'ml-3 transition-all duration-300 leading-tight group-hover:text-blue-600',
                   isCollapsed ? 'opacity-0 -translate-x-10 overflow-hidden w-0' : 'opacity-100'
                 )}
               >
@@ -97,16 +102,18 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="border-t p-2">
+      <div className="px-3 py-2">
         <Link
           href="/login"
           className={cn(
-            'min-h-11 flex items-center w-full transition-colors px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100',
+            'min-h-11 flex items-center w-full transition-colors py-3 rounded-lg text-gray-600 group',
             isCollapsed ? 'h-11 justify-center' : ''
           )}
         >
-          <IconLogout className="w-5 h-5 flex-shrink-0" />
-          <span className={cn('ml-3', isCollapsed && 'hidden')}>Logout</span>
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-all duration-300 shadow-sm">
+            <IconLogout className="w-5 h-5 flex-shrink-0 group-hover:text-blue-600 transition-all duration-300" />
+          </div>
+          <span className={cn('ml-3 transition-all duration-300 leading-tight group-hover:text-blue-600', isCollapsed && 'hidden')}>Logout</span>
         </Link>
       </div>
     </aside>
