@@ -31,3 +31,36 @@ export const defaultActivityAccess: ActivityAccess = {
   editUser: false,
   deleteUser: false,
 };
+
+/** Full access for admin role - used when user has ADMIN roleCode */
+export const fullMenuAccess: MenuAccess = {
+  dashboard: true,
+  budgetPlans: true,
+  budgetRequests: true,
+  userManagement: true,
+  workspaceManagement: true,
+};
+
+export const fullActivityAccess: ActivityAccess = {
+  createBudgetPlan: true,
+  editBudgetPlan: true,
+  deleteBudgetPlan: true,
+  createBudgetRequest: true,
+  editBudgetRequest: true,
+  deleteBudgetRequest: true,
+  createDepartment: true,
+  editDepartment: true,
+  deleteDepartment: true,
+  createProject: true,
+  editProject: true,
+  deleteProject: true,
+  createRole: true,
+  editRole: true,
+  deleteRole: true,
+  createApprovalSchema: true,
+  editApprovalSchema: true,
+  deleteApprovalSchema: true,
+  createUser: true,
+  editUser: true,
+  deleteUser: true,
+};

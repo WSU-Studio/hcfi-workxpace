@@ -1,36 +1,11 @@
 import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
+import type { Prisma } from '@prisma/client';
+import { fullMenuAccess, fullActivityAccess } from '../lib/default-access';
 
-const fullMenuAccess = {
-  dashboard: true,
-  budgetPlans: true,
-  budgetRequests: true,
-  userManagement: true,
-  workspaceManagement: true,
-};
-
-const fullActivityAccess = {
-  createBudgetPlan: true,
-  editBudgetPlan: true,
-  deleteBudgetPlan: true,
-  createBudgetRequest: true,
-  editBudgetRequest: true,
-  deleteBudgetRequest: true,
-  createDepartment: true,
-  editDepartment: true,
-  deleteDepartment: true,
-  createProject: true,
-  editProject: true,
-  deleteProject: true,
-  createRole: true,
-  editRole: true,
-  deleteRole: true,
-  createApprovalSchema: true,
-  editApprovalSchema: true,
-  deleteApprovalSchema: true,
-  createUser: true,
-  editUser: true,
-  deleteUser: true,
+const fullAccess = {
+  menuAccess: fullMenuAccess as unknown as Prisma.InputJsonValue,
+  activityAccess: fullActivityAccess as unknown as Prisma.InputJsonValue,
 };
 
 async function main() {
@@ -69,12 +44,8 @@ async function main() {
 
   await prisma.userAccess.upsert({
     where: { userId: adminUser.id },
-    update: { menuAccess: fullMenuAccess, activityAccess: fullActivityAccess },
-    create: {
-      userId: adminUser.id,
-      menuAccess: fullMenuAccess,
-      activityAccess: fullActivityAccess,
-    },
+    update: fullAccess,
+    create: { userId: adminUser.id, ...fullAccess },
   });
 
   await prisma.fiscalYear.upsert({

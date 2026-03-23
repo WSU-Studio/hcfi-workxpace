@@ -3,7 +3,7 @@ import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { MenuAccess, ActivityAccess } from '@/types/access-control';
-import { defaultMenuAccess, defaultActivityAccess } from '@/lib/default-access';
+import { defaultMenuAccess, defaultActivityAccess, fullMenuAccess, fullActivityAccess } from '@/lib/default-access';
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -33,13 +33,20 @@ export const authOptions: AuthOptions = {
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) throw new Error('Invalid password');
 
-        const menuAccess = (typeof user.access?.menuAccess === 'string'
-          ? JSON.parse(user.access.menuAccess as string) as MenuAccess
-          : (user.access?.menuAccess as unknown as MenuAccess)) ?? defaultMenuAccess;
+        const roleCode = user.userRoles[0].role.roleCode;
+        const isAdmin = roleCode === 'ADMIN';
 
-        const activityAccess = (typeof user.access?.activityAccess === 'string'
-          ? JSON.parse(user.access.activityAccess as string) as ActivityAccess
-          : (user.access?.activityAccess as unknown as ActivityAccess)) ?? defaultActivityAccess;
+        const menuAccess = isAdmin
+          ? fullMenuAccess
+          : ((typeof user.access?.menuAccess === 'string'
+              ? JSON.parse(user.access.menuAccess as string) as MenuAccess
+              : (user.access?.menuAccess as unknown as MenuAccess)) ?? defaultMenuAccess);
+
+        const activityAccess = isAdmin
+          ? fullActivityAccess
+          : ((typeof user.access?.activityAccess === 'string'
+              ? JSON.parse(user.access.activityAccess as string) as ActivityAccess
+              : (user.access?.activityAccess as unknown as ActivityAccess)) ?? defaultActivityAccess);
 
         return {
           id: user.id,
