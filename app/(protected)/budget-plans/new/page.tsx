@@ -6,6 +6,9 @@ import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Textarea from '@/components/ui/Textarea';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -91,104 +94,99 @@ export default function NewBudgetPlanPage() {
   if (isLoading) return <LoadingSpin />;
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Create Budget Plan</h1>
       {error && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block mb-1.5 font-medium">Fiscal Year *</label>
-              <select
+              <Select
                 value={formData.fiscalYear}
                 onChange={(e) => setFormData((p) => ({ ...p, fiscalYear: Number(e.target.value) }))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
                 required
               >
                 {fiscalYears.map((fy) => (
                   <option key={fy.year} value={fy.year}>{fy.year}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Origin Office</label>
-              <input
+              <Input
                 type="text"
                 value={formData.originOffice}
                 onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-lg"
+                placeholder="HQ"
+                required
               />
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Department *</label>
-              <select
+              <Select
                 value={formData.departmentId}
                 onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
                 required
               >
                 <option value="">-</option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Project</label>
-              <select
+              <Select
                 value={formData.projectId}
                 onChange={(e) => setFormData((p) => ({ ...p, projectId: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
               >
                 <option value="">-</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Subject *</label>
-            <input
+            <Input
               type="text"
+              required
               value={formData.subject}
               onChange={(e) => setFormData((p) => ({ ...p, subject: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
               placeholder="Monthly Printer Rental"
-              required
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <textarea
+            <Textarea
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
               rows={4}
             />
           </div>
 
           <div>
             <label className="block mb-1.5 font-medium">Approver Scheme</label>
-            <select
+            <Select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg bg-white"
             >
               <option value="">-</option>
               {schemasForDept.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
             <div className="flex gap-2 mb-3">
-              <input
+              <Input
                 type="number"
-                placeholder="Base amount"
-                className="px-3 py-2 border rounded-lg w-40"
+                className="w-30"
+                placeholder="9"
                 onBlur={(e) => {
                   const v = parseFloat(e.target.value);
                   if (!isNaN(v)) copyToAll(v);
