@@ -66,7 +66,7 @@ export default function RolePage() {
           <input
             type="search"
             placeholder="Search..."
-            className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-600"
+            className="pl-10 pr-4 py-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:border-blue-500 transition-all duration-300"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
           />
@@ -82,7 +82,7 @@ export default function RolePage() {
       <Card>
         <table className="w-full">
           <thead>
-            <tr className="border-b">
+            <tr className="border-b border-gray-400">
               <th className="text-left py-3 px-4">#</th>
               <th className="text-left py-3 px-4">Code</th>
               <th className="text-left py-3 px-4">Name</th>
@@ -99,7 +99,7 @@ export default function RolePage() {
               </tr>
             ) : (
               currentRoles.map((r, i) => (
-                <tr key={r.id} className="border-b hover:bg-gray-50">
+                <tr key={r.id} className="border-b border-gray-400 hover:bg-gray-50">
                   <td className="py-3 px-4">{startIndex + i + 1}</td>
                   <td className="py-3 px-4">{r.roleCode}</td>
                   <td className="py-3 px-4">{r.roleName}</td>

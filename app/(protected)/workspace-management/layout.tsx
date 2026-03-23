@@ -22,8 +22,8 @@ export default function WorkspaceManagementLayout({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 w-full">
-      <Card className="w-full lg:w-64 shrink-0 h-fit">
-        <nav className="space-y-1">
+      <div className="w-full lg:w-64 shrink-0 h-fit border-r border-gray-200 pr-4">
+        <nav className="space-y-2">
           {subNavigation.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
@@ -41,7 +41,7 @@ export default function WorkspaceManagementLayout({
             );
           })}
         </nav>
-      </Card>
+      </div>
       <div className="flex-1 w-full overflow-x-auto">{children}</div>
     </div>
   );

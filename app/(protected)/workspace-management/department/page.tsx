@@ -80,7 +80,7 @@ export default function DepartmentPage() {
           <input
             type="search"
             placeholder="Search..."
-            className="pl-10 pr-4 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="pl-10 pr-4 py-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:border-blue-500 transition-all duration-300"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
           />
@@ -99,7 +99,7 @@ export default function DepartmentPage() {
       <Card>
         <table className="w-full">
           <thead>
-            <tr className="border-b">
+            <tr className="border-b border-gray-400">
               <th className="text-left py-3 px-4">#</th>
               <th className="text-left py-3 px-4">Code</th>
               <th className="text-left py-3 px-4">Name</th>
@@ -117,7 +117,7 @@ export default function DepartmentPage() {
               </tr>
             ) : (
               currentDepartments.map((dept, i) => (
-                <tr key={dept.id} className="border-b hover:bg-gray-50">
+                <tr key={dept.id} className="border-b border-gray-400 hover:bg-gray-50">
                   <td className="py-3 px-4">{startIndex + i + 1}</td>
                   <td className="py-3 px-4">{dept.code}</td>
                   <td className="py-3 px-4">{dept.name}</td>
