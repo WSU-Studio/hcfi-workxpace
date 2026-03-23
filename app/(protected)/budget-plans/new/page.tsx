@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { X } from 'lucide-react';
+import ButtonLink from '@/components/ui/ButtonLink';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
+import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -32,7 +33,46 @@ export default function NewBudgetPlanPage() {
   const [allocations, setAllocations] = useState<Record<number, number>>(
     Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]))
   );
+  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  const [baseAmount, setBaseAmount] = useState<string>('');
   const [error, setError] = useState('');
+
+  const selectedMonthsSorted = [...selectedMonths].sort((a, b) => a - b);
+  const totalAlloc = selectedMonthsSorted.reduce((sum, m) => sum + (allocations[m] || 0), 0);
+
+  const toggleMonth = (month: number) => {
+    setSelectedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(month)) next.delete(month);
+      else next.add(month);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedMonths.size === 12) setSelectedMonths(new Set());
+    else setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  };
+
+  const copyToAll = () => {
+    const val = parseFloat(baseAmount.replace(/\./g, '')) || 0;
+    if (!val) return;
+    const next = { ...allocations };
+    selectedMonthsSorted.forEach((m) => (next[m] = val));
+    setAllocations(next);
+  };
+
+  const splitEvenly = () => {
+    if (selectedMonthsSorted.length === 0) return;
+    const total = parseFloat(baseAmount.replace(/\./g, '')) || totalAlloc;
+    if (!total) return;
+    const each = Math.round((total / selectedMonthsSorted.length) * 100) / 100;
+    const next = { ...allocations };
+    selectedMonthsSorted.forEach((m) => (next[m] = each));
+    setAllocations(next);
+  };
+
+  const formatDisplay = (n: number) => n.toLocaleString('id-ID');
 
   useEffect(() => {
     fetch('/api/budget-plans/options')
@@ -49,16 +89,6 @@ export default function NewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const copyToAll = (val: number) => {
-    setAllocations(Object.fromEntries([...Array(12)].map((_, i) => [i + 1, val])));
-  };
-
-  const splitEvenly = (total: number) => {
-    const each = Math.round((total / 12) * 100) / 100;
-    setAllocations(Object.fromEntries([...Array(12)].map((_, i) => [i + 1, each])));
-  };
-
-  const totalAlloc = Object.values(allocations).reduce((a, b) => a + b, 0);
   const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,6 +98,10 @@ export default function NewBudgetPlanPage() {
       setError('Fill required fields');
       return;
     }
+    if (selectedMonthsSorted.length === 0) {
+      setError('Select at least one month for allocation');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/budget-plans', {
@@ -75,7 +109,10 @@ export default function NewBudgetPlanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          allocations: Object.entries(allocations).map(([month, allocation]) => ({ month: Number(month), allocation })),
+          allocations: selectedMonthsSorted.map((month) => ({
+            month,
+            allocation: allocations[month] ?? 0,
+          })),
         }),
       });
       if (!res.ok) {
@@ -168,7 +205,7 @@ export default function NewBudgetPlanPage() {
           </div>
 
           <div>
-            <label className="block mb-1.5 font-medium">Approver Scheme</label>
+            <label className="block mb-1.5 font-medium">Approval Schema</label>
             <Select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
@@ -182,44 +219,102 @@ export default function NewBudgetPlanPage() {
 
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
-            <div className="flex gap-2 mb-3">
+
+            <div className="flex items-center gap-4 mb-3">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedMonths.size === 12}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium">select all</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {MONTH_NAMES.map((name, i) => {
+                  const month = i + 1;
+                  return (
+                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedMonths.has(month)}
+                        onChange={() => toggleMonth(month)}
+                        className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mb-4">
+              <label className="text-sm font-medium shrink-0">Base Amount</label>
               <Input
-                type="number"
-                className="w-30"
-                placeholder="9"
-                onBlur={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (!isNaN(v)) copyToAll(v);
-                }}
+                type="text"
+                value={baseAmount}
+                onChange={(e) => setBaseAmount(e.target.value)}
+                placeholder="18.000.000"
+                className="max-w-[200px]"
               />
-              <button type="button" onClick={() => copyToAll(parseFloat(String(Object.values(allocations)[0])) || 0)} className="px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-                Copy to all
+              <button type="button" onClick={copyToAll} className="px-3 py-2 text-sm border border-gray-400 rounded-lg hover:bg-gray-50">
+                copy to all
               </button>
-              <button type="button" onClick={() => splitEvenly(totalAlloc || 0)} className="px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-                Split evenly
+              <button type="button" onClick={splitEvenly} className="px-3 py-2 text-sm border border-gray-400 rounded-lg hover:bg-gray-50">
+                split evenly
               </button>
             </div>
-            <div className="grid grid-cols-6 gap-2">
-              {MONTH_NAMES.map((name, i) => (
-                <div key={name}>
-                  <label className="block text-xs text-gray-500 mb-1">{name}</label>
-                  <input
-                    type="number"
-                    value={allocations[i + 1] || 0}
-                    onChange={(e) => setAllocations((p) => ({ ...p, [i + 1]: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                  />
-                </div>
-              ))}
+
+            <div className="overflow-x-auto rounded-lg border border-gray-300">
+              <Table>
+                <thead>
+                  <TableHeaderRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Month</TableHead>
+                    <TableHead>Allocation</TableHead>
+                  </TableHeaderRow>
+                </thead>
+                <tbody>
+                  {selectedMonthsSorted.length === 0 ? (
+                    <TableEmptyRow colSpan={3}>Select at least one month</TableEmptyRow>
+                  ) : (
+                    selectedMonthsSorted.map((month, idx) => (
+                      <TableBodyRow key={month}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{MONTH_NAMES[month - 1]}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={allocations[month] ?? 0}
+                            onChange={(e) =>
+                              setAllocations((p) => ({ ...p, [month]: parseFloat(e.target.value) || 0 }))
+                            }
+                            className="max-w-[180px]"
+                          />
+                        </TableCell>
+                      </TableBodyRow>
+                    ))
+                  )}
+                </tbody>
+                {selectedMonthsSorted.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-400 bg-gray-50">
+                      <td className="px-4 py-3 font-medium" colSpan={2}>
+                        Total
+                      </td>
+                      <td className="px-4 py-3 font-semibold">{formatDisplay(totalAlloc)}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </Table>
             </div>
-            <p className="mt-2 text-sm text-gray-600">Total: {totalAlloc.toLocaleString('id-ID')}</p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href="/budget-plans" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+            <ButtonLink href="/budget-plans" variant="outline">
               <X className="w-4 h-4" />
               Cancel
-            </Link>
+            </ButtonLink>
             <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
               {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
