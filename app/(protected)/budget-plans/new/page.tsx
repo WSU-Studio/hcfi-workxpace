@@ -210,19 +210,6 @@ export default function NewBudgetPlanPage() {
           </div>
 
           <div>
-            <label className="block mb-1.5 font-medium">Approval Schema</label>
-            <Select
-              value={formData.approvalSchemaId}
-              onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
-            >
-              <option value="">-</option>
-              {schemasForDept.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
             <div className="flex items-center gap-4 mb-3">
@@ -313,6 +300,19 @@ export default function NewBudgetPlanPage() {
                 )}
               </Table>
             </div>
+          </div>
+
+          <div>
+            <label className="block mb-1.5 font-medium">Approval Schema</label>
+            <Select
+              value={formData.approvalSchemaId}
+              onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
+            >
+              <option value="">-</option>
+              {schemasForDept.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
