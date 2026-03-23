@@ -8,15 +8,18 @@ export const inputFieldClassName =
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ className, type = 'text', required = false, value, ...props }, ref) {
-  return <input 
-    ref={ref} 
-    type={type} 
-    className={cn(inputFieldClassName, className)} 
-    required={required} 
-    aria-required={required}
-    aria-invalid={required && !value && 'true'}
-    {...props} 
-  />;
+  return (
+    <input
+      ref={ref}
+      type={type}
+      className={cn(inputFieldClassName, className)}
+      required={required}
+      aria-required={required}
+      aria-invalid={required && !value ? 'true' : undefined}
+      {...props}
+      value={value}
+    />
+  );
 });
 
 export default Input;

@@ -54,9 +54,14 @@ export default function NewBudgetPlanPage() {
     else setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
   };
 
+  const parseBaseAmount = (s: string) => {
+    const cleaned = s.replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+  };
+
   const copyToAll = () => {
-    const val = parseFloat(baseAmount.replace(/\./g, '')) || 0;
-    if (!val) return;
+    if (selectedMonthsSorted.length === 0) return;
+    const val = parseBaseAmount(baseAmount);
     const next = { ...allocations };
     selectedMonthsSorted.forEach((m) => (next[m] = val));
     setAllocations(next);
@@ -64,7 +69,7 @@ export default function NewBudgetPlanPage() {
 
   const splitEvenly = () => {
     if (selectedMonthsSorted.length === 0) return;
-    const total = parseFloat(baseAmount.replace(/\./g, '')) || totalAlloc;
+    const total = parseBaseAmount(baseAmount) || totalAlloc;
     if (!total) return;
     const each = Math.round((total / selectedMonthsSorted.length) * 100) / 100;
     const next = { ...allocations };
