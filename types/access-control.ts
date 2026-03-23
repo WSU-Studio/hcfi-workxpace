@@ -16,6 +16,9 @@ export interface ActivityAccess {
   createDepartment: boolean;
   editDepartment: boolean;
   deleteDepartment: boolean;
+  createProject: boolean;
+  editProject: boolean;
+  deleteProject: boolean;
   createRole: boolean;
   editRole: boolean;
   deleteRole: boolean;

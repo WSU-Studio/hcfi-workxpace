@@ -31,6 +31,14 @@ export default withAuth(
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
       }
+      if (req.nextUrl.pathname.includes('/project')) {
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editProject) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createProject) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
       if (req.nextUrl.pathname.includes('/role')) {
         if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editRole) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
