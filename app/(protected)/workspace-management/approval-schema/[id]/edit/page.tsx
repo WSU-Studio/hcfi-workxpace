@@ -165,9 +165,9 @@ export default function EditApprovalSchemaPage() {
                 Add Level
               </button>
             </div>
-            <div className="space-y-3">
+            <div>
               {levels.map((l, i) => (
-                <div key={i} className="flex gap-3 items-center p-3 border rounded-lg">
+                <div key={i} className="flex gap-3 items-center py-3 border-t border-gray-200">
                   <span className="text-sm text-gray-500 w-16">Level {i + 1}</span>
                   <Select
                     name="levelType"
