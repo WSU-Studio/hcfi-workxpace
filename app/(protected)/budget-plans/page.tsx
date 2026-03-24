@@ -122,10 +122,14 @@ export default function BudgetPlansPage() {
                   <TableCell>{getMonthsLabel(p)}</TableCell>
                   <TableCell>
                     <Link href={`/budget-plans/${p.id}`} className="text-blue-600 hover:underline">View</Link>
-                    {p.status === 'Draft' && (
+                    {(p.status === 'Draft' || p.status === 'Reviewed') && (
                       <>
-                        {' | '}
-                        <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                        {p.status === 'Draft' && (
+                          <>
+                            {' | '}
+                            <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                          </>
+                        )}
                         {' | '}
                         <Link href={`/budget-plans/${p.id}/review`} className="text-blue-600 hover:underline">Review</Link>
                       </>

@@ -77,9 +77,11 @@ export default function BudgetPlanDetailPage() {
             </tbody>
           </table>
         </div>
-        {plan.status === 'Draft' && (
+        {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
           <div className="flex gap-3 pt-4">
-            <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Edit</Link>
+            {plan.status === 'Draft' && (
+              <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Edit</Link>
+            )}
             <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Review</Link>
           </div>
         )}

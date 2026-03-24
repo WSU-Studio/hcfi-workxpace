@@ -74,6 +74,12 @@ export async function POST(request: Request) {
         status: 'Draft',
         approvalSchemaId: body.approvalSchemaId || null,
         supportingDocs: body.supportingDocs || null,
+        coaId: body.coaId || null,
+        categoryId: body.categoryId || null,
+        costCenterId: body.costCenterId || null,
+        opexId: null,
+        opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
+        opexType: body.opexType || null,
       },
     });
 

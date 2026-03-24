@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Select from '@/components/ui/Select';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -24,8 +25,28 @@ export default function ReviewBudgetPlanPage() {
     department: { name: string };
     project: { name: string } | null;
     allocations: { month: number; allocation: unknown }[];
+    coaId?: string | null;
+    categoryId?: string | null;
+    costCenterId?: string | null;
+    opexId?: string | null;
+    opexAllocationId?: string | null;
+    opexType?: string | null;
+    category?: { id: string; name: string } | null;
+    costCenter?: { id: string; name: string } | null;
     approvalSchema?: { approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } }[] };
   } | null>(null);
+  const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string; description: string }[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
+  const [costCenterOptions, setCostCenterOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
+  const [opexAllocationOptions, setOpexAllocationOptions] = useState<{ id: string; name: string }[]>([]);
+  const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null }>({ canReview: false, nextStepOrder: null });
+  const [classification, setClassification] = useState({
+    coaId: '',
+    categoryId: '',
+    costCenterId: '',
+    opexAllocationId: '',
+    opexType: 'OPEX',
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,18 +54,44 @@ export default function ReviewBudgetPlanPage() {
     if (!id) return;
     fetch(`/api/budget-plans/${id}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setPlan(data?.plan))
+      .then((data) => {
+        const p = data?.plan;
+        setPlan(p);
+        setAccountOptions(data?.accountOptions || []);
+        setCategoryOptions(data?.categoryOptions || []);
+        setCostCenterOptions(data?.costCenterOptions || []);
+        setOpexAllocationOptions(data?.opexAllocationOptions || []);
+        setReviewMeta(data?.reviewMeta || { canReview: false, nextStepOrder: null });
+        if (p) {
+          setClassification({
+            coaId: p.coaId || '',
+            categoryId: p.categoryId || '',
+            costCenterId: p.costCenterId || '',
+            opexAllocationId: p.opexAllocationId || '',
+            opexType: p.opexType || 'OPEX',
+          });
+        }
+      })
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  const handleApprove = async () => {
-    if (!confirm('Approve this budget plan?')) return;
+  const handleAction = async () => {
+    const targetStatus = plan?.status === 'Draft' ? 'Reviewed' : 'Approved';
+    if (!confirm(`${targetStatus === 'Reviewed' ? 'Review' : 'Approve'} this budget plan?`)) return;
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/budget-plans/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Approved' }),
+        body: JSON.stringify({
+          status: targetStatus,
+          coaId: classification.coaId || null,
+          categoryId: classification.categoryId || null,
+          costCenterId: classification.costCenterId || null,
+          opexId: null,
+          opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
+          opexType: classification.opexType || null,
+        }),
       });
       if (res.ok) router.push(`/budget-plans/${id}`);
     } finally {
@@ -56,6 +103,7 @@ export default function ReviewBudgetPlanPage() {
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -105,6 +153,86 @@ export default function ReviewBudgetPlanPage() {
           </table>
         </div>
 
+        <div className="space-y-3">
+          <h3 className="font-medium">Classification</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Cost Center</label>
+              <Select
+                value={classification.costCenterId}
+                onChange={(e) => setClassification((p) => ({ ...p, costCenterId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {costCenterOptions.map((costCenter) => (
+                  <option key={costCenter.id} value={costCenter.id}>
+                    {costCenter.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
+              <Select
+                value={classification.coaId}
+                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {accountOptions.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.accountCode} - {account.accountName}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Kategori</label>
+              <Select
+                value={classification.categoryId}
+                onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {categoryOptions.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Type</label>
+              <Select
+                value={classification.opexType}
+                onChange={(e) =>
+                  setClassification((p) => ({
+                    ...p,
+                    opexType: e.target.value,
+                    opexAllocationId: e.target.value === 'OPEX' ? p.opexAllocationId : '',
+                  }))
+                }
+              >
+                <option value="OPEX">OPEX</option>
+                <option value="CAPEX">CAPEX</option>
+              </Select>
+            </div>
+            {classification.opexType === 'OPEX' ? (
+              <div>
+                <label className="block mb-1.5 text-sm font-medium">Opex Allocation</label>
+                <Select
+                  value={classification.opexAllocationId}
+                  onChange={(e) => setClassification((p) => ({ ...p, opexAllocationId: e.target.value }))}
+                >
+                  <option value="">-</option>
+                  {opexAllocationOptions.map((allocation) => (
+                    <option key={allocation.id} value={allocation.id}>
+                      {allocation.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
         {plan.approvalSchema?.approvalLevels?.length ? (
           <div>
             <h3 className="font-medium mb-2">Approval Escalation</h3>
@@ -129,16 +257,21 @@ export default function ReviewBudgetPlanPage() {
           </div>
         ) : null}
 
-        {plan.status === 'Draft' && (
+        {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Link href={`/budget-plans/${id}`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</Link>
             <button
               type="button"
-              onClick={handleApprove}
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              onClick={handleAction}
+              disabled={isSubmitting || !canTakeAction}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
             >
-              {isSubmitting ? 'Processing...' : 'Approve'}
+              {isSubmitting
+                ? 'Processing...'
+                : plan.status === 'Draft'
+                  ? `Review (Step ${reviewMeta.nextStepOrder ?? '-'})`
+                  : `Approve (Step ${reviewMeta.nextStepOrder ?? '-'})`}
             </button>
           </div>
         )}
