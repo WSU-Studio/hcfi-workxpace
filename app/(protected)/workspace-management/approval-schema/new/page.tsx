@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import ButtonLink from '@/components/ui/ButtonLink';
+import Button from '@/components/ui/Button';
 
 interface Department {
   id: string;
@@ -35,7 +38,7 @@ export default function NewApprovalSchemaPage() {
     departmentId: '',
   });
   const [levels, setLevels] = useState<Level[]>([{ levelType: 'Reviewer', roleId: '' }]);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{ name?: string; type?: string; period?: string; departmentId?: string; levels?: string; general?: string }>({});
 
   useEffect(() => {
     fetch('/api/workspace-management/approval-schema')
@@ -54,13 +57,13 @@ export default function NewApprovalSchemaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
     if (!formData.departmentId) {
-      setError('Select department');
+      setErrors((p) => ({ ...p, departmentId: 'Select department' }));
       return;
     }
     if (levels.some((l) => !l.roleId)) {
-      setError('Select job position for each level');
+      setErrors((p) => ({ ...p, levels: 'Select job position for each level' }));
       return;
     }
     setIsSubmitting(true);
@@ -72,12 +75,12 @@ export default function NewApprovalSchemaPage() {
       });
       if (!res.ok) {
         const d = await res.json();
-        setError(d.error ?? 'Failed');
+        setErrors((p) => ({ ...p, general: d.error ?? 'Failed' }));
         return;
       }
       router.push('/workspace-management/approval-schema');
     } catch {
-      setError('Failed');
+      setErrors((p) => ({ ...p, general: 'Failed' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -85,60 +88,62 @@ export default function NewApprovalSchemaPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">New Approval Scheme</h1>
-      {error && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>}
+      <h1 className="text-2xl font-semibold">New Approval Schema</h1>
+      {errors.general && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+            <Input
+              name="name"
               value={formData.name}
               onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-              placeholder="Primary Scheme for Budget Plan"
+              placeholder="Primary Schema for Budget Plan"
               required
             />
+            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Type <span className="text-red-500">*</span></label>
-            <select
+            <Select
+              name="type"
               value={formData.type}
               onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"
             >
               <option value="BudgetPlan">Budget Plan</option>
               <option value="BudgetRequest">Budget Request</option>
-            </select>
+            </Select>
+            {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Period</label>
-            <select
+            <Select
+              name="period"
               value={formData.period}
               onChange={(e) => setFormData((p) => ({ ...p, period: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"
             >
               <option value="Unlimited">Unlimited</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Department <span className="text-red-500">*</span></label>
-            <select
+            <Select
+              name="departmentId"
               value={formData.departmentId}
               onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"
               required
             >
               <option value="">-</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
-            </select>
+            </Select>
+            {errors.period && <p className="mt-1 text-sm text-red-600">{errors.period}</p>}
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="font-medium">Scheme</label>
+              <label className="font-medium">Schema</label>
               <button type="button" onClick={addLevel} className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 <Plus className="w-4 h-4" />
                 Add Level
@@ -146,27 +151,27 @@ export default function NewApprovalSchemaPage() {
             </div>
             <div className="space-y-3">
               {levels.map((l, i) => (
-                <div key={i} className="flex gap-3 items-center p-3 border rounded-lg">
+                <div key={i} className="flex gap-3 items-center py-3 border-t border-gray-200">
                   <span className="text-sm text-gray-500 w-16">Level {i + 1}</span>
-                  <select
+                  <Select
+                    name="levelType"
                     value={l.levelType}
                     onChange={(e) => updateLevel(i, 'levelType', e.target.value)}
-                    className="flex-1 px-3 py-2 border rounded-lg bg-white"
                   >
                     <option value="Reviewer">Reviewer</option>
                     <option value="Approver">Approver</option>
-                  </select>
-                  <select
+                  </Select>
+                  <Select
+                    name="roleId"
                     value={l.roleId}
                     onChange={(e) => updateLevel(i, 'roleId', e.target.value)}
-                    className="flex-1 px-3 py-2 border rounded-lg bg-white"
                     required
                   >
-                    <option value="">Job Position</option>
+                    <option value="">-</option>
                     {roles.map((r) => (
                       <option key={r.id} value={r.id}>{r.roleName}</option>
                     ))}
-                  </select>
+                  </Select>
                   <button type="button" onClick={() => removeLevel(i)} className="p-1 text-red-600 hover:bg-red-50 rounded">
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -175,14 +180,14 @@ export default function NewApprovalSchemaPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href="/workspace-management/approval-schema" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ButtonLink href="/workspace-management/approval-schema" variant="outline">
               <X className="w-4 h-4" />
               Cancel
-            </Link>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            </ButtonLink>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Submitting...' : 'Submit'}
-            </button>
+            </Button>
           </div>
         </form>
       </Card>

@@ -1,20 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import Textarea from '@/components/ui/Textarea';
+import ButtonLink from '@/components/ui/ButtonLink';
+import Button from '@/components/ui/Button';
 
 export default function NewRolePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ roleCode: '', roleName: '', description: '' });
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{ roleCode?: string; roleName?: string; description?: string; general?: string }>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/workspace-management/role', {
@@ -24,12 +27,12 @@ export default function NewRolePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Failed');
+        setErrors((p) => ({ ...p, general: data.error ?? 'Failed' }));
         return;
       }
       router.push('/workspace-management/role');
     } catch {
-      setError('Failed');
+      setErrors((p) => ({ ...p, general: 'Failed' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -38,48 +41,49 @@ export default function NewRolePage() {
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-semibold mb-6">New Role (Job Position)</h1>
-      {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>}
+      {errors.general && <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block mb-1.5 font-medium">Code <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+            <Input
+              name="roleCode"
               value={formData.roleCode}
               onChange={(e) => setFormData((p) => ({ ...p, roleCode: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               placeholder="FM"
               required
             />
+            {errors.roleCode && <p className="mt-1 text-sm text-red-600">{errors.roleCode}</p>}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+            <Input
+              name="roleName"
               value={formData.roleName}
               onChange={(e) => setFormData((p) => ({ ...p, roleName: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               placeholder="Finance Manager"
               required
             />
+            {errors.roleName && <p className="mt-1 text-sm text-red-600">{errors.roleName}</p>}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <textarea
+            <Textarea
+              name="description"
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               rows={2}
             />
+            {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href="/workspace-management/role" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ButtonLink href="/workspace-management/role" variant="outline">
               <X className="w-4 h-4" />
               Cancel
-            </Link>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            </ButtonLink>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Submitting...' : 'Submit'}
-            </button>
+            </Button>
           </div>
         </form>
       </Card>

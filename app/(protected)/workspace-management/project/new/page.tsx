@@ -17,7 +17,7 @@ export default function NewProjectPage() {
     name: '',
     description: '',
   });
-  const [errors, setErrors] = useState<{ code?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ code?: string; name?: string; description?: string; general?: string }>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +53,7 @@ export default function NewProjectPage() {
           <div>
             <label className="block mb-1.5 font-medium">Code <span className="text-red-500">*</span></label>
             <Input
-              type="text"
+              name="code"
               value={formData.code}
               onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
               placeholder="B1"
@@ -64,20 +64,23 @@ export default function NewProjectPage() {
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
             <Input
-              type="text"
+              name="name"
               value={formData.name}
               onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
               placeholder="Non Project"
               required
             />
+            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
             <Textarea
+              name="description"
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
               rows={3}
             />
+            {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <ButtonLink href="/workspace-management/project" variant="outline">

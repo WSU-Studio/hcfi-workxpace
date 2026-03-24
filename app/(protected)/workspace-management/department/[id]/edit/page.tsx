@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { X } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
-
+import Input from '@/components/ui/Input';
+import Textarea from '@/components/ui/Textarea';
+import Select from '@/components/ui/Select';
+import ButtonLink from '@/components/ui/ButtonLink';
+import Button from '@/components/ui/Button';
 interface User {
   id: string;
   name: string;
@@ -25,7 +28,7 @@ export default function EditDepartmentPage() {
     description: '',
     headId: '',
   });
-  const [errors, setErrors] = useState<{ code?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ code?: string; name?: string; description?: string; headId?: string; general?: string }>({});
 
   useEffect(() => {
     if (!id) return;
@@ -58,12 +61,12 @@ export default function EditDepartmentPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErrors(data.error?.includes('code') ? { code: data.error } : { general: data.error });
+        setErrors((p) => ({ ...p, code: data.error?.includes('code') ? data.error : undefined, name: data.error?.includes('name') ? data.error : undefined, description: data.error?.includes('description') ? data.error : undefined, headId: data.error?.includes('headId') ? data.error : undefined, general: data.error }));
         return;
       }
       router.push('/workspace-management/department');
     } catch {
-      setErrors({ general: 'Failed to update' });
+      setErrors((p) => ({ ...p, general: 'Failed' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -81,55 +84,53 @@ export default function EditDepartmentPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block mb-1.5 font-medium">Code <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+            <Input
+              name="code"
               value={formData.code}
               onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 ${errors.code ? 'border-red-500' : ''}`}
               required
             />
             {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+            <Input
+              name="name"
               value={formData.name}
               onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               required
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <textarea
+            <Textarea
+              name="description"
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
               rows={3}
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Department Head</label>
-            <select
+            <Select
+              name="headId"
               value={formData.headId}
               onChange={(e) => setFormData((p) => ({ ...p, headId: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"
             >
               <option value="">-</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href="/workspace-management/department" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ButtonLink href="/workspace-management/department" variant="outline">
               <X className="w-4 h-4" />
               Cancel
-            </Link>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {isSubmitting ? 'Saving...' : 'Save'}
-            </button>
+            </ButtonLink>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Submit'}
+            </Button>
           </div>
         </form>
       </Card>
