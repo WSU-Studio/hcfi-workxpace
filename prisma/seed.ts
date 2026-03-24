@@ -25,7 +25,13 @@ async function main() {
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@workxpace.com' },
-    update: {},
+    update: {
+      name: 'Admin User',
+      password: hashedPassword,
+      roleId: adminRole.id,
+      departmentId: dept.id,
+      isActive: true,
+    },
     create: {
       name: 'Admin User',
       email: 'admin@workxpace.com',
@@ -100,6 +106,101 @@ async function main() {
     create: { roleCode: 'CEO', roleName: 'CEO', description: 'Chief Executive Officer' },
   });
 
+  const commonPassword = await bcrypt.hash('password123', 10);
+
+  const requestorUser = await prisma.user.upsert({
+    where: { email: 'requestor@workxpace.com' },
+    update: {
+      name: 'Requestor IT',
+      password: commonPassword,
+      roleId: adminRole.id,
+      departmentId: dept.id,
+      isActive: true,
+    },
+    create: {
+      name: 'Requestor IT',
+      email: 'requestor@workxpace.com',
+      password: commonPassword,
+      roleId: adminRole.id,
+      departmentId: dept.id,
+      employeeId: 'EMP002',
+    },
+  });
+
+  const reviewerUser = await prisma.user.upsert({
+    where: { email: 'reviewer.fm@workxpace.com' },
+    update: {
+      name: 'Reviewer FM',
+      password: commonPassword,
+      roleId: fmRole.id,
+      departmentId: dept.id,
+      isActive: true,
+    },
+    create: {
+      name: 'Reviewer FM',
+      email: 'reviewer.fm@workxpace.com',
+      password: commonPassword,
+      roleId: fmRole.id,
+      departmentId: dept.id,
+      employeeId: 'EMP003',
+    },
+  });
+
+  const approverUser = await prisma.user.upsert({
+    where: { email: 'approver.ceo@workxpace.com' },
+    update: {
+      name: 'Approver CEO',
+      password: commonPassword,
+      roleId: ceoRole.id,
+      departmentId: dept.id,
+      isActive: true,
+    },
+    create: {
+      name: 'Approver CEO',
+      email: 'approver.ceo@workxpace.com',
+      password: commonPassword,
+      roleId: ceoRole.id,
+      departmentId: dept.id,
+      employeeId: 'EMP004',
+    },
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: reviewerUser.id, roleId: fmRole.id } },
+    update: {},
+    create: { userId: reviewerUser.id, roleId: fmRole.id },
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: requestorUser.id, roleId: adminRole.id } },
+    update: {},
+    create: { userId: requestorUser.id, roleId: adminRole.id },
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: approverUser.id, roleId: ceoRole.id } },
+    update: {},
+    create: { userId: approverUser.id, roleId: ceoRole.id },
+  });
+
+  await prisma.userAccess.upsert({
+    where: { userId: requestorUser.id },
+    update: fullAccess,
+    create: { userId: requestorUser.id, ...fullAccess },
+  });
+
+  await prisma.userAccess.upsert({
+    where: { userId: reviewerUser.id },
+    update: fullAccess,
+    create: { userId: reviewerUser.id, ...fullAccess },
+  });
+
+  await prisma.userAccess.upsert({
+    where: { userId: approverUser.id },
+    update: fullAccess,
+    create: { userId: approverUser.id, ...fullAccess },
+  });
+
   const existingLevels = await prisma.approvalLevel.count();
   if (existingLevels === 0) {
     await prisma.approvalLevel.createMany({
@@ -112,7 +213,53 @@ async function main() {
     });
   }
 
+  const opexNames = ['ALL', 'Fixed', 'Variable'];
+  for (const name of opexNames) {
+    await prisma.opexMaster.upsert({
+      where: { name },
+      update: {},
+      create: { name, isActive: true },
+    });
+  }
+
+  const opexAllocationNames = ['ALL', 'IT', 'HRGA', 'Sales'];
+  for (const name of opexAllocationNames) {
+    await prisma.opexAllocationMaster.upsert({
+      where: { name },
+      update: {},
+      create: { name, isActive: true },
+    });
+  }
+
+  const categorySeeds = [
+    { name: 'Monthly Cost', description: 'Recurring monthly expense category' },
+    { name: 'Operational Cost', description: 'Operational day-to-day expense category' },
+  ];
+  for (const category of categorySeeds) {
+    await prisma.categoryMaster.upsert({
+      where: { name: category.name },
+      update: { description: category.description, isActive: true },
+      create: { ...category, isActive: true },
+    });
+  }
+
+  const costCenterSeeds = [
+    { name: 'IT', description: 'Information Technology cost center' },
+    { name: 'HRGA', description: 'Human Resources and General Affairs cost center' },
+    { name: 'Sales', description: 'Sales cost center' },
+  ];
+  for (const costCenter of costCenterSeeds) {
+    await prisma.costCenterMaster.upsert({
+      where: { name: costCenter.name },
+      update: { description: costCenter.description, isActive: true },
+      create: { ...costCenter, isActive: true },
+    });
+  }
+
   console.log('Seed completed. Admin: admin@workxpace.com / admin123');
+  console.log('Requestor: requestor@workxpace.com / password123');
+  console.log('Reviewer (FM): reviewer.fm@workxpace.com / password123');
+  console.log('Approver (CEO): approver.ceo@workxpace.com / password123');
   console.log('Project:', project.code);
 }
 

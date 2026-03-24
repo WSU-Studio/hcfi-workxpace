@@ -1,7 +1,7 @@
 import { prisma } from './prisma';
 import type { Prisma } from '@prisma/client';
 
-export type ActivityAction = 'create' | 'update' | 'approve' | 'reject' | 'delete';
+export type ActivityAction = 'create' | 'update' | 'review' | 'approve' | 'reject' | 'delete';
 
 export async function logActivity(params: {
   userId: string;

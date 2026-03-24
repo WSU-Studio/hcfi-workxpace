@@ -219,17 +219,78 @@ model BudgetPlan {
   status           String               @default("Draft") // Draft | Pending | Reviewed | Approved
   approvalSchemaId String?
   supportingDocs   Json?                // Array of file URLs
+  coaId            String?              // account id from static JSON list
+  categoryId       String?
+  costCenterId     String?
+  opexId           String?
+  opexAllocationId String?
+  opexType         String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   department       Department           @relation(fields: [departmentId], references: [id])
   project          Project?             @relation(fields: [projectId], references: [id])
   approvalSchema   ApprovalSchema?      @relation(fields: [approvalSchemaId], references: [id])
+  category         CategoryMaster?      @relation(fields: [categoryId], references: [id])
+  costCenter       CostCenterMaster?    @relation(fields: [costCenterId], references: [id])
+  opex             OpexMaster?          @relation(fields: [opexId], references: [id])
+  opexAllocation   OpexAllocationMaster? @relation(fields: [opexAllocationId], references: [id])
   allocations      BudgetPlanAllocation[]
   budgetRequests   BudgetRequest[]
 
   @@index([departmentId])
   @@index([status])
+  @@index([coaId])
+  @@index([categoryId])
+  @@index([costCenterId])
+  @@index([opexId])
+  @@index([opexAllocationId])
   @@map("budget_plans")
+}
+
+model CategoryMaster {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  budgetPlans BudgetPlan[]
+
+  @@map("category_masters")
+}
+
+model CostCenterMaster {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  budgetPlans BudgetPlan[]
+
+  @@map("cost_center_masters")
+}
+
+model OpexMaster {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  budgetPlans BudgetPlan[]
+
+  @@map("opex_masters")
+}
+
+model OpexAllocationMaster {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  budgetPlans BudgetPlan[]
+
+  @@map("opex_allocation_masters")
 }
 
 model BudgetPlanAllocation {
