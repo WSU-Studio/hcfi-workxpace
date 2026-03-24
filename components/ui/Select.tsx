@@ -13,6 +13,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
   return (
     <select
       ref={ref}
+      value={value}
       className={cn(selectFieldClassName, className)}
       required={required}
       aria-required={required}
