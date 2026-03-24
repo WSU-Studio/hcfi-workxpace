@@ -135,7 +135,7 @@ export default function NewBudgetRequestPage() {
             />
           </div>
           <div>
-            <label className="block mb-1.5 font-medium">Approval Scheme</label>
+            <label className="block mb-1.5 font-medium">Approval Schema</label>
             <select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}

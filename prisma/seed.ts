@@ -67,12 +67,12 @@ async function main() {
   });
 
   let approvalSchemaBP = await prisma.approvalSchema.findFirst({
-    where: { name: 'Primary Scheme for Budget Plan', departmentId: dept.id },
+    where: { name: 'Primary Schema for Budget Plan', departmentId: dept.id },
   });
   if (!approvalSchemaBP) {
     approvalSchemaBP = await prisma.approvalSchema.create({
       data: {
-        name: 'Primary Scheme for Budget Plan',
+        name: 'Primary Schema for Budget Plan',
         type: 'BudgetPlan',
         period: 'Unlimited',
         departmentId: dept.id,
@@ -81,12 +81,12 @@ async function main() {
   }
 
   let approvalSchemaBR = await prisma.approvalSchema.findFirst({
-    where: { name: 'Primary Scheme for Budget Request', departmentId: dept.id },
+    where: { name: 'Primary Schema for Budget Request', departmentId: dept.id },
   });
   if (!approvalSchemaBR) {
     approvalSchemaBR = await prisma.approvalSchema.create({
       data: {
-        name: 'Primary Scheme for Budget Request',
+        name: 'Primary Schema for Budget Request',
         type: 'BudgetRequest',
         period: 'Unlimited',
         departmentId: dept.id,

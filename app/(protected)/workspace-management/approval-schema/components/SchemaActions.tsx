@@ -13,7 +13,7 @@ export default function SchemaActions({ schemaId, onDelete }: SchemaActionsProps
   const router = useRouter();
 
   const handleDelete = async () => {
-    if (!confirm('Delete this approval scheme?')) return false;
+    if (!confirm('Delete this approval schema?')) return false;
     const res = await fetch(`/api/workspace-management/approval-schema/${schemaId}`, { method: 'DELETE' });
     if (res.ok) {
       onDelete();

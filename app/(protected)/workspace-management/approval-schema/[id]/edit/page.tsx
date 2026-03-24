@@ -106,7 +106,7 @@ export default function EditApprovalSchemaPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Edit Approval Scheme</h1>
+      <h1 className="text-2xl font-semibold">Edit Approval Schema</h1>
       {errors.general && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">

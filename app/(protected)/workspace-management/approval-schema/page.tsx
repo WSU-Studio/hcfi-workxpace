@@ -61,7 +61,7 @@ export default function ApprovalSchemaPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Approval Scheme Management</h1>
+      <h1 className="text-2xl font-semibold">Approval Schema Management</h1>
       <div className="flex justify-between gap-4">
         <SearchInput 
           value={searchKeyword}
@@ -72,7 +72,7 @@ export default function ApprovalSchemaPage() {
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Plus className="w-4 h-4" />
-          New Approval Scheme
+          New Approval Schema
         </Link>
       </div>
       <Card>
