@@ -5,6 +5,12 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+function extractBudgetPlanCode(title: string, message: string) {
+  if (!title.toLowerCase().includes('budget plan')) return null;
+  const match = message.match(/^([A-Za-z0-9-]+)\s+status changed to/i);
+  return match?.[1] ?? null;
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -23,13 +29,39 @@ export async function GET(request: Request) {
       take: 20,
     });
 
+    const notificationPlanCodes = Array.from(
+      new Set(
+        notifications
+          .map((notification) => extractBudgetPlanCode(notification.title, notification.message))
+          .filter((code): code is string => !!code)
+      )
+    );
+
+    const budgetPlansByCode = notificationPlanCodes.length
+      ? await prisma.budgetPlan.findMany({
+          where: { code: { in: notificationPlanCodes } },
+          select: { id: true, code: true },
+        })
+      : [];
+
+    const budgetPlanIdByCode = new Map(budgetPlansByCode.map((plan) => [plan.code, plan.id]));
+    const enrichedNotifications = notifications.map((notification) => {
+      const planCode = extractBudgetPlanCode(notification.title, notification.message);
+      const planId = planCode ? budgetPlanIdByCode.get(planCode) : null;
+
+      return {
+        ...notification,
+        targetUrl: planId ? `/budget-plans/${planId}` : null,
+      };
+    });
+
     const unreadCount = await prisma.notification.count({
       where: { userId: session.user.id, isRead: false },
     });
 
     return NextResponse.json({
-      notifications,
-      pagination: { total: unreadOnly ? unreadCount : notifications.length },
+      notifications: enrichedNotifications,
+      pagination: { total: unreadOnly ? unreadCount : enrichedNotifications.length },
       unreadCount,
     });
   } catch {

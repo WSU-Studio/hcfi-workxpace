@@ -10,6 +10,7 @@ const pageConfigs: Record<string, { title: string; breadcrumbs: string[] }> = {
   '/budget-plans/new': { title: 'Create Budget Plan', breadcrumbs: ['Home', 'Budget Plans', 'New'] },
   '/budget-requests': { title: 'Budget Requests', breadcrumbs: ['Home', 'Budget Requests'] },
   '/budget-requests/new': { title: 'Create Budget Request', breadcrumbs: ['Home', 'Budget Requests', 'New'] },
+  '/notifications': { title: 'Notifications', breadcrumbs: ['Home', 'Notifications'] },
   '/user-management': { title: 'User Management', breadcrumbs: ['Home', 'User Management'] },
   '/workspace-management': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management'] },
   '/workspace-management/department': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management', 'Department'] },

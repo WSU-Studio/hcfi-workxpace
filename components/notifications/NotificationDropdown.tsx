@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import NotificationItem from './NotificationItem';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 
@@ -12,6 +13,7 @@ interface Notification {
   message: string;
   isRead: boolean;
   createdAt: string;
+  targetUrl?: string | null;
 }
 
 export default function NotificationDropdown() {
@@ -50,8 +52,8 @@ export default function NotificationDropdown() {
     setUnreadCount((prev) => Math.max(0, prev - 1));
   };
 
-  const deleteNotification = async (id: string) => {
-    await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+  const dismissNotification = async (id: string) => {
+    await fetch(`/api/notifications/${id}`, { method: 'PATCH' });
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     setUnreadCount((prev) => Math.max(0, prev - 1));
   };
@@ -60,7 +62,7 @@ export default function NotificationDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none"
+        className="relative p-2 text-gray-600 hover:text-blue-600 focus:outline-none cursor-pointer transition-colors duration-200"
         aria-label="Open notifications"
       >
         <Bell className="w-5 h-5" />
@@ -80,16 +82,27 @@ export default function NotificationDropdown() {
             ) : notifications.length === 0 ? (
               <p className="text-sm text-gray-500 py-2">No unread notifications</p>
             ) : (
-              <div className="space-y-2">
-                {notifications.map((notification) => (
-                  <NotificationItem
-                    key={notification.id}
-                    notification={notification}
-                    onMarkAsRead={markAsRead}
-                    onDelete={deleteNotification}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="space-y-2">
+                  {notifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onMarkAsRead={markAsRead}
+                      onDismiss={dismissNotification}
+                    />
+                  ))}
+                </div>
+                <div className="mt-3 border-t border-gray-100 pt-3">
+                  <Link
+                    href="/notifications"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    View all notifications
+                  </Link>
+                </div>
+              </>
             )}
           </div>
         </div>
