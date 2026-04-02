@@ -11,6 +11,7 @@ import Avatar from '@/components/ui/Avatar';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 import { usePageTitleStore } from '@/store/usePageTitleStore';
 import Card from '../ui/Card';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 
 const Header = () => {
   const { isCollapsed } = useSidebarStore();
@@ -42,6 +43,7 @@ const Header = () => {
           />
         </div> */}
 
+        <NotificationDropdown />
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}

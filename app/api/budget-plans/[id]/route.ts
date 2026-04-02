@@ -40,6 +40,63 @@ function isValidReviewTransition(currentStatus: string, nextStatus: string) {
   return false;
 }
 
+async function resolveNotificationUserIds(planId: string, actorUserId: string) {
+  const plan = await prisma.budgetPlan.findUnique({
+    where: { id: planId },
+    include: { approvalSchema: { include: { approvalLevels: true } } },
+  });
+  if (!plan) return [];
+
+  const roleIds = Array.from(new Set((plan.approvalSchema?.approvalLevels || []).map((l) => l.roleId)));
+
+  const users = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { id: plan.requestorId || undefined },
+        { roleId: { in: roleIds } },
+        { userRoles: { some: { roleId: { in: roleIds } } } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return Array.from(new Set(users.map((u) => u.id))).filter((id) => id !== actorUserId);
+}
+
+async function createApprovalNotifications(params: {
+  planId: string;
+  actorUserId: string;
+  status: string;
+  planCode: string;
+  declineReason?: string | null;
+}) {
+  const recipientIds = await resolveNotificationUserIds(params.planId, params.actorUserId);
+  if (!recipientIds.length) return;
+
+  const titleByStatus: Record<string, string> = {
+    Reviewed: 'Budget Plan Reviewed',
+    Approved: 'Budget Plan Approved',
+    Revision: 'Budget Plan Needs Revision',
+    Declined: 'Budget Plan Declined',
+  };
+  const title = titleByStatus[params.status] || 'Budget Plan Updated';
+  const messageBase = `${params.planCode} status changed to ${params.status}.`;
+  const message =
+    params.declineReason && (params.status === 'Revision' || params.status === 'Declined')
+      ? `${messageBase} Reason: ${params.declineReason}`
+      : messageBase;
+
+  await prisma.notification.createMany({
+    data: recipientIds.map((userId) => ({
+      userId,
+      title,
+      message,
+      type: params.status === 'Approved' ? 'success' : params.status === 'Declined' ? 'error' : 'info',
+    })),
+  });
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
@@ -204,6 +261,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           status: body.status,
           declineReason: body.declineReason ?? null,
         },
+      });
+
+      await createApprovalNotifications({
+        planId: id,
+        actorUserId: session.user.id,
+        status: body.status,
+        planCode: before.code,
+        declineReason: body.declineReason ?? null,
       });
     }
     return NextResponse.json({ success: true });
