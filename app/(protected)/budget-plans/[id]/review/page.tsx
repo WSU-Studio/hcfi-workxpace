@@ -144,6 +144,44 @@ export default function ReviewBudgetPlanPage() {
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
+  const reviewedAt = histories.find((history) => history.details?.status === 'Reviewed');
+  const hasReviewedStep = !!reviewedAt;
+
+  const formatDateTime = (date: string) =>
+    new Date(date).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const getStepProgress = (levelType: string) => {
+    if (levelType === 'Reviewer') {
+      const reviewerHistory = histories.find((history) =>
+        ['Reviewed', 'Revision', 'Declined'].includes(history.details?.status || '')
+      );
+      if (!reviewerHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
+
+      return {
+        statusLabel: reviewerHistory.details?.status || 'Processed',
+        timestampLabel: formatDateTime(reviewerHistory.timestamp),
+      };
+    }
+
+    const approverHistory = histories.find((history) => {
+      const status = history.details?.status || '';
+      if (status === 'Approved') return true;
+      if (!['Revision', 'Declined'].includes(status)) return false;
+      return hasReviewedStep && reviewedAt && new Date(history.timestamp) > new Date(reviewedAt.timestamp);
+    });
+
+    if (!approverHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
+    return {
+      statusLabel: approverHistory.details?.status || 'Processed',
+      timestampLabel: formatDateTime(approverHistory.timestamp),
+    };
+  };
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -282,16 +320,37 @@ export default function ReviewBudgetPlanPage() {
                   <th className="text-left py-2 px-3">#</th>
                   <th className="text-left py-2 px-3">Role</th>
                   <th className="text-left py-2 px-3">Type</th>
+                  <th className="text-left py-2 px-3">Status</th>
+                  <th className="text-left py-2 px-3">Updated At</th>
                 </tr>
               </thead>
               <tbody>
-                {plan.approvalSchema.approvalLevels.map((l, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="py-2 px-3">{l.stepOrder}</td>
-                    <td className="py-2 px-3">{l.role?.roleName}</td>
-                    <td className="py-2 px-3">{l.levelType}</td>
-                  </tr>
-                ))}
+                {plan.approvalSchema.approvalLevels.map((l, i) => {
+                  const stepProgress = getStepProgress(l.levelType);
+                  return (
+                    <tr key={i} className="border-b">
+                      <td className="py-2 px-3">{l.stepOrder}</td>
+                      <td className="py-2 px-3">{l.role?.roleName}</td>
+                      <td className="py-2 px-3">{l.levelType}</td>
+                      <td className="py-2 px-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            stepProgress.statusLabel === 'Pending'
+                              ? 'bg-gray-100 text-gray-700'
+                              : stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed'
+                                ? 'bg-green-100 text-green-800'
+                                : stepProgress.statusLabel === 'Revision'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {stepProgress.statusLabel}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-sm text-gray-700">{stepProgress.timestampLabel}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
