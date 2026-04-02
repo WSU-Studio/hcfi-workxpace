@@ -30,6 +30,16 @@ function getNextApprovalStep(
   return null;
 }
 
+function isValidReviewTransition(currentStatus: string, nextStatus: string) {
+  if (currentStatus === 'Draft') {
+    return ['Reviewed', 'Revision', 'Declined'].includes(nextStatus);
+  }
+  if (currentStatus === 'Reviewed') {
+    return ['Approved', 'Revision', 'Declined'].includes(nextStatus);
+  }
+  return false;
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
@@ -52,7 +62,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
     const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
     const projects = await prisma.project.findMany({ orderBy: { code: 'asc' } });
-    const [approvalSchemas, categoryOptions, costCenterOptions, opexOptions, opexAllocationOptions] = await Promise.all([
+    const [approvalSchemas, categoryOptions, costCenterOptions, opexOptions, opexAllocationOptions, histories] = await Promise.all([
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
         include: { department: true, approvalLevels: { include: { role: true } } },
@@ -61,6 +71,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      prisma.activityHistory.findMany({
+        where: { entityType: 'BudgetPlan', entityId: id },
+        include: { user: { select: { name: true } } },
+        orderBy: { timestamp: 'desc' },
+      }),
     ]);
 
     let canReview = false;
@@ -83,6 +98,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       costCenterOptions,
       opexOptions,
       opexAllocationOptions,
+      histories,
       reviewMeta: { canReview, nextStepOrder },
     });
   } catch {
@@ -151,11 +167,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
       if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-      if (body.status === 'Reviewed' || body.status === 'Approved') {
+      if (['Reviewed', 'Approved', 'Revision', 'Declined'].includes(body.status)) {
         const levels = before.approvalSchema?.approvalLevels ?? [];
         const next = getNextApprovalStep(before.status, levels);
-        const expectedStatus = before.status === 'Draft' ? 'Reviewed' : before.status === 'Reviewed' ? 'Approved' : null;
-        if (expectedStatus !== body.status) {
+        if (!isValidReviewTransition(before.status, body.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
         }
         if (!next) {
@@ -185,7 +200,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         entityId: id,
         entityCode: before.code,
         action: body.status === 'Approved' ? 'approve' : body.status === 'Reviewed' ? 'review' : 'update',
-        details: { status: body.status },
+        details: {
+          status: body.status,
+          declineReason: body.declineReason ?? null,
+        },
       });
     }
     return NextResponse.json({ success: true });

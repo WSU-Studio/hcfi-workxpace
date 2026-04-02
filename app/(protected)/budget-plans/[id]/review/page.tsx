@@ -40,6 +40,13 @@ export default function ReviewBudgetPlanPage() {
   const [costCenterOptions, setCostCenterOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [opexAllocationOptions, setOpexAllocationOptions] = useState<{ id: string; name: string }[]>([]);
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null }>({ canReview: false, nextStepOrder: null });
+  const [histories, setHistories] = useState<{
+    id: string;
+    action: string;
+    details: { status?: string; declineReason?: string | null } | null;
+    timestamp: string;
+    user: { name: string };
+  }[]>([]);
   const [classification, setClassification] = useState({
     coaId: '',
     categoryId: '',
@@ -49,6 +56,8 @@ export default function ReviewBudgetPlanPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -62,6 +71,7 @@ export default function ReviewBudgetPlanPage() {
         setCostCenterOptions(data?.costCenterOptions || []);
         setOpexAllocationOptions(data?.opexAllocationOptions || []);
         setReviewMeta(data?.reviewMeta || { canReview: false, nextStepOrder: null });
+        setHistories(data?.histories || []);
         if (p) {
           setClassification({
             coaId: p.coaId || '',
@@ -75,9 +85,9 @@ export default function ReviewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  const handleAction = async () => {
+  const handleApprove = async () => {
     const targetStatus = plan?.status === 'Draft' ? 'Reviewed' : 'Approved';
-    if (!confirm(`${targetStatus === 'Reviewed' ? 'Review' : 'Approve'} this budget plan?`)) return;
+    if (!confirm('Approve this budget plan?')) return;
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/budget-plans/${id}`, {
@@ -94,6 +104,33 @@ export default function ReviewBudgetPlanPage() {
         }),
       });
       if (res.ok) router.push(`/budget-plans/${id}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDecline = async (mode: 'revision' | 'decline') => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/budget-plans/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: mode === 'revision' ? 'Revision' : 'Declined',
+          declineReason: declineReason.trim() || null,
+          coaId: classification.coaId || null,
+          categoryId: classification.categoryId || null,
+          costCenterId: classification.costCenterId || null,
+          opexId: null,
+          opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
+          opexType: classification.opexType || null,
+        }),
+      });
+      if (res.ok) {
+        setIsDeclineModalOpen(false);
+        setDeclineReason('');
+        router.push(`/budget-plans/${id}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -262,17 +299,93 @@ export default function ReviewBudgetPlanPage() {
             <Link href={`/budget-plans/${id}`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</Link>
             <button
               type="button"
-              onClick={handleAction}
+              onClick={() => setIsDeclineModalOpen(true)}
+              disabled={isSubmitting || !canTakeAction}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
+            >
+              Decline
+            </button>
+            <button
+              type="button"
+              onClick={handleApprove}
               disabled={isSubmitting || !canTakeAction}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
             >
-              {isSubmitting
-                ? 'Processing...'
-                : plan.status === 'Draft'
-                  ? `Review (Step ${reviewMeta.nextStepOrder ?? '-'})`
-                  : `Approve (Step ${reviewMeta.nextStepOrder ?? '-'})`}
+              {isSubmitting ? 'Processing...' : 'Approve'}
             </button>
+          </div>
+        )}
+      </Card>
+
+      {isDeclineModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">Decline Confirmation</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Do you want to decline this budget plan? You may ask for revision.
+            </p>
+            <textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Write reason..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeclineModalOpen(false);
+                  setDeclineReason('');
+                }}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecline('revision')}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                disabled={isSubmitting}
+              >
+                Ask For Revision
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecline('decline')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                disabled={isSubmitting}
+              >
+                Yes, I Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <Card className="p-6">
+        <h3 className="font-medium mb-3">Budget Plan History</h3>
+        {histories.length === 0 ? (
+          <p className="text-sm text-gray-500">No history yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {histories.map((history) => (
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+                <p>
+                  <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
+                  <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
+                  <span className="text-gray-500">on {formatDate(history.timestamp)}</span>
+                </p>
+                {history.details?.status ? (
+                  <p className="text-gray-600">Status: {history.details.status}</p>
+                ) : null}
+                {history.details?.declineReason ? (
+                  <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+              </div>
+            ))}
           </div>
         )}
       </Card>
