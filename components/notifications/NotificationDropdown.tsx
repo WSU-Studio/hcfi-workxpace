@@ -80,7 +80,18 @@ export default function NotificationDropdown() {
             {loading ? (
               <p className="text-sm text-gray-500 py-2">Loading...</p>
             ) : notifications.length === 0 ? (
-              <p className="text-sm text-gray-500 py-2">No unread notifications</p>
+              <>
+                <p className="text-sm text-gray-500 py-2">No unread notifications</p>
+                <div className="mt-3 border-t border-gray-100 pt-3">
+                  <Link
+                    href="/notifications"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    View all notifications
+                  </Link>
+                </div>
+              </>
             ) : (
               <>
                 <div className="space-y-2">
