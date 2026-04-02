@@ -57,6 +57,7 @@ export default function ReviewBudgetPlanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
 
   useEffect(() => {
@@ -86,10 +87,9 @@ export default function ReviewBudgetPlanPage() {
   }, [id]);
 
   const handleApprove = async () => {
-    const targetStatus = plan?.status === 'Draft' ? 'Reviewed' : 'Approved';
-    if (!confirm('Approve this budget plan?')) return;
     setIsSubmitting(true);
     try {
+      const targetStatus = plan?.status === 'Draft' ? 'Reviewed' : 'Approved';
       const res = await fetch(`/api/budget-plans/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -103,7 +103,10 @@ export default function ReviewBudgetPlanPage() {
           opexType: classification.opexType || null,
         }),
       });
-      if (res.ok) router.push(`/budget-plans/${id}`);
+      if (res.ok) {
+        setIsApproveModalOpen(false);
+        router.push(`/budget-plans/${id}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -308,7 +311,7 @@ export default function ReviewBudgetPlanPage() {
             </button>
             <button
               type="button"
-              onClick={handleApprove}
+              onClick={() => setIsApproveModalOpen(true)}
               disabled={isSubmitting || !canTakeAction}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
@@ -359,6 +362,35 @@ export default function ReviewBudgetPlanPage() {
                 disabled={isSubmitting}
               >
                 Yes, I Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isApproveModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">Approval Confirmation</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to approve this budget plan?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsApproveModalOpen(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApprove}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
           </div>
