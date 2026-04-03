@@ -278,21 +278,6 @@ export default function ReviewBudgetPlanPage() {
               </Select>
             </div>
             <div>
-              <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
-              <Select
-                value={classification.coaId}
-                disabled={!canEditClassification}
-                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {accountOptions.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.accountCode} - {account.accountName}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
               <label className="block mb-1.5 text-sm font-medium">Category</label>
               <Select
                 value={classification.categoryId}
@@ -322,6 +307,25 @@ export default function ReviewBudgetPlanPage() {
                 ))}
               </Select>
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
+              <Select
+                value={classification.coaId}
+                disabled={!canEditClassification}
+                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {accountOptions.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.accountCode} - {account.accountName}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block mb-1.5 text-sm font-medium">Type</label>
               <Select
