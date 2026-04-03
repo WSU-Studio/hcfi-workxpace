@@ -8,6 +8,7 @@ import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
+import { PenSquare } from 'lucide-react';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -373,12 +374,12 @@ export default function ReviewBudgetPlanPage() {
 
         {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href={`/budget-plans/${id}`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</Link>
+            <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
             <button
               type="button"
               onClick={() => setIsDeclineModalOpen(true)}
               disabled={isSubmitting || !canTakeAction}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
             >
               Decline
@@ -387,7 +388,7 @@ export default function ReviewBudgetPlanPage() {
               type="button"
               onClick={() => setIsApproveModalOpen(true)}
               disabled={isSubmitting || !canTakeAction}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
             >
               {isSubmitting ? 'Processing...' : 'Approve'}
@@ -397,7 +398,7 @@ export default function ReviewBudgetPlanPage() {
       </Card>
 
       {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
           <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
             <h3 className="text-lg font-semibold">Decline Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
@@ -416,7 +417,7 @@ export default function ReviewBudgetPlanPage() {
                   setIsDeclineModalOpen(false);
                   setDeclineReason('');
                 }}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -424,15 +425,16 @@ export default function ReviewBudgetPlanPage() {
               <button
                 type="button"
                 onClick={() => handleDecline('revision')}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 flex items-center gap-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
+                <PenSquare className="w-5 h-5 text-gray-500" />
                 Ask For Revision
               </button>
               <button
                 type="button"
                 onClick={() => handleDecline('decline')}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
                 disabled={isSubmitting}
               >
                 Yes, I Decline
@@ -443,7 +445,7 @@ export default function ReviewBudgetPlanPage() {
       ) : null}
 
       {isApproveModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
@@ -453,7 +455,7 @@ export default function ReviewBudgetPlanPage() {
               <button
                 type="button"
                 onClick={() => setIsApproveModalOpen(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -461,7 +463,7 @@ export default function ReviewBudgetPlanPage() {
               <button
                 type="button"
                 onClick={handleApprove}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Processing...' : 'Confirm Approval'}
