@@ -27,6 +27,7 @@ export default function ReviewBudgetPlanPage() {
     allocations: { month: number; allocation: unknown }[];
     coaId?: string | null;
     categoryId?: string | null;
+    categoryKeyIndexId?: string | null;
     costCenterId?: string | null;
     opexId?: string | null;
     opexAllocationId?: string | null;
@@ -37,6 +38,7 @@ export default function ReviewBudgetPlanPage() {
   } | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string; description: string }[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
+  const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [costCenterOptions, setCostCenterOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [opexAllocationOptions, setOpexAllocationOptions] = useState<{ id: string; name: string }[]>([]);
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null }>({ canReview: false, nextStepOrder: null });
@@ -50,6 +52,7 @@ export default function ReviewBudgetPlanPage() {
   const [classification, setClassification] = useState({
     coaId: '',
     categoryId: '',
+    categoryKeyIndexId: '',
     costCenterId: '',
     opexAllocationId: '',
     opexType: 'OPEX',
@@ -69,6 +72,7 @@ export default function ReviewBudgetPlanPage() {
         setPlan(p);
         setAccountOptions(data?.accountOptions || []);
         setCategoryOptions(data?.categoryOptions || []);
+        setCategoryKeyIndexOptions(data?.categoryKeyIndexOptions || []);
         setCostCenterOptions(data?.costCenterOptions || []);
         setOpexAllocationOptions(data?.opexAllocationOptions || []);
         setReviewMeta(data?.reviewMeta || { canReview: false, nextStepOrder: null });
@@ -77,6 +81,7 @@ export default function ReviewBudgetPlanPage() {
           setClassification({
             coaId: p.coaId || '',
             categoryId: p.categoryId || '',
+            categoryKeyIndexId: p.categoryKeyIndexId || '',
             costCenterId: p.costCenterId || '',
             opexAllocationId: p.opexAllocationId || '',
             opexType: p.opexType || 'OPEX',
@@ -97,6 +102,7 @@ export default function ReviewBudgetPlanPage() {
           status: targetStatus,
           coaId: classification.coaId || null,
           categoryId: classification.categoryId || null,
+          categoryKeyIndexId: classification.categoryKeyIndexId || null,
           costCenterId: classification.costCenterId || null,
           opexId: null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
@@ -123,6 +129,7 @@ export default function ReviewBudgetPlanPage() {
           declineReason: declineReason.trim() || null,
           coaId: classification.coaId || null,
           categoryId: classification.categoryId || null,
+          categoryKeyIndexId: classification.categoryKeyIndexId || null,
           costCenterId: classification.costCenterId || null,
           opexId: null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
@@ -263,7 +270,7 @@ export default function ReviewBudgetPlanPage() {
               </Select>
             </div>
             <div>
-              <label className="block mb-1.5 text-sm font-medium">Kategori</label>
+              <label className="block mb-1.5 text-sm font-medium">Category</label>
               <Select
                 value={classification.categoryId}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
@@ -272,6 +279,20 @@ export default function ReviewBudgetPlanPage() {
                 {categoryOptions.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Category Key Index</label>
+              <Select
+                value={classification.categoryKeyIndexId}
+                onChange={(e) => setClassification((p) => ({ ...p, categoryKeyIndexId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {categoryKeyIndexOptions.map((categoryKeyIndex) => (
+                  <option key={categoryKeyIndex.id} value={categoryKeyIndex.id}>
+                    {categoryKeyIndex.name}
                   </option>
                 ))}
               </Select>

@@ -109,6 +109,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         allocations: { orderBy: { month: 'asc' } },
         approvalSchema: { include: { approvalLevels: { include: { role: true }, orderBy: { stepOrder: 'asc' } } } },
         category: true,
+        categoryKeyIndex: true,
         costCenter: true,
         opex: true,
         opexAllocation: true,
@@ -119,12 +120,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
     const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
     const projects = await prisma.project.findMany({ orderBy: { code: 'asc' } });
-    const [approvalSchemas, categoryOptions, costCenterOptions, opexOptions, opexAllocationOptions, histories] = await Promise.all([
+    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, histories] = await Promise.all([
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
         include: { department: true, approvalLevels: { include: { role: true } } },
       }),
       prisma.categoryMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      prisma.categoryKeyIndexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
@@ -152,6 +154,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       approvalSchemas,
       accountOptions,
       categoryOptions,
+      categoryKeyIndexOptions,
       costCenterOptions,
       opexOptions,
       opexAllocationOptions,
@@ -184,6 +187,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         supportingDocs: body.supportingDocs || null,
         coaId: body.coaId || null,
         categoryId: body.categoryId || null,
+        categoryKeyIndexId: body.categoryKeyIndexId || null,
         costCenterId: body.costCenterId || null,
         opexId: null,
         opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
@@ -245,6 +249,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           status: body.status,
           coaId: body.coaId ?? undefined,
           categoryId: body.categoryId ?? undefined,
+          categoryKeyIndexId: body.categoryKeyIndexId ?? undefined,
           costCenterId: body.costCenterId ?? undefined,
           opexId: null,
           opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId ?? undefined : null,

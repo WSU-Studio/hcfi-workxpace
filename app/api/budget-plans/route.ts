@@ -76,6 +76,7 @@ export async function POST(request: Request) {
         supportingDocs: body.supportingDocs || null,
         coaId: body.coaId || null,
         categoryId: body.categoryId || null,
+        categoryKeyIndexId: body.categoryKeyIndexId || null,
         costCenterId: body.costCenterId || null,
         opexId: null,
         opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
