@@ -21,6 +21,8 @@ interface Plan {
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Approved', 'Revision', 'Declined', 'Pending']);
+
 export default function BudgetPlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [filtered, setFiltered] = useState<Plan[]>([]);
@@ -122,18 +124,20 @@ export default function BudgetPlansPage() {
                   <TableCell>{getMonthsLabel(p)}</TableCell>
                   <TableCell>
                     <Link href={`/budget-plans/${p.id}`} className="text-blue-600 hover:underline">View</Link>
-                    {(p.status === 'Draft' || p.status === 'Reviewed') && (
+                    {p.status === 'Draft' && (
                       <>
-                        {p.status === 'Draft' && (
-                          <>
-                            {' | '}
-                            <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
-                          </>
-                        )}
                         {' | '}
-                        <Link href={`/budget-plans/${p.id}/review`} className="text-blue-600 hover:underline">Review</Link>
+                        <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
                       </>
                     )}
+                    {REVIEW_NAV_STATUSES.has(p.status) ? (
+                      <>
+                        {' | '}
+                        <Link href={`/budget-plans/${p.id}/review`} className="text-blue-600 hover:underline">
+                          {p.status === 'Draft' || p.status === 'Reviewed' ? 'Review' : 'Review (read-only)'}
+                        </Link>
+                      </>
+                    ) : null}
                   </TableCell>
                 </TableBodyRow>
               ))

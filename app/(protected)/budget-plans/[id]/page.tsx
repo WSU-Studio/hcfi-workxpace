@@ -9,6 +9,9 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** Statuses where the review screen (classification, escalation, history) stays relevant after workflow completes. */
+const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Approved', 'Revision', 'Declined', 'Pending']);
+
 export default function BudgetPlanDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -24,16 +27,31 @@ export default function BudgetPlanDetailPage() {
     allocations: { month: number; allocation: unknown }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/budget-plans/${id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setPlan(data?.plan))
+    setLoadError(null);
+    fetch(`/api/budget-plans/${id}`, { credentials: 'include' })
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          setLoadError(typeof body?.error === 'string' ? body.error : `Could not load plan (${r.status})`);
+          setPlan(null);
+          return;
+        }
+        const data = await r.json();
+        setPlan(data?.plan ?? null);
+      })
+      .catch(() => {
+        setLoadError('Network error');
+        setPlan(null);
+      })
       .finally(() => setIsLoading(false));
   }, [id]);
 
   if (isLoading) return <LoadingSpin />;
+  if (loadError) return <div className="text-red-500">{loadError}</div>;
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
@@ -77,14 +95,18 @@ export default function BudgetPlanDetailPage() {
             </tbody>
           </table>
         </div>
-        {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
-          <div className="flex gap-3 pt-4">
-            {plan.status === 'Draft' && (
-              <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Edit</Link>
-            )}
-            <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Review</Link>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-3 pt-4">
+          {plan.status === 'Draft' && (
+            <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              Edit
+            </Link>
+          )}
+          {REVIEW_NAV_STATUSES.has(plan.status) ? (
+            <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+              {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}
+            </Link>
+          ) : null}
+        </div>
       </Card>
     </div>
   );

@@ -62,12 +62,27 @@ export default function ReviewBudgetPlanPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/budget-plans/${id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    setLoadError(null);
+    fetch(`/api/budget-plans/${id}`, { credentials: 'include' })
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          setLoadError(typeof body?.error === 'string' ? body.error : `Could not load plan (${r.status})`);
+          setPlan(null);
+          setAccountOptions([]);
+          setCategoryOptions([]);
+          setCategoryKeyIndexOptions([]);
+          setCostCenterOptions([]);
+          setOpexAllocationOptions([]);
+          setReviewMeta({ canReview: false, nextStepOrder: null });
+          setHistories([]);
+          return;
+        }
+        const data = await r.json();
         const p = data?.plan;
         setPlan(p);
         setAccountOptions(data?.accountOptions || []);
@@ -87,6 +102,10 @@ export default function ReviewBudgetPlanPage() {
             opexType: p.opexType || 'OPEX',
           });
         }
+      })
+      .catch(() => {
+        setLoadError('Network error');
+        setPlan(null);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -147,10 +166,12 @@ export default function ReviewBudgetPlanPage() {
   };
 
   if (isLoading) return <LoadingSpin />;
+  if (loadError) return <div className="text-red-500">{loadError}</div>;
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
+  const canEditClassification = canTakeAction;
   const reviewedAt = histories.find((history) => history.details?.status === 'Reviewed');
   const hasReviewedStep = !!reviewedAt;
 
@@ -245,6 +266,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Cost Center</label>
               <Select
                 value={classification.costCenterId}
+                disabled={!canEditClassification}
                 onChange={(e) => setClassification((p) => ({ ...p, costCenterId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -259,6 +281,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
               <Select
                 value={classification.coaId}
+                disabled={!canEditClassification}
                 onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -273,6 +296,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Category</label>
               <Select
                 value={classification.categoryId}
+                disabled={!canEditClassification}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -287,6 +311,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Category Key Index</label>
               <Select
                 value={classification.categoryKeyIndexId}
+                disabled={!canEditClassification}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryKeyIndexId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -301,6 +326,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Type</label>
               <Select
                 value={classification.opexType}
+                disabled={!canEditClassification}
                 onChange={(e) =>
                   setClassification((p) => ({
                     ...p,
@@ -318,6 +344,7 @@ export default function ReviewBudgetPlanPage() {
                 <label className="block mb-1.5 text-sm font-medium">Opex Allocation</label>
                 <Select
                   value={classification.opexAllocationId}
+                  disabled={!canEditClassification}
                   onChange={(e) => setClassification((p) => ({ ...p, opexAllocationId: e.target.value }))}
                 >
                   <option value="">-</option>
