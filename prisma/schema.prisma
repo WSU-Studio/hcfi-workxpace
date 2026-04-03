@@ -238,6 +238,7 @@ model BudgetPlan {
   supportingDocs   Json?                // Array of file URLs
   coaId            String?              // account id from static JSON list
   categoryId       String?
+  categoryKeyIndexId String?
   costCenterId     String?
   opexId           String?
   opexAllocationId String?
@@ -248,6 +249,7 @@ model BudgetPlan {
   project          Project?             @relation(fields: [projectId], references: [id])
   approvalSchema   ApprovalSchema?      @relation(fields: [approvalSchemaId], references: [id])
   category         CategoryMaster?      @relation(fields: [categoryId], references: [id])
+  categoryKeyIndex CategoryKeyIndexMaster? @relation(fields: [categoryKeyIndexId], references: [id])
   costCenter       CostCenterMaster?    @relation(fields: [costCenterId], references: [id])
   opex             OpexMaster?          @relation(fields: [opexId], references: [id])
   opexAllocation   OpexAllocationMaster? @relation(fields: [opexAllocationId], references: [id])
@@ -258,6 +260,7 @@ model BudgetPlan {
   @@index([status])
   @@index([coaId])
   @@index([categoryId])
+  @@index([categoryKeyIndexId])
   @@index([costCenterId])
   @@index([opexId])
   @@index([opexAllocationId])
@@ -274,6 +277,18 @@ model CategoryMaster {
   budgetPlans BudgetPlan[]
 
   @@map("category_masters")
+}
+
+model CategoryKeyIndexMaster {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  budgetPlans BudgetPlan[]
+
+  @@map("category_key_index_masters")
 }
 
 model CostCenterMaster {
