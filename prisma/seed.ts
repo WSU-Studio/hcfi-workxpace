@@ -256,6 +256,18 @@ async function main() {
     });
   }
 
+  const categoryKeyIndexSeeds = [
+    { name: 'CKI-01', description: 'Default category key index 01' },
+    { name: 'CKI-02', description: 'Default category key index 02' },
+  ];
+  for (const categoryKeyIndex of categoryKeyIndexSeeds) {
+    await prisma.categoryKeyIndexMaster.upsert({
+      where: { name: categoryKeyIndex.name },
+      update: { description: categoryKeyIndex.description, isActive: true },
+      create: { ...categoryKeyIndex, isActive: true },
+    });
+  }
+
   console.log('Seed completed. Admin: admin@workxpace.com / admin123');
   console.log('Requestor: requestor@workxpace.com / password123');
   console.log('Reviewer (FM): reviewer.fm@workxpace.com / password123');
