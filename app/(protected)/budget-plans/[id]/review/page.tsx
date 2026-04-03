@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatDate, formatCurrency } from '@/lib/utils';
+import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
@@ -172,44 +173,6 @@ export default function ReviewBudgetPlanPage() {
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
   const canEditClassification = canTakeAction;
-  const reviewedAt = histories.find((history) => history.details?.status === 'Reviewed');
-  const hasReviewedStep = !!reviewedAt;
-
-  const formatDateTime = (date: string) =>
-    new Date(date).toLocaleString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-  const getStepProgress = (levelType: string) => {
-    if (levelType === 'Reviewer') {
-      const reviewerHistory = histories.find((history) =>
-        ['Reviewed', 'Revision', 'Declined'].includes(history.details?.status || '')
-      );
-      if (!reviewerHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
-
-      return {
-        statusLabel: reviewerHistory.details?.status || 'Processed',
-        timestampLabel: formatDateTime(reviewerHistory.timestamp),
-      };
-    }
-
-    const approverHistory = histories.find((history) => {
-      const status = history.details?.status || '';
-      if (status === 'Approved') return true;
-      if (!['Revision', 'Declined'].includes(status)) return false;
-      return hasReviewedStep && reviewedAt && new Date(history.timestamp) > new Date(reviewedAt.timestamp);
-    });
-
-    if (!approverHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
-    return {
-      statusLabel: approverHistory.details?.status || 'Processed',
-      timestampLabel: formatDateTime(approverHistory.timestamp),
-    };
-  };
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -378,7 +341,7 @@ export default function ReviewBudgetPlanPage() {
               </thead>
               <tbody>
                 {plan.approvalSchema.approvalLevels.map((l, i) => {
-                  const stepProgress = getStepProgress(l.levelType);
+                  const stepProgress = getApprovalStepProgress(l.levelType, histories);
                   return (
                     <tr key={i} className="border-b">
                       <td className="py-2 px-3">{l.stepOrder}</td>
