@@ -112,6 +112,24 @@ export default function ReviewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (isDeclineModalOpen) {
+        setIsDeclineModalOpen(false);
+        setDeclineReason('');
+      } else {
+        setIsApproveModalOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
