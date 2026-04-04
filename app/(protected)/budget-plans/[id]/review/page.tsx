@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
 import { PenSquare } from 'lucide-react';
+import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -217,28 +218,28 @@ export default function ReviewBudgetPlanPage() {
 
         <div>
           <h3 className="font-medium mb-2">Monthly Allocation</h3>
-          <table className="w-full border">
+          <Table>
             <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="text-left py-2 px-3">#</th>
-                <th className="text-left py-2 px-3">Month</th>
-                <th className="text-right py-2 px-3">Allocation</th>
-              </tr>
+              <TableHeaderRow>  
+                <TableHead>#</TableHead>
+                <TableHead>Month</TableHead>
+                <TableHead>Allocation</TableHead>
+              </TableHeaderRow>
             </thead>
             <tbody>
               {(plan.allocations || []).map((a, i) => (
-                <tr key={a.month} className="border-b">
-                  <td className="py-2 px-3">{i + 1}</td>
-                  <td className="py-2 px-3">{MONTH_NAMES[a.month - 1]}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(Number(a.allocation ?? 0))}</td>
-                </tr>
+                <TableBodyRow key={a.month}>
+                  <TableCell>{i + 1}</TableCell>
+                  <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
+                  <TableCell>{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                </TableBodyRow>
               ))}
-              <tr className="font-medium bg-gray-50">
-                <td colSpan={2} className="py-2 px-3">Total</td>
-                <td className="py-2 px-3 text-right">{formatCurrency(total)}</td>
-              </tr>
+              <TableBodyRow className="font-medium bg-gray-50">
+                <TableCell colSpan={2}>Total</TableCell>
+                <TableCell>{formatCurrency(total)}</TableCell>
+              </TableBodyRow>
             </tbody>
-          </table>
+          </Table>
         </div>
 
         <div className="space-y-3">
@@ -348,25 +349,25 @@ export default function ReviewBudgetPlanPage() {
         {plan.approvalSchema?.approvalLevels?.length ? (
           <div>
             <h3 className="font-medium mb-2">Approval Escalation</h3>
-            <table className="w-full border">
+            <Table>
               <thead>
-                <tr className="bg-gray-50 border-b">
-                  <th className="text-left py-2 px-3">#</th>
-                  <th className="text-left py-2 px-3">Role</th>
-                  <th className="text-left py-2 px-3">Type</th>
-                  <th className="text-left py-2 px-3">Status</th>
-                  <th className="text-left py-2 px-3">Updated At</th>
-                </tr>
+                <TableHeaderRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Updated At</TableHead>
+                </TableHeaderRow>
               </thead>
               <tbody>
                 {plan.approvalSchema.approvalLevels.map((l, i) => {
                   const stepProgress = getApprovalStepProgress(l.levelType, histories);
                   return (
-                    <tr key={i} className="border-b">
-                      <td className="py-2 px-3">{l.stepOrder}</td>
-                      <td className="py-2 px-3">{l.role?.roleName}</td>
-                      <td className="py-2 px-3">{l.levelType}</td>
-                      <td className="py-2 px-3">
+                    <TableBodyRow key={i}>
+                      <TableCell>{l.stepOrder}</TableCell>
+                      <TableCell>{l.role?.roleName}</TableCell>
+                      <TableCell>{l.levelType}</TableCell>
+                      <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             stepProgress.statusLabel === 'Pending'
@@ -380,13 +381,13 @@ export default function ReviewBudgetPlanPage() {
                         >
                           {stepProgress.statusLabel}
                         </span>
-                      </td>
-                      <td className="py-2 px-3 text-sm text-gray-700">{stepProgress.timestampLabel}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{stepProgress.timestampLabel}</TableCell>
+                    </TableBodyRow>
                   );
                 })}
               </tbody>
-            </table>
+            </Table>
           </div>
         ) : null}
 
