@@ -9,9 +9,11 @@ import { iconActionButtonClassName } from '@/components/ui/actions/IconActionBut
 interface DepartmentActionsProps {
   departmentId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function DepartmentActions({ departmentId, onDelete }: DepartmentActionsProps) {
+export default function DepartmentActions({ departmentId, onDelete, canEdit, canDelete }: DepartmentActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,22 +38,32 @@ export default function DepartmentActions({ departmentId, onDelete }: Department
       <Link href={`/workspace-management/department/${departmentId}`} className={iconActionButtonClassName}>
         <Eye className="w-4 h-4" />
       </Link>
-      <ActionsDropdown
-        triggerAriaLabel="Open department actions"
-        actions={[
-          {
-            label: 'Edit',
-            icon: Edit,
-            onSelect: () => router.push(`/workspace-management/department/${departmentId}/edit`),
-          },
-          {
-            label: 'Delete',
-            icon: Trash,
-            variant: 'danger',
-            onSelect: handleDelete,
-          },
-        ]}
-      />
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open department actions"
+          actions={[
+            ...(canEdit
+              ? [
+                  {
+                    label: 'Edit',
+                    icon: Edit,
+                    onSelect: () => router.push(`/workspace-management/department/${departmentId}/edit`),
+                  },
+                ]
+              : []),
+            ...(canDelete
+              ? [
+                  {
+                    label: 'Delete',
+                    icon: Trash,
+                    variant: 'danger' as const,
+                    onSelect: handleDelete,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

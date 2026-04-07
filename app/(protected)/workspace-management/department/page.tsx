@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { Department } from '@/types/department';
 import { stripHtmlTags } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
@@ -13,6 +14,7 @@ import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRo
 import DepartmentActions from './components/DepartmentActions';
 
 export default function DepartmentPage() {
+  const { data: session } = useSession();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +23,9 @@ export default function DepartmentPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const itemsPerPage = 10;
+  const canCreateDepartment = Boolean(session?.user?.access?.activityAccess?.createDepartment);
+  const canEditDepartment = Boolean(session?.user?.access?.activityAccess?.editDepartment);
+  const canDeleteDepartment = Boolean(session?.user?.access?.activityAccess?.deleteDepartment);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentDepartments = filteredDepartments.slice(startIndex, startIndex + itemsPerPage);
 
@@ -78,13 +83,15 @@ export default function DepartmentPage() {
       <h1 className="text-2xl font-semibold">Department</h1>
       <div className="flex items-center justify-between gap-4">
         <SearchInput value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
-        <Link
-          href="/workspace-management/department/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Department
-        </Link>
+        {canCreateDepartment && (
+          <Link
+            href="/workspace-management/department/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Department
+          </Link>
+        )}
       </div>
 
       {error && <div className="text-red-500 py-4">{error}</div>}
@@ -113,7 +120,12 @@ export default function DepartmentPage() {
                   <TableCell>{stripHtmlTags(dept.description)}</TableCell>
                   <TableCell>{(dept.head as { name?: string })?.name ?? '-'}</TableCell>
                   <TableCell>
-                    <DepartmentActions departmentId={dept.id} onDelete={refetch} />
+                    <DepartmentActions
+                      departmentId={dept.id}
+                      onDelete={refetch}
+                      canEdit={canEditDepartment}
+                      canDelete={canDeleteDepartment}
+                    />
                   </TableCell>
                 </TableBodyRow>
               ))
