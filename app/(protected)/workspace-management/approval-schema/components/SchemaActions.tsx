@@ -7,9 +7,11 @@ import ActionsDropdown from '@/components/ui/actions/ActionsDropdown';
 interface SchemaActionsProps {
   schemaId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function SchemaActions({ schemaId, onDelete }: SchemaActionsProps) {
+export default function SchemaActions({ schemaId, onDelete, canEdit, canDelete }: SchemaActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -24,21 +26,31 @@ export default function SchemaActions({ schemaId, onDelete }: SchemaActionsProps
     }
   };
 
+  if (!canEdit && !canDelete) return null;
+
   return (
     <ActionsDropdown
       triggerAriaLabel="Open approval schema actions"
       actions={[
-        {
-          label: 'Edit',
-          icon: Edit,
-          onSelect: () => router.push(`/workspace-management/approval-schema/${schemaId}/edit`),
-        },
-        {
-          label: 'Delete',
-          icon: Trash,
-          variant: 'danger',
-          onSelect: handleDelete,
-        },
+        ...(canEdit
+          ? [
+              {
+                label: 'Edit',
+                icon: Edit,
+                onSelect: () => router.push(`/workspace-management/approval-schema/${schemaId}/edit`),
+              },
+            ]
+          : []),
+        ...(canDelete
+          ? [
+              {
+                label: 'Delete',
+                icon: Trash,
+                variant: 'danger' as const,
+                onSelect: handleDelete,
+              },
+            ]
+          : []),
       ]}
       menuClassName="right-0 top-8"
     />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -26,6 +27,7 @@ interface Schema {
 }
 
 export default function ApprovalSchemaPage() {
+  const { data: session } = useSession();
   const [schemas, setSchemas] = useState<Schema[]>([]);
   const [filtered, setFiltered] = useState<Schema[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,6 +35,9 @@ export default function ApprovalSchemaPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const itemsPerPage = 10;
+  const canCreateApprovalSchema = Boolean(session?.user?.access?.activityAccess?.createApprovalSchema);
+  const canEditApprovalSchema = Boolean(session?.user?.access?.activityAccess?.editApprovalSchema);
+  const canDeleteApprovalSchema = Boolean(session?.user?.access?.activityAccess?.deleteApprovalSchema);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentSchemas = filtered.slice(startIndex, startIndex + itemsPerPage);
 
@@ -67,13 +72,15 @@ export default function ApprovalSchemaPage() {
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
         />
-        <Link
-          href="/workspace-management/approval-schema/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          New Approval Schema
-        </Link>
+        {canCreateApprovalSchema && (
+          <Link
+            href="/workspace-management/approval-schema/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            New Approval Schema
+          </Link>
+        )}
       </div>
       <Card>
         <Table>
@@ -97,7 +104,12 @@ export default function ApprovalSchemaPage() {
                   <TableCell>{s.department?.name ?? '-'}</TableCell>
                   <TableCell>{s.type} - Default</TableCell>
                   <TableCell>
-                    <SchemaActions schemaId={s.id} onDelete={fetchData} />
+                    <SchemaActions
+                      schemaId={s.id}
+                      onDelete={fetchData}
+                      canEdit={canEditApprovalSchema}
+                      canDelete={canDeleteApprovalSchema}
+                    />
                   </TableCell>
                 </TableBodyRow>
               ))
