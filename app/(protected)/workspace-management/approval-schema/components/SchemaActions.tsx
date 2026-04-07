@@ -1,8 +1,10 @@
 'use client';
 
-import { Edit, Trash } from 'lucide-react';
+import Link from 'next/link';
+import { Edit, Eye, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ActionsDropdown from '@/components/ui/actions/ActionsDropdown';
+import { iconActionButtonClassName } from '@/components/ui/actions/IconActionButton';
 
 interface SchemaActionsProps {
   schemaId: string;
@@ -26,33 +28,38 @@ export default function SchemaActions({ schemaId, onDelete, canEdit, canDelete }
     }
   };
 
-  if (!canEdit && !canDelete) return null;
-
   return (
-    <ActionsDropdown
-      triggerAriaLabel="Open approval schema actions"
-      actions={[
-        ...(canEdit
-          ? [
-              {
-                label: 'Edit',
-                icon: Edit,
-                onSelect: () => router.push(`/workspace-management/approval-schema/${schemaId}/edit`),
-              },
-            ]
-          : []),
-        ...(canDelete
-          ? [
-              {
-                label: 'Delete',
-                icon: Trash,
-                variant: 'danger' as const,
-                onSelect: handleDelete,
-              },
-            ]
-          : []),
-      ]}
-      menuClassName="right-0 top-8"
-    />
+    <div className="flex items-center gap-2">
+      <Link href={`/workspace-management/approval-schema/${schemaId}`} className={iconActionButtonClassName}>
+        <Eye className="w-4 h-4" />
+      </Link>
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open approval schema actions"
+          actions={[
+            ...(canEdit
+              ? [
+                  {
+                    label: 'Edit',
+                    icon: Edit,
+                    onSelect: () => router.push(`/workspace-management/approval-schema/${schemaId}/edit`),
+                  },
+                ]
+              : []),
+            ...(canDelete
+              ? [
+                  {
+                    label: 'Delete',
+                    icon: Trash,
+                    variant: 'danger' as const,
+                    onSelect: handleDelete,
+                  },
+                ]
+              : []),
+          ]}
+          menuClassName="right-0 top-8"
+        />
+      )}
+    </div>
   );
 }
