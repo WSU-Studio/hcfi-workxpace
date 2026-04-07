@@ -9,9 +9,11 @@ import { iconActionButtonClassName } from '@/components/ui/actions/IconActionBut
 interface ProjectActionsProps {
   projectId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function ProjectActions({ projectId, onDelete }: ProjectActionsProps) {
+export default function ProjectActions({ projectId, onDelete, canEdit, canDelete }: ProjectActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,22 +38,32 @@ export default function ProjectActions({ projectId, onDelete }: ProjectActionsPr
       <Link href={`/workspace-management/project/${projectId}`} className={iconActionButtonClassName}>
         <Eye className="w-4 h-4" />
       </Link>
-      <ActionsDropdown
-        triggerAriaLabel="Open project actions"
-        actions={[
-          {
-            label: 'Edit',
-            icon: Edit,
-            onSelect: () => router.push(`/workspace-management/project/${projectId}/edit`),
-          },
-          {
-            label: 'Delete',
-            icon: Trash,
-            variant: 'danger',
-            onSelect: handleDelete,
-          },
-        ]}
-      />
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open project actions"
+          actions={[
+            ...(canEdit
+              ? [
+                  {
+                    label: 'Edit',
+                    icon: Edit,
+                    onSelect: () => router.push(`/workspace-management/project/${projectId}/edit`),
+                  },
+                ]
+              : []),
+            ...(canDelete
+              ? [
+                  {
+                    label: 'Delete',
+                    icon: Trash,
+                    variant: 'danger' as const,
+                    onSelect: handleDelete,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

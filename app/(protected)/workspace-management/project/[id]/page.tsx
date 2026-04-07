@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -9,10 +10,12 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import { Project } from '@/types/project';
 
 export default function ProjectDetailPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const id = params.id as string;
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const canEditProject = Boolean(session?.user?.access?.activityAccess?.editProject);
 
   useEffect(() => {
     if (!id) return;
@@ -62,14 +65,16 @@ export default function ProjectDetailPage() {
           <label className="text-sm text-gray-500">Description</label>
           <p className="text-gray-700">{project.description || '-'}</p>
         </div>
-        <div className="pt-4">
-          <Link
-            href={`/workspace-management/project/${id}/edit`}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Edit
-          </Link>
-        </div>
+        {canEditProject && (
+          <div className="pt-4">
+            <Link
+              href={`/workspace-management/project/${id}/edit`}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Edit
+            </Link>
+          </div>
+        )}
       </Card>
     </div>
   );
