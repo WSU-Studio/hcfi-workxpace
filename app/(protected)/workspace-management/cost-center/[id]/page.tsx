@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -10,10 +11,12 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 type CostCenter = { id: string; name: string; description: string | null };
 
 export default function CostCenterDetailPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const id = params.id as string;
   const [costCenter, setCostCenter] = useState<CostCenter | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const canEditCostCenter = Boolean(session?.user?.access?.activityAccess?.editCostCenter);
 
   useEffect(() => {
     if (!id) return;
@@ -43,11 +46,13 @@ export default function CostCenterDetailPage() {
           <label className="text-sm text-gray-500">Description</label>
           <p className="text-gray-700">{costCenter.description || '-'}</p>
         </div>
-        <div className="pt-4">
-          <Link href={`/workspace-management/cost-center/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Edit
-          </Link>
-        </div>
+        {canEditCostCenter && (
+          <div className="pt-4">
+            <Link href={`/workspace-management/cost-center/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              Edit
+            </Link>
+          </div>
+        )}
       </Card>
     </div>
   );

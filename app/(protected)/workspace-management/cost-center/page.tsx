@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -13,6 +14,7 @@ import CostCenterActions from './components/CostCenterActions';
 type CostCenter = { id: string; name: string; description: string | null };
 
 export default function CostCenterPage() {
+  const { data: session } = useSession();
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [filteredCostCenters, setFilteredCostCenters] = useState<CostCenter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +22,9 @@ export default function CostCenterPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 10;
+  const canCreateCostCenter = Boolean(session?.user?.access?.activityAccess?.createCostCenter);
+  const canEditCostCenter = Boolean(session?.user?.access?.activityAccess?.editCostCenter);
+  const canDeleteCostCenter = Boolean(session?.user?.access?.activityAccess?.deleteCostCenter);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentCostCenters = filteredCostCenters.slice(startIndex, startIndex + itemsPerPage);
 
@@ -56,10 +61,12 @@ export default function CostCenterPage() {
       <h1 className="text-2xl font-semibold">Cost Center Master</h1>
       <div className="flex items-center justify-between gap-4">
         <SearchInput value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
-        <Link href="/workspace-management/cost-center/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Plus className="w-4 h-4" />
-          Add Cost Center
-        </Link>
+        {canCreateCostCenter && (
+          <Link href="/workspace-management/cost-center/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <Plus className="w-4 h-4" />
+            Add Cost Center
+          </Link>
+        )}
       </div>
 
       <Card>
@@ -81,7 +88,14 @@ export default function CostCenterPage() {
                   <TableCell>{startIndex + idx + 1}</TableCell>
                   <TableCell>{costCenter.name}</TableCell>
                   <TableCell>{costCenter.description || '-'}</TableCell>
-                  <TableCell><CostCenterActions costCenterId={costCenter.id} onDelete={refetch} /></TableCell>
+                  <TableCell>
+                    <CostCenterActions
+                      costCenterId={costCenter.id}
+                      onDelete={refetch}
+                      canEdit={canEditCostCenter}
+                      canDelete={canDeleteCostCenter}
+                    />
+                  </TableCell>
                 </TableBodyRow>
               ))
             )}
