@@ -23,7 +23,14 @@ export default withAuth(
     const activityAccess = access?.activityAccess ?? {};
 
     if (req.nextUrl.pathname.startsWith('/workspace-management')) {
+      if (!menuAccess.workspaceManagement) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+
       if (req.nextUrl.pathname.includes('/department')) {
+        if (!menuAccess.viewDepartment) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
         if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editDepartment) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
@@ -32,6 +39,9 @@ export default withAuth(
         }
       }
       if (req.nextUrl.pathname.includes('/project')) {
+        if (!menuAccess.viewProject) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
         if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editProject) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
@@ -40,6 +50,9 @@ export default withAuth(
         }
       }
       if (req.nextUrl.pathname.includes('/role')) {
+        if (!menuAccess.viewRole) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
         if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editRole) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
@@ -48,12 +61,51 @@ export default withAuth(
         }
       }
       if (req.nextUrl.pathname.includes('/approval-schema')) {
+        if (!menuAccess.viewApprovalSchema) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
         if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editApprovalSchema) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
         if (req.nextUrl.pathname.includes('/new') && !activityAccess.createApprovalSchema) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
+      }
+      if (req.nextUrl.pathname.includes('/category-key-index')) {
+        if (!menuAccess.viewCategoryKeyIndex) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editCategoryKeyIndex) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createCategoryKeyIndex) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
+      if (req.nextUrl.pathname.includes('/cost-center')) {
+        if (!menuAccess.viewCostCenter) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editCostCenter) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createCostCenter) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
+      if (req.nextUrl.pathname.match(/^\/workspace-management\/category(\/|$)/)) {
+        if (!menuAccess.viewCategory) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editCategory) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createCategory) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
+      if (req.nextUrl.pathname.includes('/activity-history') && !menuAccess.viewActivityHistory) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
       }
     }
 
