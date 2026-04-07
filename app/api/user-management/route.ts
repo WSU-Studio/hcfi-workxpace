@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -88,8 +89,8 @@ export async function POST(request: Request) {
         userRoles: { create: { roleId } },
         access: {
           create: {
-            menuAccess: defaultMenuAccess,
-            activityAccess: defaultActivityAccess,
+            menuAccess: defaultMenuAccess as unknown as Prisma.InputJsonValue,
+            activityAccess: defaultActivityAccess as unknown as Prisma.InputJsonValue,
           },
         },
       },
