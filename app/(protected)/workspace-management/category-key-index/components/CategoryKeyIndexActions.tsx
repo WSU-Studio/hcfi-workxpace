@@ -9,9 +9,11 @@ import { iconActionButtonClassName } from '@/components/ui/actions/IconActionBut
 interface CategoryKeyIndexActionsProps {
   categoryKeyIndexId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function CategoryKeyIndexActions({ categoryKeyIndexId, onDelete }: CategoryKeyIndexActionsProps) {
+export default function CategoryKeyIndexActions({ categoryKeyIndexId, onDelete, canEdit, canDelete }: CategoryKeyIndexActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,13 +38,19 @@ export default function CategoryKeyIndexActions({ categoryKeyIndexId, onDelete }
       <Link href={`/workspace-management/category-key-index/${categoryKeyIndexId}`} className={iconActionButtonClassName}>
         <Eye className="w-4 h-4" />
       </Link>
-      <ActionsDropdown
-        triggerAriaLabel="Open category key index actions"
-        actions={[
-          { label: 'Edit', icon: Edit, onSelect: () => router.push(`/workspace-management/category-key-index/${categoryKeyIndexId}/edit`) },
-          { label: 'Delete', icon: Trash, variant: 'danger', onSelect: handleDelete },
-        ]}
-      />
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open category key index actions"
+          actions={[
+            ...(canEdit
+              ? [{ label: 'Edit', icon: Edit, onSelect: () => router.push(`/workspace-management/category-key-index/${categoryKeyIndexId}/edit`) }]
+              : []),
+            ...(canDelete
+              ? [{ label: 'Delete', icon: Trash, variant: 'danger' as const, onSelect: handleDelete }]
+              : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

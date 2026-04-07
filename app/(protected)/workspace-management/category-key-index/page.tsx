@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -13,6 +14,7 @@ import CategoryKeyIndexActions from './components/CategoryKeyIndexActions';
 type CategoryKeyIndex = { id: string; name: string; description: string | null };
 
 export default function CategoryKeyIndexPage() {
+  const { data: session } = useSession();
   const [categoryKeyIndexes, setCategoryKeyIndexes] = useState<CategoryKeyIndex[]>([]);
   const [filteredCategoryKeyIndexes, setFilteredCategoryKeyIndexes] = useState<CategoryKeyIndex[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +22,9 @@ export default function CategoryKeyIndexPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 10;
+  const canCreateCategoryKeyIndex = Boolean(session?.user?.access?.activityAccess?.createCategoryKeyIndex);
+  const canEditCategoryKeyIndex = Boolean(session?.user?.access?.activityAccess?.editCategoryKeyIndex);
+  const canDeleteCategoryKeyIndex = Boolean(session?.user?.access?.activityAccess?.deleteCategoryKeyIndex);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentCategoryKeyIndexes = filteredCategoryKeyIndexes.slice(startIndex, startIndex + itemsPerPage);
 
@@ -54,10 +59,12 @@ export default function CategoryKeyIndexPage() {
       <h1 className="text-2xl font-semibold">Category Key Index Master</h1>
       <div className="flex items-center justify-between gap-4">
         <SearchInput value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
-        <Link href="/workspace-management/category-key-index/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Plus className="w-4 h-4" />
-          Add Category Key Index
-        </Link>
+        {canCreateCategoryKeyIndex && (
+          <Link href="/workspace-management/category-key-index/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <Plus className="w-4 h-4" />
+            Add Category Key Index
+          </Link>
+        )}
       </div>
 
       <Card>
@@ -79,7 +86,14 @@ export default function CategoryKeyIndexPage() {
                   <TableCell>{startIndex + idx + 1}</TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.description || '-'}</TableCell>
-                  <TableCell><CategoryKeyIndexActions categoryKeyIndexId={item.id} onDelete={refetch} /></TableCell>
+                  <TableCell>
+                    <CategoryKeyIndexActions
+                      categoryKeyIndexId={item.id}
+                      onDelete={refetch}
+                      canEdit={canEditCategoryKeyIndex}
+                      canDelete={canDeleteCategoryKeyIndex}
+                    />
+                  </TableCell>
                 </TableBodyRow>
               ))
             )}
