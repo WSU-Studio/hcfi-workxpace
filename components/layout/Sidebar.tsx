@@ -17,6 +17,14 @@ const restrictedMenuAccess: MenuAccess = {
   budgetRequests: false,
   userManagement: false,
   workspaceManagement: false,
+  viewDepartment: false,
+  viewProject: false,
+  viewCategory: false,
+  viewCategoryKeyIndex: false,
+  viewCostCenter: false,
+  viewRole: false,
+  viewApprovalSchema: false,
+  viewActivityHistory: false,
 };
 
 const Sidebar = () => {

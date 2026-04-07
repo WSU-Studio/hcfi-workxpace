@@ -9,7 +9,11 @@ import Button from '@/components/ui/Button';
 import ButtonLink from '@/components/ui/ButtonLink';
 import { defaultActivityAccess, defaultMenuAccess } from '@/lib/default-access';
 import { UserAccessPayload } from '@/types/user-management';
-import AccessControlSection, { activityAccessItems, menuAccessItems } from '../../components/AccessControlSection';
+import AccessControlSection, {
+  activityAccessItems,
+  menuAccessItems,
+  workspaceManagementAccessItems,
+} from '../../components/AccessControlSection';
 
 const initialAccess: UserAccessPayload = {
   menuAccess: defaultMenuAccess,
@@ -113,6 +117,14 @@ export default function UserAccessControlPage() {
         <AccessControlSection
           title="Activity Access"
           items={activityAccessItems}
+          access={access.activityAccess}
+          onChange={updateActivityAccess}
+          columns={3}
+        />
+
+        <AccessControlSection
+          title="Workspace Management Access"
+          items={workspaceManagementAccessItems}
           access={access.activityAccess}
           onChange={updateActivityAccess}
           columns={3}
