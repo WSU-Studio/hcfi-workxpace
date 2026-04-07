@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -18,6 +19,7 @@ interface Role {
 }
 
 export default function RolePage() {
+  const { data: session } = useSession();
   const [roles, setRoles] = useState<Role[]>([]);
   const [filtered, setFiltered] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,6 +27,9 @@ export default function RolePage() {
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const itemsPerPage = 10;
+  const canCreateRole = Boolean(session?.user?.access?.activityAccess?.createRole);
+  const canEditRole = Boolean(session?.user?.access?.activityAccess?.editRole);
+  const canDeleteRole = Boolean(session?.user?.access?.activityAccess?.deleteRole);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentRoles = filtered.slice(startIndex, startIndex + itemsPerPage);
 
@@ -64,13 +69,15 @@ export default function RolePage() {
       <h1 className="text-2xl font-semibold">Role (Job Position)</h1>
       <div className="flex justify-between gap-4">
         <SearchInput value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
-        <Link
-          href="/workspace-management/role/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Role
-        </Link>
+        {canCreateRole && (
+          <Link
+            href="/workspace-management/role/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Role
+          </Link>
+        )}
       </div>
       <Card>
         <Table>
@@ -94,7 +101,12 @@ export default function RolePage() {
                   <TableCell>{r.roleName}</TableCell>
                   <TableCell>{r.description || '-'}</TableCell>
                   <TableCell>
-                    <RoleActions roleId={r.id} onDelete={refetch} />
+                    <RoleActions
+                      roleId={r.id}
+                      onDelete={refetch}
+                      canEdit={canEditRole}
+                      canDelete={canDeleteRole}
+                    />
                   </TableCell>
                 </TableBodyRow>
               ))

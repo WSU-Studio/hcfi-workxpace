@@ -7,9 +7,11 @@ import ActionsDropdown from '@/components/ui/actions/ActionsDropdown';
 interface RoleActionsProps {
   roleId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function RoleActions({ roleId, onDelete }: RoleActionsProps) {
+export default function RoleActions({ roleId, onDelete, canEdit, canDelete }: RoleActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -25,21 +27,31 @@ export default function RoleActions({ roleId, onDelete }: RoleActionsProps) {
     }
   };
 
+  if (!canEdit && !canDelete) return null;
+
   return (
     <ActionsDropdown
       triggerAriaLabel="Open role actions"
       actions={[
-        {
-          label: 'Edit',
-          icon: Edit,
-          onSelect: () => router.push(`/workspace-management/role/${roleId}/edit`),
-        },
-        {
-          label: 'Delete',
-          icon: Trash,
-          variant: 'danger',
-          onSelect: handleDelete,
-        },
+        ...(canEdit
+          ? [
+              {
+                label: 'Edit',
+                icon: Edit,
+                onSelect: () => router.push(`/workspace-management/role/${roleId}/edit`),
+              },
+            ]
+          : []),
+        ...(canDelete
+          ? [
+              {
+                label: 'Delete',
+                icon: Trash,
+                variant: 'danger' as const,
+                onSelect: handleDelete,
+              },
+            ]
+          : []),
       ]}
     />
   );
