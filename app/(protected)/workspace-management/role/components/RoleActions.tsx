@@ -1,8 +1,10 @@
 'use client';
 
-import { Edit, Trash } from 'lucide-react';
+import Link from 'next/link';
+import { Edit, Eye, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ActionsDropdown from '@/components/ui/actions/ActionsDropdown';
+import { iconActionButtonClassName } from '@/components/ui/actions/IconActionButton';
 
 interface RoleActionsProps {
   roleId: string;
@@ -27,32 +29,37 @@ export default function RoleActions({ roleId, onDelete, canEdit, canDelete }: Ro
     }
   };
 
-  if (!canEdit && !canDelete) return null;
-
   return (
-    <ActionsDropdown
-      triggerAriaLabel="Open role actions"
-      actions={[
-        ...(canEdit
-          ? [
-              {
-                label: 'Edit',
-                icon: Edit,
-                onSelect: () => router.push(`/workspace-management/role/${roleId}/edit`),
-              },
-            ]
-          : []),
-        ...(canDelete
-          ? [
-              {
-                label: 'Delete',
-                icon: Trash,
-                variant: 'danger' as const,
-                onSelect: handleDelete,
-              },
-            ]
-          : []),
-      ]}
-    />
+    <div className="flex items-center gap-2">
+      <Link href={`/workspace-management/role/${roleId}`} className={iconActionButtonClassName}>
+        <Eye className="w-4 h-4" />
+      </Link>
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open role actions"
+          actions={[
+            ...(canEdit
+              ? [
+                  {
+                    label: 'Edit',
+                    icon: Edit,
+                    onSelect: () => router.push(`/workspace-management/role/${roleId}/edit`),
+                  },
+                ]
+              : []),
+            ...(canDelete
+              ? [
+                  {
+                    label: 'Delete',
+                    icon: Trash,
+                    variant: 'danger' as const,
+                    onSelect: handleDelete,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      )}
+    </div>
   );
 }
