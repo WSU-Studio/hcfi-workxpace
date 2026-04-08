@@ -21,11 +21,16 @@ export function getApprovalStepProgress(
   levelType: string,
   histories: BudgetPlanHistoryEntry[]
 ): { statusLabel: string; timestampLabel: string } {
-  const reviewedAt = histories.find((history) => history.details?.status === 'Reviewed');
+  const latestDraftReset = histories.find((history) => history.details?.status === 'Draft');
+  const scopedHistories = latestDraftReset
+    ? histories.filter((history) => new Date(history.timestamp) > new Date(latestDraftReset.timestamp))
+    : histories;
+
+  const reviewedAt = scopedHistories.find((history) => history.details?.status === 'Reviewed');
   const hasReviewedStep = !!reviewedAt;
 
   if (levelType === 'Reviewer') {
-    const reviewerHistory = histories.find((history) =>
+    const reviewerHistory = scopedHistories.find((history) =>
       ['Reviewed', 'Revision', 'Declined'].includes(history.details?.status || '')
     );
     if (!reviewerHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
@@ -36,7 +41,7 @@ export function getApprovalStepProgress(
     };
   }
 
-  const approverHistory = histories.find((history) => {
+  const approverHistory = scopedHistories.find((history) => {
     const status = history.details?.status || '';
     if (status === 'Approved') return true;
     if (!['Revision', 'Declined'].includes(status)) return false;

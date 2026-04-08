@@ -79,7 +79,8 @@ export default function EditBudgetPlanPage() {
         }),
       });
       if (!res.ok) {
-        setError('Failed');
+        const body = await res.json().catch(() => ({}));
+        setError(typeof body?.error === 'string' ? body.error : 'Failed');
         return;
       }
       router.push(`/budget-plans/${id}`);

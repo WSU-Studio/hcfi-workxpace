@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
@@ -14,6 +15,7 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Approved', 'Revision', 'Declined', 'Pending']);
 
 type PlanDetail = {
+  requestorId?: string | null;
   code: string;
   subject: string;
   description: string | null;
@@ -47,6 +49,7 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
 export default function BudgetPlanDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: session } = useSession();
   const [plan, setPlan] = useState<PlanDetail | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
   const [histories, setHistories] = useState<BudgetPlanHistoryEntry[]>([]);
@@ -90,6 +93,7 @@ export default function BudgetPlanDetailPage() {
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const opexType = plan.opexType || '-';
+  const canEdit = !!session?.user?.id && plan.requestorId === session.user.id;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -202,11 +206,11 @@ export default function BudgetPlanDetailPage() {
         ) : null}
 
         <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
-          {plan.status === 'Draft' && (
+          {canEdit ? (
             <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               Edit
             </Link>
-          )}
+          ) : null}
           {REVIEW_NAV_STATUSES.has(plan.status) ? (
             <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
               {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}

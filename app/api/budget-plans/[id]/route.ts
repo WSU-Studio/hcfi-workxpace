@@ -173,6 +173,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await request.json();
+    const existing = await prisma.budgetPlan.findUnique({
+      where: { id },
+      select: { id: true, code: true, requestorId: true, status: true },
+    });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (existing.requestorId !== session.user.id) {
+      return NextResponse.json({ error: 'Only requestor can edit this budget plan' }, { status: 403 });
+    }
 
     await prisma.budgetPlan.update({
       where: { id },
@@ -192,6 +200,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         opexId: null,
         opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
         opexType: body.opexType || null,
+        status: 'Draft',
       },
     });
 
@@ -205,6 +214,28 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           month: m,
           allocation: alloc?.allocation ?? 0,
         },
+      });
+    }
+
+    await logActivity({
+      userId: session.user.id,
+      entityType: 'BudgetPlan',
+      entityId: id,
+      entityCode: existing.code,
+      action: 'update',
+      details: {
+        status: 'Draft',
+        previousStatus: existing.status,
+        note: 'Plan updated by requestor. Approval restarted from step 1.',
+      },
+    });
+
+    if (existing.status !== 'Draft') {
+      await createApprovalNotifications({
+        planId: id,
+        actorUserId: session.user.id,
+        status: 'Draft',
+        planCode: existing.code,
       });
     }
 

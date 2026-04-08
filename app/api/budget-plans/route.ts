@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') ?? '';
     const status = searchParams.get('status') ?? '';
@@ -38,7 +39,12 @@ export async function GET(request: Request) {
       orderBy: { code: 'asc' },
     });
 
-    return NextResponse.json({ plans, departments });
+    const enrichedPlans = plans.map((plan) => ({
+      ...plan,
+      canEdit: !!session?.user?.id && plan.requestorId === session.user.id,
+    }));
+
+    return NextResponse.json({ plans: enrichedPlans, departments });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });

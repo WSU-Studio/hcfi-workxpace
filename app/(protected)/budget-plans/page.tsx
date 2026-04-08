@@ -15,6 +15,7 @@ interface Plan {
   code: string;
   subject: string;
   status: string;
+  canEdit?: boolean;
   department: { name: string };
   allocations?: { allocation: unknown }[];
 }
@@ -124,12 +125,12 @@ export default function BudgetPlansPage() {
                   <TableCell>{getMonthsLabel(p)}</TableCell>
                   <TableCell>
                     <Link href={`/budget-plans/${p.id}`} className="text-blue-600 hover:underline">View</Link>
-                    {p.status === 'Draft' && (
+                    {p.canEdit ? (
                       <>
                         {' | '}
                         <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
                       </>
-                    )}
+                    ) : null}
                     {REVIEW_NAV_STATUSES.has(p.status) ? (
                       <>
                         {' | '}
