@@ -65,8 +65,14 @@ export async function POST(req: Request) {
           })),
         },
       },
-      include: { lineItems: true },
+      include: {
+        lineItems: true,
+        budgetPlan: { select: { code: true, subject: true } },
+        department: { select: { name: true } },
+      },
     });
+
+    const totalRequested = br.lineItems.reduce((sum, li) => sum + Number(li.total ?? 0), 0);
 
     await logActivity({
       userId: session.user.id,
@@ -74,7 +80,19 @@ export async function POST(req: Request) {
       entityId: br.id,
       entityCode: br.code,
       action: 'create',
-      details: { subject: br.subject },
+      details: {
+        subject: br.subject,
+        description: br.description,
+        fiscalYear: br.fiscalYear,
+        status: br.status,
+        budgetPlanCode: br.budgetPlan?.code ?? null,
+        budgetPlanSubject: br.budgetPlan?.subject ?? null,
+        departmentName: br.department?.name ?? null,
+        notes: br.notes,
+        approvalSchemaId: br.approvalSchemaId,
+        lineItemCount: br.lineItems.length,
+        totalRequested,
+      },
     });
 
     return NextResponse.json(br);
