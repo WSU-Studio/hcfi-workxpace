@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { X } from 'lucide-react';
+import ButtonLink from '@/components/ui/ButtonLink';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Textarea from '@/components/ui/Textarea';
+import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -15,8 +20,8 @@ export default function EditBudgetPlanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fiscalYears, setFiscalYears] = useState<{ year: number }[]>([]);
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
   const [formData, setFormData] = useState({
     fiscalYear: 0,
@@ -27,12 +32,62 @@ export default function EditBudgetPlanPage() {
     description: '',
     approvalSchemaId: '',
   });
-  const [allocations, setAllocations] = useState<Record<number, number>>({});
+  const [allocations, setAllocations] = useState<Record<number, number>>(
+    () => Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]))
+  );
+  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  const [baseAmount, setBaseAmount] = useState<string>('');
   const [error, setError] = useState('');
+
+  const selectedMonthsSorted = [...selectedMonths].sort((a, b) => a - b);
+  const totalAlloc = selectedMonthsSorted.reduce((sum, m) => sum + (allocations[m] || 0), 0);
+
+  const toggleMonth = (month: number) => {
+    setSelectedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(month)) next.delete(month);
+      else next.add(month);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedMonths.size === 12) setSelectedMonths(new Set());
+    else setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  };
+
+  const parseBaseAmount = (s: string) => {
+    const cleaned = s.replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+  };
+
+  const copyToAll = () => {
+    if (selectedMonthsSorted.length === 0) return;
+    const val = parseBaseAmount(baseAmount);
+    const next = { ...allocations };
+    selectedMonthsSorted.forEach((m) => {
+      next[m] = val;
+    });
+    setAllocations(next);
+  };
+
+  const splitEvenly = () => {
+    if (selectedMonthsSorted.length === 0) return;
+    const total = parseBaseAmount(baseAmount) || totalAlloc;
+    if (!total) return;
+    const each = Math.round((total / selectedMonthsSorted.length) * 100) / 100;
+    const next = { ...allocations };
+    selectedMonthsSorted.forEach((m) => {
+      next[m] = each;
+    });
+    setAllocations(next);
+  };
+
+  const formatDisplay = (n: number) => n.toLocaleString('id-ID');
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/budget-plans/${id}`)
+    fetch(`/api/budget-plans/${id}`, { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         const p = data.plan;
@@ -46,11 +101,15 @@ export default function EditBudgetPlanPage() {
             description: p.description || '',
             approvalSchemaId: p.approvalSchemaId || '',
           });
-          const allocs: Record<number, number> = {};
+          const allocs: Record<number, number> = Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]));
+          const withValue = new Set<number>();
           (p.allocations || []).forEach((a: { month: number; allocation: unknown }) => {
-            allocs[a.month] = Number(a.allocation ?? 0);
+            const v = Number(a.allocation ?? 0);
+            allocs[a.month] = v;
+            if (v > 0) withValue.add(a.month);
           });
           setAllocations(allocs);
+          setSelectedMonths(withValue.size > 0 ? withValue : new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
         }
         setFiscalYears(data.fiscalYears || []);
         setDepartments(data.departments || []);
@@ -60,14 +119,15 @@ export default function EditBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  const copyToAll = (val: number) => setAllocations(Object.fromEntries([...Array(12)].map((_, i) => [i + 1, val])));
-  const totalAlloc = Object.values(allocations).reduce((a, b) => a + b, 0);
-  const splitEvenly = () => setAllocations(Object.fromEntries([...Array(12)].map((_, i) => [i + 1, Math.round((totalAlloc / 12) * 100) / 100])));
   const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (selectedMonthsSorted.length === 0) {
+      setError('Select at least one month for allocation');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/budget-plans/${id}`, {
@@ -75,7 +135,10 @@ export default function EditBudgetPlanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          allocations: Object.entries(allocations).map(([month, allocation]) => ({ month: Number(month), allocation })),
+          allocations: selectedMonthsSorted.map((month) => ({
+            month,
+            allocation: allocations[month] ?? 0,
+          })),
         }),
       });
       if (!res.ok) {
@@ -94,98 +157,210 @@ export default function EditBudgetPlanPage() {
   if (isLoading) return <LoadingSpin />;
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Edit Budget Plan</h1>
       {error && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block mb-1.5 font-medium">Fiscal Year *</label>
-              <select
+              <Select
                 value={formData.fiscalYear}
                 onChange={(e) => setFormData((p) => ({ ...p, fiscalYear: Number(e.target.value) }))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
                 required
               >
                 {fiscalYears.map((fy) => (
-                  <option key={fy.year} value={fy.year}>{fy.year}</option>
+                  <option key={fy.year} value={fy.year}>
+                    {fy.year}
+                  </option>
                 ))}
-              </select>
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 font-medium">Origin Office</label>
+              <Input
+                type="text"
+                value={formData.originOffice}
+                onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
+                placeholder="HQ"
+              />
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Department *</label>
-              <select
+              <Select
                 value={formData.departmentId}
                 onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
                 required
               >
+                <option value="">-</option>
                 {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
                 ))}
-              </select>
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 font-medium">Project</label>
+              <Select
+                value={formData.projectId}
+                onChange={(e) => setFormData((p) => ({ ...p, projectId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {projects.map((proj) => (
+                  <option key={proj.id} value={proj.id}>
+                    {proj.code} - {proj.name}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Subject *</label>
-            <input
+            <Input
               type="text"
+              required
               value={formData.subject}
               onChange={(e) => setFormData((p) => ({ ...p, subject: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
-              required
+              placeholder="Monthly Printer Rental"
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <textarea
+            <Textarea
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
               rows={4}
             />
           </div>
+
+          <div>
+            <h3 className="font-medium mb-3">Monthly Allocation</h3>
+
+            <div className="flex items-center gap-4 mb-3">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedMonths.size === 12}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium">select all</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {MONTH_NAMES.map((name, i) => {
+                  const month = i + 1;
+                  return (
+                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedMonths.has(month)}
+                        onChange={() => toggleMonth(month)}
+                        className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mb-4">
+              <label className="text-sm font-medium shrink-0">Base Amount</label>
+              <Input
+                type="text"
+                value={baseAmount}
+                onChange={(e) => setBaseAmount(e.target.value)}
+                placeholder="18.000.000"
+                className="max-w-[200px]"
+              />
+              <button
+                type="button"
+                onClick={copyToAll}
+                className="px-3 py-2 text-sm border border-gray-400 rounded-lg hover:bg-gray-50"
+              >
+                copy to all
+              </button>
+              <button
+                type="button"
+                onClick={splitEvenly}
+                className="px-3 py-2 text-sm border border-gray-400 rounded-lg hover:bg-gray-50"
+              >
+                split evenly
+              </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-gray-300">
+              <Table>
+                <thead>
+                  <TableHeaderRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Month</TableHead>
+                    <TableHead>Allocation</TableHead>
+                  </TableHeaderRow>
+                </thead>
+                <tbody>
+                  {selectedMonthsSorted.length === 0 ? (
+                    <TableEmptyRow colSpan={3}>Select at least one month</TableEmptyRow>
+                  ) : (
+                    selectedMonthsSorted.map((month, idx) => (
+                      <TableBodyRow key={month}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{MONTH_NAMES[month - 1]}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={allocations[month] ?? 0}
+                            onChange={(e) =>
+                              setAllocations((p) => ({ ...p, [month]: parseFloat(e.target.value) || 0 }))
+                            }
+                            className="max-w-[180px]"
+                          />
+                        </TableCell>
+                      </TableBodyRow>
+                    ))
+                  )}
+                </tbody>
+                {selectedMonthsSorted.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-400 bg-gray-50">
+                      <td className="px-4 py-3 font-medium" colSpan={2}>
+                        Total
+                      </td>
+                      <td className="px-4 py-3 font-semibold">{formatDisplay(totalAlloc)}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </Table>
+            </div>
+          </div>
+
           <div>
             <label className="block mb-1.5 font-medium">Approval Schema</label>
-            <select
+            <Select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg bg-white"
             >
               <option value="">-</option>
               {schemasForDept.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
-            </select>
+            </Select>
           </div>
-          <div>
-            <h3 className="font-medium mb-3">Monthly Allocation</h3>
-            <div className="flex gap-2 mb-3">
-              <button type="button" onClick={() => copyToAll(parseFloat(String(Object.values(allocations)[0])) || 0)} className="px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-                Copy to all
-              </button>
-              <button type="button" onClick={splitEvenly} className="px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-                Split evenly
-              </button>
-            </div>
-            <div className="grid grid-cols-6 gap-2">
-              {MONTH_NAMES.map((_, i) => (
-                <div key={i}>
-                  <label className="block text-xs text-gray-500 mb-1">{MONTH_NAMES[i]}</label>
-                  <input
-                    type="number"
-                    value={allocations[i + 1] ?? 0}
-                    onChange={(e) => setAllocations((p) => ({ ...p, [i + 1]: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href={`/budget-plans/${id}`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</Link>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <ButtonLink href={`/budget-plans/${id}`} variant="outline">
+              <X className="w-4 h-4" />
+              Cancel
+            </ButtonLink>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
               {isSubmitting ? 'Saving...' : 'Save'}
             </button>
           </div>
