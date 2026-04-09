@@ -77,7 +77,7 @@ export default function ActivityHistoryPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Activity History</h1>
       <Card>
-        <Table className="text-xs">
+        <Table>
           <thead>
             <TableHeaderRow>
               <TableHead>Date</TableHead>
@@ -92,7 +92,7 @@ export default function ActivityHistoryPage() {
               <TableEmptyRow colSpan={5}>No activity recorded yet.</TableEmptyRow>
             ) : (
               activities.map((a) => (
-                <TableBodyRow key={a.id}>
+                <TableBodyRow className="text-sm" key={a.id}>
                   <TableCell>{formatDateTime(a.timestamp)}</TableCell>
                   <TableCell>{a.user?.name ?? '-'}</TableCell>
                   <TableCell>{a.entityType} {a.entityCode ? `(${a.entityCode})` : ''}</TableCell>
@@ -107,7 +107,7 @@ export default function ActivityHistoryPage() {
                         <span className="text-gray-500">-</span>
                       ) : (
                         Object.entries(a.details || {}).map(([key, value]) => (
-                          <p key={key}>
+                          <p className="text-xs" key={key}>
                             <span className="font-medium text-gray-700">{formatDetailKey(key)}:</span>{' '}
                             <span className="text-gray-600 whitespace-pre-wrap">{formatDetailValue(value)}</span>
                           </p>
