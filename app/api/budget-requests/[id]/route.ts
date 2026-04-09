@@ -12,6 +12,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         budgetPlan: true,
         department: true,
         lineItems: true,
+        allocations: {
+          orderBy: [{ year: 'asc' }, { month: 'asc' }],
+        },
       },
     });
     if (!br) return NextResponse.json({ error: 'Not found' }, { status: 404 });
