@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -99,7 +100,7 @@ export default function BudgetPlanDetailPage() {
     <div className="max-w-4xl space-y-6">
       <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
       <h1 className="text-2xl font-semibold">{plan.subject}</h1>
-      <Card className="p-6 space-y-4">
+      <Card>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
@@ -111,33 +112,36 @@ export default function BudgetPlanDetailPage() {
             <span className="text-gray-500">Status:</span>{' '}
             <span className={`px-2 py-0.5 rounded text-sm ${plan.status === 'Approved' ? 'bg-green-100' : plan.status === 'Pending' ? 'bg-yellow-100' : 'bg-gray-100'}`}>{plan.status}</span>
           </div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Description:</span>
+            <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+          </div>
         </div>
-        <div>
-          <span className="text-gray-500">Description:</span>
-          <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
-        </div>
+      </Card>
+
+      <Card>
         <div>
           <h3 className="font-medium mb-2">Monthly Allocation</h3>
-          <table className="w-full border">
+          <Table>
             <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="text-left py-2 px-3">Month</th>
-                <th className="text-right py-2 px-3">Allocation</th>
-              </tr>
+              <TableHeaderRow>
+                <TableHead className="text-left">Month</TableHead>
+                <TableHead className="text-right">Allocation</TableHead>
+              </TableHeaderRow>
             </thead>
             <tbody>
               {(plan.allocations || []).map((a) => (
-                <tr key={a.month} className="border-b">
-                  <td className="py-2 px-3">{MONTH_NAMES[a.month - 1]}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(Number(a.allocation ?? 0))}</td>
-                </tr>
+                <TableBodyRow key={a.month}>
+                  <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
+                  <TableCell>{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                </TableBodyRow>
               ))}
-              <tr className="font-medium bg-gray-50">
-                <td className="py-2 px-3">Total</td>
-                <td className="py-2 px-3 text-right">{formatCurrency(total)}</td>
-              </tr>
+              <TableBodyRow className="font-medium bg-gray-50">
+                <TableCell colSpan={2}>Total</TableCell>
+                <TableCell>{formatCurrency(total)}</TableCell>
+              </TableBodyRow>
             </tbody>
-          </table>
+          </Table>
         </div>
 
         <div className="space-y-3 border-t border-gray-100 pt-4">
@@ -159,29 +163,31 @@ export default function BudgetPlanDetailPage() {
             ) : null}
           </div>
         </div>
+      </Card>
 
+      <div>
         {plan.approvalSchema?.approvalLevels?.length ? (
-          <div className="border-t border-gray-100 pt-4">
+          <Card>
             <h3 className="font-medium mb-2">Approval Escalation</h3>
-            <table className="w-full border">
+            <Table>
               <thead>
-                <tr className="bg-gray-50 border-b">
-                  <th className="text-left py-2 px-3">#</th>
-                  <th className="text-left py-2 px-3">Role</th>
-                  <th className="text-left py-2 px-3">Type</th>
-                  <th className="text-left py-2 px-3">Status</th>
-                  <th className="text-left py-2 px-3">Updated At</th>
-                </tr>
+                <TableHeaderRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Updated At</TableHead>
+                </TableHeaderRow>
               </thead>
               <tbody>
                 {plan.approvalSchema.approvalLevels.map((l, i) => {
                   const stepProgress = getApprovalStepProgress(l.levelType, histories);
                   return (
-                    <tr key={i} className="border-b">
-                      <td className="py-2 px-3">{l.stepOrder}</td>
-                      <td className="py-2 px-3">{l.role?.roleName ?? '-'}</td>
-                      <td className="py-2 px-3">{l.levelType}</td>
-                      <td className="py-2 px-3">
+                    <TableBodyRow key={i}>
+                      <TableCell>{l.stepOrder}</TableCell>
+                      <TableCell>{l.role?.roleName ?? '-'}</TableCell>
+                      <TableCell>{l.levelType}</TableCell>
+                      <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             stepProgress.statusLabel === 'Pending'
@@ -195,31 +201,35 @@ export default function BudgetPlanDetailPage() {
                         >
                           {stepProgress.statusLabel}
                         </span>
-                      </td>
-                      <td className="py-2 px-3 text-sm text-gray-700">{stepProgress.timestampLabel}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{stepProgress.timestampLabel}</TableCell>
+                    </TableBodyRow>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+            </Table>
+          </Card>
         ) : null}
+      </div>
 
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
-          {canEdit ? (
-            <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              Edit
-            </Link>
-          ) : null}
-          {REVIEW_NAV_STATUSES.has(plan.status) ? (
-            <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
-              {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}
-            </Link>
-          ) : null}
-        </div>
-      </Card>
+      <div>
+        { canEdit || REVIEW_NAV_STATUSES.has(plan.status) ? (
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+            {canEdit ? (
+              <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Edit
+              </Link>
+            ) : null}
+            {REVIEW_NAV_STATUSES.has(plan.status) ? (
+              <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}
+              </Link>
+            ) : null}
+          </div>
+        ) : <></> }
+      </div>
 
-      <Card className="p-6">
+      <Card>
         <h3 className="font-medium mb-3">Activity History</h3>
         {histories.length === 0 ? (
           <p className="text-sm text-gray-500">No history yet.</p>
