@@ -193,6 +193,14 @@ export default function ReviewBudgetPlanPage() {
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
   const canEditClassification = canTakeAction;
+  const formatDateTime = (date: string) =>
+    new Date(date).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -515,7 +523,7 @@ export default function ReviewBudgetPlanPage() {
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
-                  <span className="text-gray-500">on {formatDate(history.timestamp)}</span>
+                  <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
                 </p>
                 {history.details?.status ? (
                   <p className="text-gray-600">Status: {history.details.status}</p>

@@ -97,6 +97,14 @@ export default function BudgetPlanDetailPage() {
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const opexType = plan.opexType || '-';
   const canEdit = !!session?.user?.id && plan.requestorId === session.user.id;
+  const formatDateTime = (date: string) =>
+    new Date(date).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -248,7 +256,7 @@ export default function BudgetPlanDetailPage() {
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
-                  <span className="text-gray-500">on {formatDate(history.timestamp)}</span>
+                  <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
