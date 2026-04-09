@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
@@ -21,15 +22,57 @@ interface Plan {
   allocations?: { allocation: unknown }[];
 }
 
+interface EditWarningModalProps {
+  isOpen: boolean;
+  planSubject?: string;
+  onCancel: () => void;
+  onContinue: () => void;
+}
+
+const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          The status of the budget plan
+          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
+          the initial status and needs to go through the approval process again.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function BudgetPlansPage() {
+  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [filtered, setFiltered] = useState<Plan[]>([]);
   const [, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -131,7 +174,17 @@ export default function BudgetPlansPage() {
                     {p.canEdit ? (
                       <>
                         {' | '}
-                        <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                        {p.status === 'Approved' ? (
+                          <button
+                            type="button"
+                            onClick={() => setPlanToConfirmEdit(p)}
+                            className="text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                        )}
                       </>
                     ) : null}
                     {p.canReview ? (
@@ -150,6 +203,17 @@ export default function BudgetPlansPage() {
         </Table>
       </Card>
       <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <EditWarningModal
+        isOpen={Boolean(planToConfirmEdit)}
+        planSubject={planToConfirmEdit?.subject}
+        onCancel={() => setPlanToConfirmEdit(null)}
+        onContinue={() => {
+          if (!planToConfirmEdit) return;
+          const planId = planToConfirmEdit.id;
+          setPlanToConfirmEdit(null);
+          router.push(`/budget-plans/${planId}/edit`);
+        }}
+      />
     </div>
   );
 }
