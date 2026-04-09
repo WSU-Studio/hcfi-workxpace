@@ -206,17 +206,19 @@ export default function ReviewBudgetPlanPage() {
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
           <div><span className="text-gray-500">Origin Office:</span> {plan.originOffice || '-'}</div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Subject:</span>
+            <p className="font-medium">{plan.subject}</p>
+          </div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Description:</span>
+            <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+          </div>
         </div>
-        <div>
-          <span className="text-gray-500">Subject:</span>
-          <p className="font-medium">{plan.subject}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Description:</span>
-          <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
-        </div>
+      </Card>
 
-        <div>
+      <Card>
+        <div className="mb-8">
           <h3 className="font-medium mb-2">Monthly Allocation</h3>
           <Table>
             <thead>
@@ -345,9 +347,12 @@ export default function ReviewBudgetPlanPage() {
             ) : null}
           </div>
         </div>
+      </Card>
+        
 
+      <div>
         {plan.approvalSchema?.approvalLevels?.length ? (
-          <div>
+          <Card>
             <h3 className="font-medium mb-2">Approval Escalation</h3>
             <Table>
               <thead>
@@ -388,33 +393,33 @@ export default function ReviewBudgetPlanPage() {
                 })}
               </tbody>
             </Table>
-          </div>
-        ) : null}
 
-        {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
-            <button
-              type="button"
-              onClick={() => setIsDeclineModalOpen(true)}
-              disabled={isSubmitting || !canTakeAction}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
-            >
-              Decline
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsApproveModalOpen(true)}
-              disabled={isSubmitting || !canTakeAction}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
-            >
-              {isSubmitting ? 'Processing...' : 'Approve'}
-            </button>
-          </div>
-        )}
-      </Card>
+            {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
+              <div className="flex justify-end gap-3 pt-4">
+                <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
+                <button
+                  type="button"
+                  onClick={() => setIsDeclineModalOpen(true)}
+                  disabled={isSubmitting || !canTakeAction}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                  title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsApproveModalOpen(true)}
+                  disabled={isSubmitting || !canTakeAction}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                  title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
+                >
+                  {isSubmitting ? 'Processing...' : 'Approve'}
+                </button>
+              </div>
+            )}
+          </Card>
+        ) : null}
+      </div>
 
       {isDeclineModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
@@ -492,7 +497,7 @@ export default function ReviewBudgetPlanPage() {
         </div>
       ) : null}
 
-      <Card className="p-6">
+      <Card>
         <h3 className="font-medium mb-3">Budget Plan History</h3>
         {histories.length === 0 ? (
           <p className="text-sm text-gray-500">No history yet.</p>
