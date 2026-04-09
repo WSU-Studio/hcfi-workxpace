@@ -6,6 +6,24 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 
 export const dynamic = 'force-dynamic';
 
+type BudgetRequestLineItemInput = {
+  item?: string;
+  qty?: number;
+  unitPrice?: number;
+  subtotal?: number;
+  deduction?: number;
+  total?: number;
+};
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/,/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
 export async function GET() {
   try {
     const requests = await prisma.budgetRequest.findMany({
@@ -32,47 +50,91 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { budgetPlanId, subject, description, fiscalYear, departmentId, notes, approvalSchemaId, lineItems } = body;
+    const {
+      budgetPlanId,
+      subject,
+      description,
+      fiscalYear,
+      departmentId,
+      notes,
+      approvalSchemaId,
+      lineItems,
+      selectedMonths,
+    } = body;
 
     if (!budgetPlanId || !subject || !departmentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const normalizedMonths = Array.isArray(selectedMonths)
+      ? Array.from(new Set(selectedMonths.map((m: unknown) => Number(m)).filter((m: number) => Number.isInteger(m) && m >= 1 && m <= 12))).sort((a, b) => a - b)
+      : [];
+
+    if (normalizedMonths.length === 0) {
+      return NextResponse.json({ error: 'Select at least one month for request allocation' }, { status: 400 });
+    }
+
+    const normalizedLineItems: BudgetRequestLineItemInput[] = Array.isArray(lineItems) ? lineItems : [];
+    const totalAmount = normalizedLineItems.reduce((sum, li) => sum + toNumber(li.total), 0);
+
+    if (totalAmount <= 0) {
+      return NextResponse.json({ error: 'Total request amount must be greater than 0' }, { status: 400 });
+    }
+
+    const year = Number(fiscalYear ?? new Date().getFullYear());
+    const totalAmountCents = Math.round(totalAmount * 100);
+    const monthCount = normalizedMonths.length;
+    const baseCents = Math.floor(totalAmountCents / monthCount);
+    const remainder = totalAmountCents - baseCents * monthCount;
+    const monthlyAllocations = normalizedMonths.map((month, index) => ({
+      year,
+      month,
+      allocation: (baseCents + (index === monthCount - 1 ? remainder : 0)) / 100,
+    }));
+
     const dept = await prisma.department.findUnique({ where: { id: departmentId } });
-    const count = await prisma.budgetRequest.count({ where: { departmentId, fiscalYear: fiscalYear ?? new Date().getFullYear() } });
+    const count = await prisma.budgetRequest.count({ where: { departmentId, fiscalYear: year } });
     const code = `BR/${dept?.code ?? 'XX'}/${String(count + 1).padStart(3, '0')}`;
 
-    const br = await prisma.budgetRequest.create({
+    const br: any = await prisma.budgetRequest.create({
       data: {
         code,
         budgetPlanId,
         subject,
         description: description ?? null,
-        fiscalYear: fiscalYear ?? new Date().getFullYear(),
+        fiscalYear: year,
         departmentId,
         requestorId: session.user.id,
         requestDate: new Date(),
+        totalAmount,
         notes: notes ?? null,
         approvalSchemaId: approvalSchemaId || null,
         lineItems: {
-          create: (lineItems ?? []).map((li: { item?: string; qty?: number; unitPrice?: number; subtotal?: number; deduction?: number; total?: number }) => ({
+          create: normalizedLineItems.map((li) => ({
             item: li.item ?? '',
-            qty: li.qty ?? 0,
-            unitPrice: li.unitPrice ?? 0,
-            subtotal: li.subtotal ?? 0,
-            deduction: li.deduction ?? 0,
-            total: li.total ?? 0,
+            qty: Math.round(toNumber(li.qty)),
+            unitPrice: toNumber(li.unitPrice),
+            subtotal: toNumber(li.subtotal),
+            deduction: toNumber(li.deduction),
+            total: toNumber(li.total),
           })),
+        },
+        allocations: {
+          create: monthlyAllocations,
         },
       },
       include: {
         lineItems: true,
+        allocations: true,
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
       },
-    });
+    } as any);
 
-    const totalRequested = br.lineItems.reduce((sum, li) => sum + Number(li.total ?? 0), 0);
+    const totalRequested = (br.lineItems ?? []).reduce(
+      (sum: number, li: { total?: number | string | null }) => sum + toNumber(li.total),
+      0
+    );
 
     await logActivity({
       userId: session.user.id,
@@ -92,6 +154,12 @@ export async function POST(req: Request) {
         approvalSchemaId: br.approvalSchemaId,
         lineItemCount: br.lineItems.length,
         totalRequested,
+        monthCount: br.allocations.length,
+        allocations: (br.allocations ?? []).map((allocation: { year: number; month: number; allocation: number | string }) => ({
+          year: allocation.year,
+          month: allocation.month,
+          allocation: Number(allocation.allocation),
+        })),
       },
     });
 
