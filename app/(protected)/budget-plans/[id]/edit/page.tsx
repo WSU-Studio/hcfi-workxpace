@@ -38,6 +38,13 @@ export default function EditBudgetPlanPage() {
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
   const [baseAmount, setBaseAmount] = useState<string>('');
   const [error, setError] = useState('');
+  const [histories, setHistories] = useState<{
+    id: string;
+    action: string;
+    details: { status?: string; declineReason?: string | null } | null;
+    timestamp: string;
+    user: { name: string };
+  }[]>([]);
 
   const selectedMonthsSorted = [...selectedMonths].sort((a, b) => a - b);
   const totalAlloc = selectedMonthsSorted.reduce((sum, m) => sum + (allocations[m] || 0), 0);
@@ -84,6 +91,14 @@ export default function EditBudgetPlanPage() {
   };
 
   const formatDisplay = (n: number) => n.toLocaleString('id-ID');
+  const formatDateTime = (date: string) =>
+    new Date(date).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   useEffect(() => {
     if (!id) return;
@@ -115,6 +130,7 @@ export default function EditBudgetPlanPage() {
         setDepartments(data.departments || []);
         setProjects(data.projects || []);
         setApprovalSchemas(data.approvalSchemas || []);
+        setHistories(data.histories || []);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -365,6 +381,33 @@ export default function EditBudgetPlanPage() {
             </button>
           </div>
         </form>
+      </Card>
+
+      <Card className="p-6"
+        collapsible
+        header={<h3 className="font-medium">Activity History</h3>}
+      >
+        {histories.length === 0 ? (
+          <p className="text-sm text-gray-500">No history yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {histories.map((history) => (
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+                <p>
+                  <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
+                  <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
+                  <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
+                </p>
+                {history.details?.status ? (
+                  <p className="text-gray-600">Status: {history.details.status}</p>
+                ) : null}
+                {history.details?.declineReason ? (
+                  <p className="text-red-700">Reason: {history.details.declineReason}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );
