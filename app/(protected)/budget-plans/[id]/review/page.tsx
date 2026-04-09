@@ -208,7 +208,7 @@ export default function ReviewBudgetPlanPage() {
       <h1 className="text-2xl font-semibold">Review Budget Plan</h1>
 
       <Card className="p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-4">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>

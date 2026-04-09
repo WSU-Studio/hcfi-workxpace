@@ -111,7 +111,7 @@ export default function BudgetPlanDetailPage() {
       <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
       <h1 className="text-2xl font-semibold">{plan.subject}</h1>
       <Card>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-4">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
