@@ -115,7 +115,11 @@ export default function BudgetPlansPage() {
                   <TableCell>{p.code}</TableCell>
                   <TableCell>{p.subject}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-0.5 rounded text-sm ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}>
+                    <span className={`px-2 py-0.5 rounded text-sm 
+                      ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : 
+                      p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                      p.status === 'Revision' ? 'bg-amber-100 text-amber-800' :
+                      p.status === 'Declined' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
                       {p.status}
                     </span>
                   </TableCell>
