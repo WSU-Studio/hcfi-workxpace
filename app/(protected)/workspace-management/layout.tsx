@@ -45,7 +45,7 @@ export default function WorkspaceManagementLayout({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 w-full">
-      <div className="w-full lg:w-64 shrink-0 h-fit border-r border-gray-200 pr-4">
+      <div className="w-full lg:w-64 shrink-0 h-fit self-start border-r border-gray-200 pr-4 lg:sticky lg:top-24">
         <nav className="space-y-2">
           {subNavigation.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
