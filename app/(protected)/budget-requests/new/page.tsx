@@ -243,7 +243,7 @@ export default function NewBudgetRequestPage() {
           </div>
           {allocationPreview.length > 0 && (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Allocation Preview</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Allocation Preview (Transaction Amount)</h3>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {allocationPreview.map((allocation) => (
                   <div key={allocation.month} className="flex items-center justify-between rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm">
