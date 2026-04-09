@@ -348,6 +348,7 @@ model BudgetRequest {
   requestorId      String?
   requestDate      DateTime
   status           String                 @default("Draft") // Draft | Pending | Approved
+  totalAmount      Decimal                @default(0) @db.Decimal(18, 2)
   approvalSchemaId String?
   notes            String?                @db.Text
   supportingDocs   Json?
@@ -362,11 +363,26 @@ model BudgetRequest {
   department       Department             @relation(fields: [departmentId], references: [id])
   approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
   lineItems        BudgetRequestLineItem[]
+  allocations      BudgetRequestAllocation[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+model BudgetRequestAllocation {
+  id              String        @id @default(cuid())
+  budgetRequestId String
+  year            Int
+  month           Int           // 1-12
+  allocation      Decimal       @db.Decimal(18, 2)
+  budgetRequest   BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetRequestId, year, month])
+  @@index([budgetRequestId])
+  @@index([year, month])
+  @@map("budget_request_allocations")
 }
 
 model BudgetRequestLineItem {
