@@ -15,10 +15,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         allocations: {
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
         },
+        approvalSchema: {
+          include: {
+            approvalLevels: {
+              include: { role: true },
+              orderBy: { stepOrder: 'asc' },
+            },
+          },
+        },
       },
     });
     if (!br) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(br);
+    const histories = await prisma.activityHistory.findMany({
+      where: { entityType: 'BudgetRequest', entityId: id },
+      include: { user: { select: { name: true } } },
+      orderBy: { timestamp: 'desc' },
+    });
+    return NextResponse.json({ ...br, histories });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
