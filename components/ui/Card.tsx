@@ -64,14 +64,14 @@ const Card = ({
       {hasBody && (
         <div
           className={cn(
-            'overflow-hidden transition-[max-height,opacity,margin] duration-300 ease-in-out',
+            'grid transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out',
             isCollapsed
-              ? 'pointer-events-none mt-0 max-h-0 opacity-0'
-              : 'mt-4 max-h-[min(10000px,100vh)] opacity-100',
+              ? 'pointer-events-none mt-0 grid-rows-[0fr] opacity-0'
+              : 'mt-4 grid-rows-[1fr] opacity-100',
           )}
           aria-hidden={isCollapsed}
         >
-          {bodyContent}
+          <div className="overflow-hidden">{bodyContent}</div>
         </div>
       )}
     </div>

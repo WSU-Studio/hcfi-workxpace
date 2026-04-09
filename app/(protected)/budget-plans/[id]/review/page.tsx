@@ -256,7 +256,7 @@ export default function ReviewBudgetPlanPage() {
           </Table>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 mt-8">
           <h3 className="font-medium">Classification</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
