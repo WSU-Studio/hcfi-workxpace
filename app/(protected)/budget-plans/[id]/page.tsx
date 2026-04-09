@@ -208,25 +208,23 @@ export default function BudgetPlanDetailPage() {
                 })}
               </tbody>
             </Table>
+
+            { canEdit || REVIEW_NAV_STATUSES.has(plan.status) ? (
+              <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+                {canEdit ? (
+                  <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Edit
+                  </Link>
+                ) : null}
+                {REVIEW_NAV_STATUSES.has(plan.status) ? (
+                  <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                    {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}
+                  </Link>
+                ) : null}
+              </div>
+            ) : <></> }
           </Card>
         ) : null}
-      </div>
-
-      <div>
-        { canEdit || REVIEW_NAV_STATUSES.has(plan.status) ? (
-          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
-            {canEdit ? (
-              <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Edit
-              </Link>
-            ) : null}
-            {REVIEW_NAV_STATUSES.has(plan.status) ? (
-              <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
-                {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}
-              </Link>
-            ) : null}
-          </div>
-        ) : <></> }
       </div>
 
       <Card>
