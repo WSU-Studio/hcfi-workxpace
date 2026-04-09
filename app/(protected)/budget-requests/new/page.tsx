@@ -37,12 +37,23 @@ export default function NewBudgetRequestPage() {
   });
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
+  const [taxConfig, setTaxConfig] = useState({ vatPercent: 11, whtPercent: 2 });
   const [error, setError] = useState('');
 
   const totalAmount = useMemo(
     () => lineItems.reduce((sum, item) => sum + getItemTotal(item), 0),
     [lineItems]
   );
+  const vatAmount = useMemo(
+    () => Math.round(totalAmount * (taxConfig.vatPercent / 100)),
+    [totalAmount, taxConfig.vatPercent]
+  );
+  const invoiceAmount = useMemo(() => totalAmount + vatAmount, [totalAmount, vatAmount]);
+  const whtAmount = useMemo(
+    () => Math.round(totalAmount * (taxConfig.whtPercent / 100)),
+    [totalAmount, taxConfig.whtPercent]
+  );
+  const grandTotal = useMemo(() => invoiceAmount - whtAmount, [invoiceAmount, whtAmount]);
   const allocationPreview = useMemo(() => {
     if (selectedMonths.length === 0 || totalAmount <= 0) return [];
     const totalCents = Math.round(totalAmount * 100);
@@ -107,6 +118,12 @@ export default function NewBudgetRequestPage() {
           fiscalYear: new Date().getFullYear(),
           departmentId: plan?.departmentId,
           selectedMonths,
+          vatPercent: taxConfig.vatPercent,
+          vatAmount,
+          whtPercent: taxConfig.whtPercent,
+          whtAmount,
+          invoiceAmount,
+          grandTotal,
           lineItems: lineItems
             .filter((item) => item.item.trim().length > 0)
             .map((item) => ({
@@ -210,11 +227,19 @@ export default function NewBudgetRequestPage() {
           </div>
           <div className="space-y-3 rounded-xl border border-gray-200 p-4">
             <h2 className="text-base font-semibold text-gray-900">Items</h2>
-            <BudgetRequestItemsEditor items={lineItems} onChange={setLineItems} />
-            <div className="grid gap-2 rounded-lg bg-gray-50 p-4 text-sm sm:grid-cols-2">
-              <div className="font-medium text-gray-700">Transaction Amount</div>
-              <div className="text-right text-base font-semibold text-gray-900">{formatCurrency(totalAmount)}</div>
-            </div>
+            <BudgetRequestItemsEditor
+              items={lineItems}
+              onChange={setLineItems}
+              taxConfig={taxConfig}
+              onTaxChange={setTaxConfig}
+              summary={{
+                transactionAmount: totalAmount,
+                vatAmount,
+                whtAmount,
+                invoiceAmount,
+                grandTotal,
+              }}
+            />
           </div>
           {allocationPreview.length > 0 && (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">

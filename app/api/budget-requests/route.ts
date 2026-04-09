@@ -60,6 +60,12 @@ export async function POST(req: Request) {
       approvalSchemaId,
       lineItems,
       selectedMonths,
+      vatPercent,
+      vatAmount,
+      whtPercent,
+      whtAmount,
+      invoiceAmount,
+      grandTotal,
     } = body;
 
     if (!budgetPlanId || !subject || !departmentId) {
@@ -82,6 +88,14 @@ export async function POST(req: Request) {
     }
 
     const year = Number(fiscalYear ?? new Date().getFullYear());
+    const normalizedVatPercent = toNumber(vatPercent) || 11;
+    const normalizedWhtPercent = toNumber(whtPercent) || 2;
+    const calculatedVatAmount = Math.round(totalAmount * (normalizedVatPercent / 100));
+    const calculatedWhtAmount = Math.round(totalAmount * (normalizedWhtPercent / 100));
+    const normalizedVatAmount = toNumber(vatAmount) || calculatedVatAmount;
+    const normalizedWhtAmount = toNumber(whtAmount) || calculatedWhtAmount;
+    const normalizedInvoiceAmount = toNumber(invoiceAmount) || totalAmount + normalizedVatAmount;
+    const normalizedGrandTotal = toNumber(grandTotal) || normalizedInvoiceAmount - normalizedWhtAmount;
     const totalAmountCents = Math.round(totalAmount * 100);
     const monthCount = normalizedMonths.length;
     const baseCents = Math.floor(totalAmountCents / monthCount);
@@ -107,6 +121,12 @@ export async function POST(req: Request) {
         requestorId: session.user.id,
         requestDate: new Date(),
         totalAmount,
+        vatPercent: normalizedVatPercent,
+        vatAmount: normalizedVatAmount,
+        whtPercent: normalizedWhtPercent,
+        whtAmount: normalizedWhtAmount,
+        invoiceAmount: normalizedInvoiceAmount,
+        grandTotal: normalizedGrandTotal,
         notes: notes ?? null,
         approvalSchemaId: approvalSchemaId || null,
         lineItems: {
@@ -154,6 +174,12 @@ export async function POST(req: Request) {
         approvalSchemaId: br.approvalSchemaId,
         lineItemCount: br.lineItems.length,
         totalRequested,
+        vatPercent: Number(br.vatPercent ?? 0),
+        vatAmount: Number(br.vatAmount ?? 0),
+        whtPercent: Number(br.whtPercent ?? 0),
+        whtAmount: Number(br.whtAmount ?? 0),
+        invoiceAmount: Number(br.invoiceAmount ?? 0),
+        grandTotal: Number(br.grandTotal ?? 0),
         monthCount: br.allocations.length,
         allocations: (br.allocations ?? []).map((allocation: { year: number; month: number; allocation: number | string }) => ({
           year: allocation.year,
