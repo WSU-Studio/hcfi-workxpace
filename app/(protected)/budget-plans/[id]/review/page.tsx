@@ -217,9 +217,13 @@ export default function ReviewBudgetPlanPage() {
         </div>
       </Card>
 
-      <Card>
-        <div className="mb-8">
-          <h3 className="font-medium mb-2">Monthly Allocation</h3>
+      <Card
+        collapsible
+        header={
+          <h3 className="font-medium">Monthly Allocation</h3>
+        }
+      >
+        <div>
           <Table>
             <thead>
               <TableHeaderRow>  
@@ -349,11 +353,12 @@ export default function ReviewBudgetPlanPage() {
         </div>
       </Card>
         
-
       <div>
         {plan.approvalSchema?.approvalLevels?.length ? (
-          <Card>
-            <h3 className="font-medium mb-2">Approval Escalation</h3>
+          <Card
+            collapsible
+            header={<h3 className="font-medium">Approval Escalation</h3>}
+          >
             <Table>
               <thead>
                 <TableHeaderRow>
@@ -497,8 +502,10 @@ export default function ReviewBudgetPlanPage() {
         </div>
       ) : null}
 
-      <Card>
-        <h3 className="font-medium mb-3">Budget Plan History</h3>
+      <Card
+        collapsible
+        header={<h3 className="font-medium">Budget Plan History</h3>}
+      >
         {histories.length === 0 ? (
           <p className="text-sm text-gray-500">No history yet.</p>
         ) : (
