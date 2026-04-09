@@ -3,12 +3,17 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import {
+  canUserActOnCurrentBudgetPlanStep,
+  getBudgetPlanUserRoleIds,
+} from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
+    const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') ?? '';
     const status = searchParams.get('status') ?? '';
@@ -29,6 +34,7 @@ export async function GET(request: Request) {
       include: {
         department: { select: { id: true, code: true, name: true } },
         allocations: { orderBy: { month: 'asc' } },
+        approvalSchema: { include: { approvalLevels: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -39,9 +45,14 @@ export async function GET(request: Request) {
       orderBy: { code: 'asc' },
     });
 
-    const enrichedPlans = plans.map((plan) => ({
+    const enrichedPlans = plans.map(({ approvalSchema, ...plan }) => ({
       ...plan,
       canEdit: !!session?.user?.id && plan.requestorId === session.user.id,
+      canReview: canUserActOnCurrentBudgetPlanStep({
+        planStatus: plan.status,
+        approvalLevels: approvalSchema?.approvalLevels ?? [],
+        userRoleIds,
+      }),
     }));
 
     return NextResponse.json({ plans: enrichedPlans, departments });

@@ -4,31 +4,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import accountOptions from '@/data/accounts.json';
+import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
-
-async function getUserRoleIds(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      roleId: true,
-      userRoles: { select: { roleId: true } },
-    },
-  });
-  if (!user) return [];
-  return Array.from(new Set([user.roleId, ...user.userRoles.map((ur) => ur.roleId)]));
-}
-
-function getNextApprovalStep(
-  status: string,
-  levels: { stepOrder: number; roleId: string; levelType: string }[]
-) {
-  const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-  if (!ordered.length) return null;
-  if (status === 'Draft') return ordered[0];
-  if (status === 'Reviewed' && ordered.length > 1) return ordered[1];
-  return null;
-}
 
 function isValidReviewTransition(currentStatus: string, nextStatus: string) {
   if (currentStatus === 'Draft') {
@@ -140,8 +118,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     let canReview = false;
     let nextStepOrder: number | null = null;
     if (session?.user?.id && plan.approvalSchema?.approvalLevels?.length) {
-      const userRoleIds = await getUserRoleIds(session.user.id);
-      const next = getNextApprovalStep(plan.status, plan.approvalSchema.approvalLevels);
+      const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+      const next = getNextBudgetPlanApprovalStep(plan.status, plan.approvalSchema.approvalLevels);
       nextStepOrder = next?.stepOrder ?? null;
       canReview = !!next && userRoleIds.includes(next.roleId);
     }
@@ -261,14 +239,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       if (['Reviewed', 'Approved', 'Revision', 'Declined'].includes(body.status)) {
         const levels = before.approvalSchema?.approvalLevels ?? [];
-        const next = getNextApprovalStep(before.status, levels);
+        const next = getNextBudgetPlanApprovalStep(before.status, levels);
         if (!isValidReviewTransition(before.status, body.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
         }
         if (!next) {
           return NextResponse.json({ error: 'No available review step' }, { status: 400 });
         }
-        const userRoleIds = await getUserRoleIds(session.user.id);
+        const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
         if (!userRoleIds.includes(next.roleId)) {
           return NextResponse.json({ error: 'You are not allowed to review at this stage' }, { status: 403 });
         }
