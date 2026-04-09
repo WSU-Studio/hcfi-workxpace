@@ -120,9 +120,12 @@ export default function BudgetPlanDetailPage() {
         </div>
       </Card>
 
-      <Card>
+      <Card
+        collapsible
+        collapsed
+        header={<h3 className="font-medium">Monthly Allocation</h3>}
+      >
         <div>
-          <h3 className="font-medium mb-2">Monthly Allocation</h3>
           <Table>
             <thead>
               <TableHeaderRow>
@@ -228,8 +231,11 @@ export default function BudgetPlanDetailPage() {
         ) : null}
       </div>
 
-      <Card>
-        <h3 className="font-medium mb-3">Activity History</h3>
+      <Card
+        collapsible
+        collapsed
+        header={<h3 className="font-medium">Activity History</h3>}
+      >
         {histories.length === 0 ? (
           <p className="text-sm text-gray-500">No history yet.</p>
         ) : (
