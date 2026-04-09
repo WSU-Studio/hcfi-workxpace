@@ -12,9 +12,6 @@ import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/com
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** Statuses where the review screen (classification, escalation, history) stays relevant after workflow completes. */
-const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Revision', 'Declined', 'Pending']);
-
 type PlanDetail = {
   requestorId?: string | null;
   code: string;
@@ -54,6 +51,7 @@ export default function BudgetPlanDetailPage() {
   const [plan, setPlan] = useState<PlanDetail | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
   const [histories, setHistories] = useState<BudgetPlanHistoryEntry[]>([]);
+  const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -68,16 +66,19 @@ export default function BudgetPlanDetailPage() {
           setPlan(null);
           setAccountOptions([]);
           setHistories([]);
+          setReviewMeta(null);
           return;
         }
         const data = await r.json();
         setPlan(data?.plan ?? null);
         setAccountOptions(data?.accountOptions || []);
         setHistories(data?.histories || []);
+        setReviewMeta(data?.reviewMeta ?? null);
       })
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
+        setReviewMeta(null);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -209,20 +210,20 @@ export default function BudgetPlanDetailPage() {
               </tbody>
             </Table>
 
-            { canEdit || REVIEW_NAV_STATUSES.has(plan.status) ? (
+            {canEdit || reviewMeta?.canReview ? (
               <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
                 {canEdit ? (
                   <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                     Edit
                   </Link>
                 ) : null}
-                {REVIEW_NAV_STATUSES.has(plan.status) ? (
+                {reviewMeta?.canReview ? (
                   <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
-                    {plan.status === 'Draft' || plan.status === 'Reviewed' ? 'Review' : 'View review & history'}
+                    Review
                   </Link>
                 ) : null}
               </div>
-            ) : <></> }
+            ) : null}
           </Card>
         ) : null}
       </div>

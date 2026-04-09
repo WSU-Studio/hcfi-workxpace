@@ -16,13 +16,12 @@ interface Plan {
   subject: string;
   status: string;
   canEdit?: boolean;
+  canReview?: boolean;
   department: { name: string };
   allocations?: { allocation: unknown }[];
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Revision', 'Declined', 'Pending']);
 
 export default function BudgetPlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -37,7 +36,7 @@ export default function BudgetPlansPage() {
   const currentPlans = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   const fetchData = async () => {
-    const res = await fetch('/api/budget-plans');
+    const res = await fetch('/api/budget-plans', { credentials: 'include' });
     const data = await res.json();
     const list = data.plans || [];
     setPlans(list);
@@ -131,11 +130,11 @@ export default function BudgetPlansPage() {
                         <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
                       </>
                     ) : null}
-                    {REVIEW_NAV_STATUSES.has(p.status) ? (
+                    {p.canReview ? (
                       <>
                         {' | '}
                         <Link href={`/budget-plans/${p.id}/review`} className="text-blue-600 hover:underline">
-                          {p.status === 'Draft' || p.status === 'Reviewed' ? 'Review' : 'Review (read-only)'}
+                          Review
                         </Link>
                       </>
                     ) : null}
