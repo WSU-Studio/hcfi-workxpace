@@ -12,7 +12,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Statuses where the review screen (classification, escalation, history) stays relevant after workflow completes. */
-const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Approved', 'Revision', 'Declined', 'Pending']);
+const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Revision', 'Declined', 'Pending']);
 
 type PlanDetail = {
   requestorId?: string | null;

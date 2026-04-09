@@ -22,7 +22,7 @@ interface Plan {
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Approved', 'Revision', 'Declined', 'Pending']);
+const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Revision', 'Declined', 'Pending']);
 
 export default function BudgetPlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
