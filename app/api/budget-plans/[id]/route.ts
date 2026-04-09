@@ -184,6 +184,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     await prisma.budgetPlanAllocation.deleteMany({ where: { budgetPlanId: id } });
     const allocations = body.allocations || [];
+    const selectedMonths = allocations
+      .filter((a: { month: number; allocation: number }) => Number(a?.allocation ?? 0) > 0)
+      .map((a: { month: number }) => a.month)
+      .sort((a: number, b: number) => a - b);
+    const totalAllocation = allocations.reduce(
+      (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
+      0
+    );
     for (let m = 1; m <= 12; m++) {
       const alloc = allocations.find((a: { month: number }) => a.month === m);
       await prisma.budgetPlanAllocation.create({
@@ -205,6 +213,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         status: 'Draft',
         previousStatus: existing.status,
         note: 'Plan updated by requestor. Approval restarted from step 1.',
+        subject: body.subject ?? null,
+        fiscalYear: body.fiscalYear ?? null,
+        originOffice: body.originOffice ?? null,
+        departmentId: body.departmentId ?? null,
+        projectId: body.projectId ?? null,
+        approvalSchemaId: body.approvalSchemaId ?? null,
+        monthCount: selectedMonths.length,
+        selectedMonths,
+        totalAllocation,
       },
     });
 
@@ -272,8 +289,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         entityCode: before.code,
         action: body.status === 'Approved' ? 'approve' : body.status === 'Reviewed' ? 'review' : 'update',
         details: {
+          fromStatus: before.status,
           status: body.status,
           declineReason: body.declineReason ?? null,
+          coaId: body.coaId ?? null,
+          categoryId: body.categoryId ?? null,
+          categoryKeyIndexId: body.categoryKeyIndexId ?? null,
+          costCenterId: body.costCenterId ?? null,
+          opexType: body.opexType ?? null,
+          opexAllocationId: body.opexAllocationId ?? null,
         },
       });
 

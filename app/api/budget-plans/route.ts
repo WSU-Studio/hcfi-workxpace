@@ -102,6 +102,14 @@ export async function POST(request: Request) {
     });
 
     const allocations = body.allocations || [];
+    const selectedMonths = allocations
+      .filter((a: { month: number; allocation: number }) => Number(a?.allocation ?? 0) > 0)
+      .map((a: { month: number }) => a.month)
+      .sort((a: number, b: number) => a - b);
+    const totalAllocation = allocations.reduce(
+      (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
+      0
+    );
     for (let m = 1; m <= 12; m++) {
       const alloc = allocations.find((a: { month: number }) => a.month === m);
       await prisma.budgetPlanAllocation.create({
@@ -119,7 +127,20 @@ export async function POST(request: Request) {
       entityId: plan.id,
       entityCode: plan.code,
       action: 'create',
-      details: { subject: plan.subject },
+      details: {
+        subject: plan.subject,
+        description: plan.description,
+        status: plan.status,
+        fiscalYear: plan.fiscalYear,
+        originOffice: plan.originOffice,
+        departmentCode: dept?.code ?? null,
+        departmentId: plan.departmentId,
+        projectId: plan.projectId,
+        approvalSchemaId: plan.approvalSchemaId,
+        monthCount: selectedMonths.length,
+        selectedMonths,
+        totalAllocation,
+      },
     });
 
     return NextResponse.json(plan);
