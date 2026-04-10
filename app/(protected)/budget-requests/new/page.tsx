@@ -26,7 +26,20 @@ export default function NewBudgetRequestPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [plans, setPlans] = useState<{ id: string; code: string; subject: string; departmentId: string }[]>([]);
+  const [plans, setPlans] = useState<{
+    id: string;
+    code: string;
+    subject: string;
+    departmentId: string;
+    categoryId?: string | null;
+    coaId?: string | null;
+    opexType?: string | null;
+    opexAllocationId?: string | null;
+    category?: { name: string } | null;
+    costCenter?: { name: string } | null;
+    categoryKeyIndex?: { name: string } | null;
+    opexAllocation?: { name: string } | null;
+  }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
   const [formData, setFormData] = useState({
     budgetPlanId: '',
@@ -34,6 +47,11 @@ export default function NewBudgetRequestPage() {
     description: '',
     notes: '',
     approvalSchemaId: '',
+    category: '',
+    coa: '',
+    type: '',
+    opexAllocation: '',
+    opexType: '',
   });
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
@@ -88,6 +106,11 @@ export default function NewBudgetRequestPage() {
       ...p,
       budgetPlanId: planId,
       subject: plan ? `${plan.subject} - Request` : p.subject,
+      category: plan?.categoryId ?? '',
+      coa: plan?.coaId ?? '',
+      type: plan?.opexType ?? '',
+      opexAllocation: plan?.opexAllocationId ?? '',
+      opexType: plan?.opexType ?? '',
     }));
   };
 
@@ -217,6 +240,27 @@ export default function NewBudgetRequestPage() {
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
+          </div>
+          <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <h2 className="text-base font-semibold text-gray-900">Classification (Default from Budget Plan)</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block mb-1 text-sm text-gray-600">Category</label>
+                <p className="rounded-lg border bg-white px-3 py-2 text-sm">{plans.find((p) => p.id === formData.budgetPlanId)?.category?.name ?? '-'}</p>
+              </div>
+              <div>
+                <label className="block mb-1 text-sm text-gray-600">Cost Center</label>
+                <p className="rounded-lg border bg-white px-3 py-2 text-sm">{plans.find((p) => p.id === formData.budgetPlanId)?.costCenter?.name ?? '-'}</p>
+              </div>
+              <div>
+                <label className="block mb-1 text-sm text-gray-600">Category Key Index</label>
+                <p className="rounded-lg border bg-white px-3 py-2 text-sm">{plans.find((p) => p.id === formData.budgetPlanId)?.categoryKeyIndex?.name ?? '-'}</p>
+              </div>
+              <div>
+                <label className="block mb-1 text-sm text-gray-600">Type</label>
+                <p className="rounded-lg border bg-white px-3 py-2 text-sm">{formData.opexType || '-'}</p>
+              </div>
+            </div>
           </div>
           <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <h2 className="text-base font-semibold text-gray-900">Request Allocation</h2>

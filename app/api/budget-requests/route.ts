@@ -46,7 +46,20 @@ export async function GET() {
     }));
     const plans = await prisma.budgetPlan.findMany({
       where: { status: 'Approved' },
-      select: { id: true, code: true, subject: true, departmentId: true },
+      select: {
+        id: true,
+        code: true,
+        subject: true,
+        departmentId: true,
+        categoryId: true,
+        coaId: true,
+        opexType: true,
+        opexAllocationId: true,
+        category: { select: { name: true } },
+        costCenter: { select: { name: true } },
+        categoryKeyIndex: { select: { name: true } },
+        opexAllocation: { select: { name: true } },
+      },
     });
     return NextResponse.json({ requests, plans });
   } catch {
@@ -60,7 +73,19 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { budgetPlanId, subject, description, departmentId, notes, approvalSchemaId } = body;
+    const {
+      budgetPlanId,
+      subject,
+      description,
+      departmentId,
+      notes,
+      approvalSchemaId,
+      category,
+      coa,
+      type,
+      opexAllocation,
+      opexType,
+    } = body;
 
     if (!budgetPlanId || !subject || !departmentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -83,7 +108,13 @@ export async function POST(req: Request) {
       monthlyAllocations,
     } = normalizedPayload;
 
-    const dept = await prisma.department.findUnique({ where: { id: departmentId } });
+    const [dept, selectedPlan] = await Promise.all([
+      prisma.department.findUnique({ where: { id: departmentId } }),
+      prisma.budgetPlan.findUnique({
+        where: { id: budgetPlanId },
+        select: { categoryId: true, coaId: true, opexType: true, opexAllocationId: true },
+      }),
+    ]);
     const count = await prisma.budgetRequest.count({ where: { departmentId, fiscalYear: year } });
     const code = `BR/${dept?.code ?? 'XX'}/${String(count + 1).padStart(3, '0')}`;
 
@@ -106,6 +137,11 @@ export async function POST(req: Request) {
         grandTotal: normalizedGrandTotal,
         notes: notes ?? null,
         approvalSchemaId: approvalSchemaId || null,
+        category: (category as string) || selectedPlan?.categoryId || null,
+        coa: (coa as string) || selectedPlan?.coaId || null,
+        type: (type as string) || selectedPlan?.opexType || null,
+        opexAllocation: (opexAllocation as string) || selectedPlan?.opexAllocationId || null,
+        opexType: (opexType as string) || selectedPlan?.opexType || null,
         lineItems: {
           create: normalizedLineItems.map((li) => ({
             item: li.item ?? '',

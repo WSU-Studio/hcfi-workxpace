@@ -18,7 +18,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const br = await prisma.budgetRequest.findUnique({
       where: { id },
       include: {
-        budgetPlan: true,
+        budgetPlan: {
+          include: {
+            category: { select: { name: true } },
+            costCenter: { select: { name: true } },
+            categoryKeyIndex: { select: { name: true } },
+            opexAllocation: { select: { name: true } },
+          },
+        },
         department: true,
         lineItems: true,
         allocations: {
@@ -83,7 +90,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Approved requests cannot be edited' }, { status: 403 });
     }
 
-    const { subject, description, notes, approvalSchemaId, budgetPlanId: bodyPlanId } = body;
+    const {
+      subject,
+      description,
+      notes,
+      approvalSchemaId,
+      budgetPlanId: bodyPlanId,
+      category,
+      coa,
+      type,
+      opexAllocation,
+      opexType,
+    } = body;
     if (!subject || typeof subject !== 'string') {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
     }
@@ -91,7 +109,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const nextBudgetPlanId = bodyPlanId || existing.budgetPlanId;
     const plan = await prisma.budgetPlan.findUnique({
       where: { id: nextBudgetPlanId },
-      select: { id: true, departmentId: true, status: true },
+      select: {
+        id: true,
+        departmentId: true,
+        status: true,
+        categoryId: true,
+        coaId: true,
+        opexType: true,
+        opexAllocationId: true,
+      },
     });
     if (!plan) return NextResponse.json({ error: 'Budget plan not found' }, { status: 400 });
     if (plan.status !== 'Approved') {
@@ -135,6 +161,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           grandTotal: normalizedGrandTotal,
           notes: notes ?? null,
           approvalSchemaId: approvalSchemaId || null,
+          category: (category as string) || plan.categoryId || null,
+          coa: (coa as string) || plan.coaId || null,
+          type: (type as string) || plan.opexType || null,
+          opexAllocation: (opexAllocation as string) || plan.opexAllocationId || null,
+          opexType: (opexType as string) || plan.opexType || null,
           lineItems: {
             create: normalizedLineItems.map((li) => ({
               item: li.item ?? '',
@@ -152,7 +183,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         include: {
           lineItems: true,
           allocations: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
-          budgetPlan: true,
+          budgetPlan: {
+            include: {
+              category: { select: { name: true } },
+              costCenter: { select: { name: true } },
+              categoryKeyIndex: { select: { name: true } },
+              opexAllocation: { select: { name: true } },
+            },
+          },
           department: true,
           approvalSchema: {
             include: {
