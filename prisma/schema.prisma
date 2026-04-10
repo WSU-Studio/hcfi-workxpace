@@ -359,6 +359,8 @@ model BudgetRequest {
   notes            String?                @db.Text
   supportingDocs   Json?
   category         String?
+  categoryKeyIndex String?
+  costCenter       String?
   coa              String?
   type             String?                // OPEX etc
   opexAllocation   String?
