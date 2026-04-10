@@ -3,30 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
 
 export const dynamic = 'force-dynamic';
 
-type BudgetRequestLineItemInput = {
-  item?: string;
-  qty?: number;
-  unitPrice?: number;
-  subtotal?: number;
-  deduction?: number;
-  total?: number;
-};
-
-const toNumber = (value: unknown): number => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'string') {
-    const parsed = Number(value.replace(/,/g, ''));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-};
-
 export async function GET() {
   try {
-    const requests = await prisma.budgetRequest.findMany({
+    const session = await getServerSession(authOptions);
+    const rows = await prisma.budgetRequest.findMany({
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
@@ -34,6 +18,13 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    const requests = rows.map((r) => ({
+      ...r,
+      canEdit:
+        !!session?.user?.id &&
+        r.requestorId === session.user.id &&
+        r.status !== 'Approved',
+    }));
     const plans = await prisma.budgetPlan.findMany({
       where: { status: 'Approved' },
       select: { id: true, code: true, subject: true, departmentId: true },
@@ -50,61 +41,28 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const {
-      budgetPlanId,
-      subject,
-      description,
-      fiscalYear,
-      departmentId,
-      notes,
-      approvalSchemaId,
-      lineItems,
-      selectedMonths,
-      vatPercent,
-      vatAmount,
-      whtPercent,
-      whtAmount,
-      invoiceAmount,
-      grandTotal,
-    } = body;
+    const { budgetPlanId, subject, description, departmentId, notes, approvalSchemaId } = body;
 
     if (!budgetPlanId || !subject || !departmentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const normalizedMonths = Array.isArray(selectedMonths)
-      ? Array.from(new Set(selectedMonths.map((m: unknown) => Number(m)).filter((m: number) => Number.isInteger(m) && m >= 1 && m <= 12))).sort((a, b) => a - b)
-      : [];
-
-    if (normalizedMonths.length === 0) {
-      return NextResponse.json({ error: 'Select at least one month for request allocation' }, { status: 400 });
+    const normalizedPayload = normalizeBudgetRequestBody(body, new Date().getFullYear());
+    if ('error' in normalizedPayload) {
+      return NextResponse.json({ error: normalizedPayload.error }, { status: 400 });
     }
-
-    const normalizedLineItems: BudgetRequestLineItemInput[] = Array.isArray(lineItems) ? lineItems : [];
-    const totalAmount = normalizedLineItems.reduce((sum, li) => sum + toNumber(li.total), 0);
-
-    if (totalAmount <= 0) {
-      return NextResponse.json({ error: 'Total request amount must be greater than 0' }, { status: 400 });
-    }
-
-    const year = Number(fiscalYear ?? new Date().getFullYear());
-    const normalizedVatPercent = toNumber(vatPercent) || 11;
-    const normalizedWhtPercent = toNumber(whtPercent) || 2;
-    const calculatedVatAmount = Math.round(totalAmount * (normalizedVatPercent / 100));
-    const calculatedWhtAmount = Math.round(totalAmount * (normalizedWhtPercent / 100));
-    const normalizedVatAmount = toNumber(vatAmount) || calculatedVatAmount;
-    const normalizedWhtAmount = toNumber(whtAmount) || calculatedWhtAmount;
-    const normalizedInvoiceAmount = toNumber(invoiceAmount) || totalAmount + normalizedVatAmount;
-    const normalizedGrandTotal = toNumber(grandTotal) || normalizedInvoiceAmount - normalizedWhtAmount;
-    const totalAmountCents = Math.round(totalAmount * 100);
-    const monthCount = normalizedMonths.length;
-    const baseCents = Math.floor(totalAmountCents / monthCount);
-    const remainder = totalAmountCents - baseCents * monthCount;
-    const monthlyAllocations = normalizedMonths.map((month, index) => ({
+    const {
+      normalizedLineItems,
+      totalAmount,
       year,
-      month,
-      allocation: (baseCents + (index === monthCount - 1 ? remainder : 0)) / 100,
-    }));
+      normalizedVatPercent,
+      normalizedWhtPercent,
+      normalizedVatAmount,
+      normalizedWhtAmount,
+      normalizedInvoiceAmount,
+      normalizedGrandTotal,
+      monthlyAllocations,
+    } = normalizedPayload;
 
     const dept = await prisma.department.findUnique({ where: { id: departmentId } });
     const count = await prisma.budgetRequest.count({ where: { departmentId, fiscalYear: year } });
