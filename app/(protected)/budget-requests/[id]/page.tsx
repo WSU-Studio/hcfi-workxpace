@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ScanSearch } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { Pencil, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -22,6 +23,7 @@ type HistoryEntry = {
 export default function BudgetRequestDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: session } = useSession();
   const [data, setData] = useState<{
     id: string;
     code: string;
@@ -73,10 +75,28 @@ export default function BudgetRequestDetailPage() {
       minute: '2-digit',
     });
 
+  const canEditAsRequestor =
+    !!session?.user?.id &&
+    data.requestorId === session.user.id &&
+    data.status !== 'Approved';
+
   return (
     <div className="max-w-4xl space-y-6">
       <Link href="/budget-requests" className="text-blue-600 hover:underline">← Back</Link>
-      <h1 className="text-2xl font-semibold">{data.subject}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{data.subject}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          {canEditAsRequestor ? (
+            <Link
+              href={`/budget-requests/${id}/edit`}
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          ) : null}
+        </div>
+      </div>
 
       <Card className="space-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -217,7 +237,16 @@ export default function BudgetRequestDetailPage() {
             <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
           )}
 
-          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+          <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
+            {canEditAsRequestor ? (
+              <Link
+                href={`/budget-requests/${id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-50"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Link>
+            ) : null}
             {data.status !== 'Approved' ? (
               <Link href={`/budget-requests/${id}/review`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                 <ScanSearch className="h-4 w-4" />
