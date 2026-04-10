@@ -206,7 +206,7 @@ export default function BudgetRequestDetailPage() {
         </div>
       </Card>
 
-      <Card collapsible header={<h3 className="font-medium">Action & Approval Escalation</h3>}>
+      <Card collapsible header={<h3 className="font-medium">Approval Escalation</h3>}>
         <div className="space-y-4">
           {data.approvalSchema?.approvalLevels?.length ? (
             <Table>
