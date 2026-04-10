@@ -63,7 +63,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
       const stepIndex = ordered.findIndex((l) => l.stepOrder === next.stepOrder);
       const isLastStep = stepIndex >= 0 && stepIndex === ordered.length - 1;
-      newStatus = isLastStep ? 'Approved' : 'Pending';
+      newStatus = isLastStep ? 'Approved' : 'Reviewed';
     }
 
     const updated = await prisma.budgetRequest.update({
