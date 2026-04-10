@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import Select from '@/components/ui/Select';
 
 type HistoryEntry = {
   id: string;
@@ -31,12 +32,20 @@ export default function ReviewBudgetRequestPage() {
     fiscalYear: number;
     canReview?: boolean;
     category?: string | null;
+    categoryKeyIndex?: string | null;
+    costCenter?: string | null;
     coa?: string | null;
     type?: string | null;
     opexAllocation?: string | null;
     budgetPlan: {
       code: string;
       subject: string;
+      categoryId?: string | null;
+      costCenterId?: string | null;
+      categoryKeyIndexId?: string | null;
+      coaId?: string | null;
+      opexType?: string | null;
+      opexAllocationId?: string | null;
       category?: { name: string } | null;
       costCenter?: { name: string } | null;
       categoryKeyIndex?: { name: string } | null;
@@ -45,21 +54,56 @@ export default function ReviewBudgetRequestPage() {
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
     histories?: HistoryEntry[];
+    accountOptions?: { id: string; accountCode: string; accountName: string }[];
+    categoryOptions?: { id: string; name: string }[];
+    categoryKeyIndexOptions?: { id: string; name: string }[];
+    costCenterOptions?: { id: string; name: string }[];
+    opexAllocationOptions?: { id: string; name: string }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [classification, setClassification] = useState({
+    costCenterId: '',
+    categoryId: '',
+    categoryKeyIndexId: '',
+    coaId: '',
+    opexType: 'OPEX',
+    opexAllocationId: '',
+  });
 
   useEffect(() => {
     fetch(`/api/budget-requests/${id}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
-      .then(setData)
+      .then((payload) => {
+        setData(payload);
+        if (!payload) return;
+        setClassification({
+          costCenterId: payload.costCenter || payload.budgetPlan?.costCenterId || '',
+          categoryId: payload.category || payload.budgetPlan?.categoryId || '',
+          categoryKeyIndexId: payload.categoryKeyIndex || payload.budgetPlan?.categoryKeyIndexId || '',
+          coaId: payload.coa || payload.budgetPlan?.coaId || '',
+          opexType: payload.opexType || payload.type || payload.budgetPlan?.opexType || 'OPEX',
+          opexAllocationId: payload.opexAllocation || payload.budgetPlan?.opexAllocationId || '',
+        });
+      })
       .finally(() => setIsLoading(false));
   }, [id]);
 
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/budget-requests/${id}/approve`, { method: 'POST' });
+      const res = await fetch(`/api/budget-requests/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          costCenterId: classification.costCenterId || null,
+          categoryId: classification.categoryId || null,
+          categoryKeyIndexId: classification.categoryKeyIndexId || null,
+          coaId: classification.coaId || null,
+          opexType: classification.opexType || null,
+          opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
+        }),
+      });
       if (res.ok) router.push(`/budget-requests/${id}`);
       else alert('Failed');
     } finally {
@@ -71,6 +115,7 @@ export default function ReviewBudgetRequestPage() {
   if (!data) return <div className="text-gray-600">Not found</div>;
 
   const transactionAmount = data.lineItems?.reduce((sum, li) => sum + Number(li.total ?? 0), 0) ?? 0;
+  const canEditClassification = Boolean(data.canReview);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -146,26 +191,106 @@ export default function ReviewBudgetRequestPage() {
       </Card>
 
       <Card collapsible header={<h3 className="font-medium">Classification</h3>}>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Cost Center</p>
-            <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">{data.budgetPlan?.costCenter?.name ?? '-'}</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Cost Center</label>
+              <Select
+                value={classification.costCenterId}
+                disabled={!canEditClassification}
+                onChange={(e) => setClassification((p) => ({ ...p, costCenterId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {(data.costCenterOptions || []).map((costCenter) => (
+                  <option key={costCenter.id} value={costCenter.id}>
+                    {costCenter.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Category</label>
+              <Select
+                value={classification.categoryId}
+                disabled={!canEditClassification}
+                onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {(data.categoryOptions || []).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Category Key Index</label>
+              <Select
+                value={classification.categoryKeyIndexId}
+                disabled={!canEditClassification}
+                onChange={(e) => setClassification((p) => ({ ...p, categoryKeyIndexId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {(data.categoryKeyIndexOptions || []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Category</p>
-            <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">{data.budgetPlan?.category?.name ?? '-'}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">  
+            <div className="md:col-span-2">
+              <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
+              <Select
+                value={classification.coaId}
+                disabled={!canEditClassification}
+                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
+              >
+                <option value="">-</option>
+                {(data.accountOptions || []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.accountCode} - {account.accountName}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Category Key Index</p>
-            <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">{data.budgetPlan?.categoryKeyIndex?.name ?? '-'}</p>
-          </div>
-          <div className="md:col-span-2">
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Kode Akun</p>
-            <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">{data.coa || '-'}</p>
-          </div>
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Type</p>
-            <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">{data.opexAllocation || data.type || '-'}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">  
+            <div>
+              <label className="block mb-1.5 text-sm font-medium">Type</label>
+              <Select
+                value={classification.opexType}
+                disabled={!canEditClassification}
+                onChange={(e) =>
+                  setClassification((p) => ({
+                    ...p,
+                    opexType: e.target.value,
+                    opexAllocationId: e.target.value === 'OPEX' ? p.opexAllocationId : '',
+                  }))
+                }
+              >
+                <option value="OPEX">OPEX</option>
+                <option value="CAPEX">CAPEX</option>
+              </Select>
+            </div>
+            {classification.opexType === 'OPEX' ? (
+              <div>
+                <label className="block mb-1.5 text-sm font-medium">Opex Allocation</label>
+                <Select
+                  value={classification.opexAllocationId}
+                  disabled={!canEditClassification}
+                  onChange={(e) => setClassification((p) => ({ ...p, opexAllocationId: e.target.value }))}
+                >
+                  <option value="">-</option>
+                  {(data.opexAllocationOptions || []).map((allocation) => (
+                    <option key={allocation.id} value={allocation.id}>
+                      {allocation.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
           </div>
         </div>
       </Card>

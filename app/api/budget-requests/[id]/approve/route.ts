@@ -11,12 +11,13 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
+    const body = await req.json().catch(() => ({}));
     const before = await prisma.budgetRequest.findUnique({
       where: { id },
       include: {
@@ -67,7 +68,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     const updated = await prisma.budgetRequest.update({
       where: { id },
-      data: { status: newStatus },
+      data: {
+        status: newStatus,
+        categoryKeyIndex: body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null,
+        costCenter: body?.costCenterId ?? before.costCenter ?? null,
+        category: body?.categoryId ?? before.category ?? null,
+        coa: body?.coaId ?? before.coa ?? null,
+        type: body?.opexType ?? before.type ?? null,
+        opexAllocation: body?.opexAllocationId ?? before.opexAllocation ?? null,
+        opexType: body?.opexType ?? before.opexType ?? null,
+      },
       select: { status: true },
     });
     const totalRequested = (before?.lineItems || []).reduce((sum, li) => sum + Number(li.total ?? 0), 0);
@@ -87,6 +97,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         departmentName: before?.department?.name ?? null,
         lineItemCount: before?.lineItems.length ?? 0,
         totalRequested,
+        categoryKeyIndex: body?.categoryKeyIndexId ?? before?.categoryKeyIndex ?? null,
+        costCenter: body?.costCenterId ?? before?.costCenter ?? null,
+        category: body?.categoryId ?? before?.category ?? null,
+        coa: body?.coaId ?? before?.coa ?? null,
+        type: body?.opexType ?? before?.type ?? null,
+        opexAllocation: body?.opexAllocationId ?? before?.opexAllocation ?? null,
       },
     });
     return NextResponse.json({ success: true });

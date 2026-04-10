@@ -4,6 +4,7 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
+import accountOptions from '@/data/accounts.json';
 import {
   canUserActOnCurrentBudgetRequestStep,
   getBudgetPlanUserRoleIds,
@@ -57,7 +58,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         requestorId: br.requestorId ?? null,
         actorUserId: session.user.id,
       });
-    return NextResponse.json({ ...br, histories, canReview });
+    const [categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexAllocationOptions] = await Promise.all([
+      prisma.categoryMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      prisma.categoryKeyIndexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+    ]);
+
+    return NextResponse.json({
+      ...br,
+      histories,
+      canReview,
+      accountOptions,
+      categoryOptions,
+      categoryKeyIndexOptions,
+      costCenterOptions,
+      opexAllocationOptions,
+    });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
@@ -97,6 +114,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       approvalSchemaId,
       budgetPlanId: bodyPlanId,
       category,
+      categoryKeyIndex,
+      costCenter,
       coa,
       type,
       opexAllocation,
@@ -114,6 +133,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         departmentId: true,
         status: true,
         categoryId: true,
+        categoryKeyIndexId: true,
+        costCenterId: true,
         coaId: true,
         opexType: true,
         opexAllocationId: true,
@@ -162,6 +183,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           notes: notes ?? null,
           approvalSchemaId: approvalSchemaId || null,
           category: (category as string) || plan.categoryId || null,
+          categoryKeyIndex: (categoryKeyIndex as string) || plan.categoryKeyIndexId || null,
+          costCenter: (costCenter as string) || plan.costCenterId || null,
           coa: (coa as string) || plan.coaId || null,
           type: (type as string) || plan.opexType || null,
           opexAllocation: (opexAllocation as string) || plan.opexAllocationId || null,

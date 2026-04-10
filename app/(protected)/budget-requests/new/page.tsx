@@ -32,6 +32,8 @@ export default function NewBudgetRequestPage() {
     subject: string;
     departmentId: string;
     categoryId?: string | null;
+    categoryKeyIndexId?: string | null;
+    costCenterId?: string | null;
     coaId?: string | null;
     opexType?: string | null;
     opexAllocationId?: string | null;
@@ -48,6 +50,8 @@ export default function NewBudgetRequestPage() {
     notes: '',
     approvalSchemaId: '',
     category: '',
+    categoryKeyIndex: '',
+    costCenter: '',
     coa: '',
     type: '',
     opexAllocation: '',
@@ -107,6 +111,8 @@ export default function NewBudgetRequestPage() {
       budgetPlanId: planId,
       subject: plan ? `${plan.subject} - Request` : p.subject,
       category: plan?.categoryId ?? '',
+      categoryKeyIndex: plan?.categoryKeyIndexId ?? '',
+      costCenter: plan?.costCenterId ?? '',
       coa: plan?.coaId ?? '',
       type: plan?.opexType ?? '',
       opexAllocation: plan?.opexAllocationId ?? '',
