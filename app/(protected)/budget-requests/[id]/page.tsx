@@ -112,26 +112,30 @@ export default function BudgetRequestDetailPage() {
 
       <Card collapsible collapsed header={<h3 className="font-medium">Request Allocation</h3>}>
         <div className="space-y-4">
-          <Table>
-            <thead>
-              <TableHeaderRow>
-                <TableHead>Month</TableHead>
-                <TableHead className="text-right">Allocation</TableHead>
-              </TableHeaderRow>
-            </thead>
-            <tbody>
-              {(data.allocations || []).map((allocation) => (
-                <TableBodyRow key={`${allocation.year}-${allocation.month}`}>
-                  <TableCell>{MONTH_NAMES[allocation.month - 1]} {allocation.year}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(allocation.allocation ?? 0))}</TableCell>
+          <Card collapsible collapsed 
+          className="bg-orange-50/80"
+          header={<h3 className="font-medium">Dev Only: Allocate Budget Per Month (only visible in dev mode)</h3>}>
+            <Table>
+              <thead>
+                <TableHeaderRow>
+                  <TableHead>Month</TableHead>
+                  <TableHead className="text-right">Allocation</TableHead>
+                </TableHeaderRow>
+              </thead>
+              <tbody>
+                {(data.allocations || []).map((allocation) => (
+                  <TableBodyRow key={`${allocation.year}-${allocation.month}`}>
+                    <TableCell>{MONTH_NAMES[allocation.month - 1]} {allocation.year}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(allocation.allocation ?? 0))}</TableCell>
+                  </TableBodyRow>
+                ))}
+                <TableBodyRow className="bg-gray-50 font-medium">
+                  <TableCell>Total Allocation</TableCell>
+                  <TableCell className="text-right">{formatCurrency(allocationsTotal)}</TableCell>
                 </TableBodyRow>
-              ))}
-              <TableBodyRow className="bg-gray-50 font-medium">
-                <TableCell>Total Allocation</TableCell>
-                <TableCell className="text-right">{formatCurrency(allocationsTotal)}</TableCell>
-              </TableBodyRow>
-            </tbody>
-          </Table>
+              </tbody>
+            </Table>
+          </Card>
 
           {data.lineItems?.length ? (
             <Table>
@@ -172,7 +176,7 @@ export default function BudgetRequestDetailPage() {
                   <TableCell colSpan={5} className="text-right">WHT / PPh</TableCell>
                   <TableCell className="text-right">({formatCurrency(whtAmount)})</TableCell>
                 </TableBodyRow>
-                <TableBodyRow className="bg-gray-50 text-base font-semibold">
+                <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
                   <TableCell colSpan={5} className="text-right">Grandtotal</TableCell>
                   <TableCell className="text-right">{formatCurrency(grandTotal)}</TableCell>
                 </TableBodyRow>
