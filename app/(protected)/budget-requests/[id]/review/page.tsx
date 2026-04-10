@@ -120,7 +120,7 @@ export default function ReviewBudgetRequestPage() {
   const transactionAmount = data.lineItems?.reduce((sum, li) => sum + Number(li.total ?? 0), 0) ?? 0;
   const canEditClassification = Boolean(data.canReview);
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  const completedSteps = data.status === 'Approved' ? orderedLevels.length : data.status === 'Pending' ? 1 : 0;
+  const completedSteps = data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
   const approveHistories = (data.histories || []).filter((h) => h.action === 'approve');
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -146,7 +146,7 @@ export default function ReviewBudgetRequestPage() {
           <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
-            <span className={`rounded px-2 py-0.5 text-sm ${data.status === 'Approved' ? 'bg-green-100 text-green-800' : data.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>
+            <span className={`rounded px-2 py-0.5 text-sm ${data.status === 'Approved' ? 'bg-green-100 text-green-800' : data.status === 'Reviewed' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>
               {data.status}
             </span>
           </div>
@@ -351,7 +351,7 @@ export default function ReviewBudgetRequestPage() {
                   className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
                 >
-                  {isSubmitting ? 'Submitting...' : data.status === 'Pending' ? 'Final approve' : 'Approve'}
+                  {isSubmitting ? 'Submitting...' : data.status === 'Reviewed' ? 'Final approve' : 'Approve'}
                 </button>
               </div>
             ) : null}

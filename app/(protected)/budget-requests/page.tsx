@@ -100,7 +100,7 @@ export default function BudgetRequestsPage() {
                       className={`rounded px-2 py-0.5 text-sm ${
                         r.status === 'Approved'
                           ? 'bg-green-100 text-green-800'
-                          : r.status === 'Pending'
+                          : r.status === 'Reviewed'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-700'
                       }`}

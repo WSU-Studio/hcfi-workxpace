@@ -80,6 +80,9 @@ export default function BudgetRequestDetailPage() {
     !!session?.user?.id &&
     data.requestorId === session.user.id &&
     data.status !== 'Approved';
+  const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
+  const completedSteps =
+    data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -112,7 +115,7 @@ export default function BudgetRequestDetailPage() {
               className={`rounded px-2 py-0.5 text-sm ${
                 data.status === 'Approved'
                   ? 'bg-green-100 text-green-800'
-                  : data.status === 'Pending'
+                  : data.status === 'Reviewed'
                     ? 'bg-yellow-100 text-yellow-800'
                     : 'bg-gray-100 text-gray-700'
               }`}
@@ -209,7 +212,7 @@ export default function BudgetRequestDetailPage() {
 
       <Card collapsible header={<h3 className="font-medium">Approval Escalation</h3>}>
         <div className="space-y-4">
-          {data.approvalSchema?.approvalLevels?.length ? (
+          {orderedLevels.length ? (
             <Table>
               <thead>
                 <TableHeaderRow>
@@ -220,14 +223,18 @@ export default function BudgetRequestDetailPage() {
                 </TableHeaderRow>
               </thead>
               <tbody>
-                {data.approvalSchema.approvalLevels.map((level) => (
+                {orderedLevels.map((level, index) => (
                   <TableBodyRow key={level.stepOrder}>
                     <TableCell>{level.stepOrder}</TableCell>
                     <TableCell>{level.role?.roleName ?? '-'}</TableCell>
                     <TableCell>{level.levelType}</TableCell>
                     <TableCell>
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-                        {data.status === 'Approved' ? 'Completed' : 'Pending'}
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
+                          index < completedSteps ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {index < completedSteps ? (index === 0 ? 'Reviewed' : 'Approved') : 'Pending'}
                       </span>
                     </TableCell>
                   </TableBodyRow>
