@@ -53,6 +53,9 @@ export default function ReviewBudgetRequestPage() {
     };
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
+    approvalSchema?: {
+      approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+    } | null;
     histories?: HistoryEntry[];
     accountOptions?: { id: string; accountCode: string; accountName: string }[];
     categoryOptions?: { id: string; name: string }[];
@@ -116,6 +119,9 @@ export default function ReviewBudgetRequestPage() {
 
   const transactionAmount = data.lineItems?.reduce((sum, li) => sum + Number(li.total ?? 0), 0) ?? 0;
   const canEditClassification = Boolean(data.canReview);
+  const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
+  const completedSteps = data.status === 'Approved' ? orderedLevels.length : data.status === 'Pending' ? 1 : 0;
+  const approveHistories = (data.histories || []).filter((h) => h.action === 'approve');
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -295,21 +301,63 @@ export default function ReviewBudgetRequestPage() {
         </div>
       </Card>
 
-      {data.canReview ? (
-        <div className="flex justify-end gap-3">
-          <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">Cancel</Link>
-          <button
-            type="button"
-            onClick={handleApprove}
-            disabled={isSubmitting}
-            className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Submitting...' : data.status === 'Pending' ? 'Final approve' : 'Approve'}
-          </button>
-        </div>
-      ) : data.status !== 'Approved' ? (
-        <p className="text-sm text-gray-500">You are not assigned to review this request at the current step.</p>
-      ) : null}
+      <div>
+        {orderedLevels.length ? (
+          <Card collapsible header={<h3 className="font-medium">Approval Escalation</h3>}>
+            <Table>
+              <thead>
+                <TableHeaderRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Updated At</TableHead>
+                </TableHeaderRow>
+              </thead>
+              <tbody>
+                {orderedLevels.map((level, index) => {
+                  const isCompleted = index < completedSteps;
+                  const updatedAt = isCompleted ? approveHistories[index]?.timestamp : null;
+                  return (
+                    <TableBodyRow key={level.stepOrder}>
+                      <TableCell>{level.stepOrder}</TableCell>
+                      <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                      <TableCell>{level.levelType}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            isCompleted ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {isCompleted ? 'Approved' : 'Pending'}
+                        </span>
+                      </TableCell>
+                      <TableCell>{updatedAt ? formatDateTime(updatedAt) : '-'}</TableCell>
+                    </TableBodyRow>
+                  );
+                })}
+              </tbody>
+            </Table>
+
+            {data.status !== 'Approved' ? (
+              <div className="flex justify-end gap-3 pt-4">
+                <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+                  Cancel
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={isSubmitting || !data.canReview}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+                >
+                  {isSubmitting ? 'Submitting...' : data.status === 'Pending' ? 'Final approve' : 'Approve'}
+                </button>
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
+      </div>
 
       <Card collapsible header={<h3 className="font-medium">Budget Request History</h3>}>
         {data.histories?.length ? (
