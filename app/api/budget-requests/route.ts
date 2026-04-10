@@ -4,26 +4,45 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
+import {
+  canUserActOnCurrentBudgetRequestStep,
+  getBudgetPlanUserRoleIds,
+} from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
+    const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
     const rows = await prisma.budgetRequest.findMany({
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
+        approvalSchema: {
+          include: {
+            approvalLevels: { orderBy: { stepOrder: 'asc' } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    const requests = rows.map((r) => ({
+    const requests = rows.map(({ approvalSchema, ...r }) => ({
       ...r,
       canEdit:
         !!session?.user?.id &&
         r.requestorId === session.user.id &&
         r.status !== 'Approved',
+      canReview:
+        !!session?.user?.id &&
+        canUserActOnCurrentBudgetRequestStep({
+          requestStatus: r.status,
+          approvalLevels: approvalSchema?.approvalLevels ?? [],
+          userRoleIds,
+          requestorId: r.requestorId ?? null,
+          actorUserId: session.user.id,
+        }),
     }));
     const plans = await prisma.budgetPlan.findMany({
       where: { status: 'Approved' },
