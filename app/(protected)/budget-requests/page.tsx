@@ -14,6 +14,7 @@ interface BudgetRequest {
   code: string;
   subject: string;
   status: string;
+  canEdit?: boolean;
   budgetPlan: { code: string; subject: string };
   department: { name: string };
   lineItems?: { total: unknown }[];
@@ -31,7 +32,7 @@ export default function BudgetRequestsPage() {
   const currentRequests = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
-    fetch('/api/budget-requests')
+    fetch('/api/budget-requests', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { requests: [] }))
       .then((data) => {
         const list = data.requests || [];
@@ -102,6 +103,14 @@ export default function BudgetRequestsPage() {
                   <TableCell>{r.budgetPlan?.code ?? '-'}</TableCell>
                   <TableCell>
                     <Link href={`/budget-requests/${r.id}`} className="text-blue-600 hover:underline">View</Link>
+                    {r.canEdit ? (
+                      <>
+                        {' | '}
+                        <Link href={`/budget-requests/${r.id}/edit`} className="text-blue-600 hover:underline">
+                          Edit
+                        </Link>
+                      </>
+                    ) : null}
                   </TableCell>
                 </TableBodyRow>
               ))
