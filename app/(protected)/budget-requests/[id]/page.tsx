@@ -75,23 +75,10 @@ export default function BudgetRequestDetailPage() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{data.subject}</h1>
-        <div className="flex items-center gap-2">
-          {data.status !== 'Approved' ? (
-            <Link href={`/budget-requests/${id}/review`} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-50">
-              <ScanSearch className="h-4 w-4" />
-              Review
-            </Link>
-          ) : null}
-          <Link href="/budget-requests" className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-            Back
-          </Link>
-        </div>
-      </div>
+      <Link href="/budget-requests" className="text-blue-600 hover:underline">← Back</Link>
+      <h1 className="text-2xl font-semibold">{data.subject}</h1>
 
       <Card className="space-y-4">
-        <h3 className="font-medium">Header Information</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div><span className="text-gray-500">ID:</span> {data.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
