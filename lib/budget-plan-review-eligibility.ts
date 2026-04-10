@@ -33,3 +33,29 @@ export function canUserActOnCurrentBudgetPlanStep(params: {
   if (!next) return false;
   return params.userRoleIds.includes(next.roleId);
 }
+
+/** Next step for budget request: Draft → first level (e.g. Reviewer), Pending/Reviewed → second level (e.g. Approver). */
+export function getNextBudgetRequestApprovalStep(
+  status: string,
+  levels: { stepOrder: number; roleId: string; levelType: string }[]
+) {
+  const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
+  if (!ordered.length) return null;
+  if (status === 'Approved') return null;
+  if (status === 'Draft') return ordered[0];
+  if ((status === 'Pending' || status === 'Reviewed') && ordered.length > 1) return ordered[1];
+  return null;
+}
+
+export function canUserActOnCurrentBudgetRequestStep(params: {
+  requestStatus: string;
+  approvalLevels: { stepOrder: number; roleId: string; levelType: string }[];
+  userRoleIds: string[];
+  requestorId: string | null;
+  actorUserId: string;
+}): boolean {
+  if (params.requestorId && params.requestorId === params.actorUserId) return false;
+  const next = getNextBudgetRequestApprovalStep(params.requestStatus, params.approvalLevels);
+  if (!next) return false;
+  return params.userRoleIds.includes(next.roleId);
+}

@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import {
+  canUserActOnCurrentBudgetRequestStep,
+  getBudgetPlanUserRoleIds,
+  getNextBudgetRequestApprovalStep,
+} from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,11 +23,51 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
         lineItems: { select: { total: true } },
+        approvalSchema: {
+          include: {
+            approvalLevels: { orderBy: { stepOrder: 'asc' } },
+          },
+        },
       },
     });
+    if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (before.status === 'Approved') {
+      return NextResponse.json({ error: 'Already approved' }, { status: 400 });
+    }
+
+    const levels = before.approvalSchema?.approvalLevels ?? [];
+    const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+    let newStatus: string;
+
+    if (levels.length === 0) {
+      if (before.requestorId === session.user.id) {
+        return NextResponse.json({ error: 'Requestor cannot approve own request' }, { status: 403 });
+      }
+      newStatus = 'Approved';
+    } else {
+      const allowed = canUserActOnCurrentBudgetRequestStep({
+        requestStatus: before.status,
+        approvalLevels: levels,
+        userRoleIds,
+        requestorId: before.requestorId ?? null,
+        actorUserId: session.user.id,
+      });
+      if (!allowed) {
+        return NextResponse.json({ error: 'You are not allowed to approve at this stage' }, { status: 403 });
+      }
+      const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
+      const next = getNextBudgetRequestApprovalStep(before.status, levels);
+      if (!next) {
+        return NextResponse.json({ error: 'No approval step available' }, { status: 400 });
+      }
+      const stepIndex = ordered.findIndex((l) => l.stepOrder === next.stepOrder);
+      const isLastStep = stepIndex >= 0 && stepIndex === ordered.length - 1;
+      newStatus = isLastStep ? 'Approved' : 'Pending';
+    }
+
     const updated = await prisma.budgetRequest.update({
       where: { id },
-      data: { status: 'Approved' },
+      data: { status: newStatus },
       select: { status: true },
     });
     const totalRequested = (before?.lineItems || []).reduce((sum, li) => sum + Number(li.total ?? 0), 0);

@@ -4,11 +4,16 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
+import {
+  canUserActOnCurrentBudgetRequestStep,
+  getBudgetPlanUserRoleIds,
+} from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
     const { id } = await params;
     const br = await prisma.budgetRequest.findUnique({
       where: { id },
@@ -35,7 +40,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       include: { user: { select: { name: true } } },
       orderBy: { timestamp: 'desc' },
     });
-    return NextResponse.json({ ...br, histories });
+    const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const canReview =
+      !!session?.user?.id &&
+      canUserActOnCurrentBudgetRequestStep({
+        requestStatus: br.status,
+        approvalLevels: br.approvalSchema?.approvalLevels ?? [],
+        userRoleIds,
+        requestorId: br.requestorId ?? null,
+        actorUserId: session.user.id,
+      });
+    return NextResponse.json({ ...br, histories, canReview });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }

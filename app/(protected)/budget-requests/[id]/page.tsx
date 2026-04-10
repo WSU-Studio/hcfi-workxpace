@@ -47,11 +47,12 @@ export default function BudgetRequestDetailPage() {
       approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
     } | null;
     histories?: HistoryEntry[];
+    canReview?: boolean;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/budget-requests/${id}`)
+    fetch(`/api/budget-requests/${id}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .finally(() => setIsLoading(false));
@@ -247,7 +248,7 @@ export default function BudgetRequestDetailPage() {
                 Edit
               </Link>
             ) : null}
-            {data.status !== 'Approved' ? (
+            {data.canReview ? (
               <Link href={`/budget-requests/${id}/review`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                 <ScanSearch className="h-4 w-4" />
                 Review

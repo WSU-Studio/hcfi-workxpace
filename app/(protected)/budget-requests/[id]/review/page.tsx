@@ -16,6 +16,7 @@ export default function ReviewBudgetRequestPage() {
     subject: string;
     description: string | null;
     status: string;
+    canReview?: boolean;
     budgetPlan: { code: string; subject: string };
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; total: number }[];
@@ -24,7 +25,7 @@ export default function ReviewBudgetRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/budget-requests/${id}`)
+    fetch(`/api/budget-requests/${id}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .finally(() => setIsLoading(false));
@@ -102,18 +103,23 @@ export default function ReviewBudgetRequestPage() {
           </table>
         </Card>
       )}
-      {data.status !== 'Approved' && (
+      {data.canReview ? (
         <div className="flex justify-end gap-3">
-          <Link href={`/budget-requests/${id}`} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</Link>
+          <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+            Cancel
+          </Link>
           <button
+            type="button"
             onClick={handleApprove}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Approving...' : 'Approve'}
+            {isSubmitting ? 'Submitting...' : data.status === 'Pending' ? 'Final approve' : 'Approve'}
           </button>
         </div>
-      )}
+      ) : data.status !== 'Approved' ? (
+        <p className="text-sm text-gray-500">You are not assigned to review this request at the current step.</p>
+      ) : null}
     </div>
   );
 }
