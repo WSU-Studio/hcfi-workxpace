@@ -342,6 +342,11 @@ export default function ReviewBudgetRequestPage() {
                 {orderedLevels.map((level, index) => {
                   const isCompleted = index < completedSteps;
                   const updatedAt = isCompleted ? approveHistories[index]?.timestamp : null;
+                  const stepStatusLabel = !isCompleted
+                    ? 'Pending'
+                    : level.levelType === 'Reviewer'
+                      ? 'Reviewed'
+                      : 'Approved';
                   return (
                     <TableBodyRow key={level.stepOrder}>
                       <TableCell>{level.stepOrder}</TableCell>
@@ -350,10 +355,14 @@ export default function ReviewBudgetRequestPage() {
                       <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            isCompleted ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                            stepStatusLabel === 'Pending'
+                              ? 'bg-gray-100 text-gray-700'
+                              : stepStatusLabel === 'Reviewed'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
                           }`}
                         >
-                          {isCompleted ? 'Approved' : 'Pending'}
+                          {stepStatusLabel}
                         </span>
                       </TableCell>
                       <TableCell>{updatedAt ? formatDateTime(updatedAt) : '-'}</TableCell>
