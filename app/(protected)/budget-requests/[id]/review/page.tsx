@@ -30,6 +30,10 @@ export default function ReviewBudgetRequestPage() {
     status: string;
     requestDate: string;
     fiscalYear: number;
+    vatAmount?: unknown;
+    whtAmount?: unknown;
+    invoiceAmount?: unknown;
+    grandTotal?: unknown;
     canReview?: boolean;
     category?: string | null;
     categoryKeyIndex?: string | null;
@@ -118,6 +122,10 @@ export default function ReviewBudgetRequestPage() {
   if (!data) return <div className="text-gray-600">Not found</div>;
 
   const transactionAmount = data.lineItems?.reduce((sum, li) => sum + Number(li.total ?? 0), 0) ?? 0;
+  const vatAmount = Number(data.vatAmount ?? 0);
+  const whtAmount = Number(data.whtAmount ?? 0);
+  const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
+  const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
   const canEditClassification = Boolean(data.canReview);
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const completedSteps = data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
@@ -191,6 +199,22 @@ export default function ReviewBudgetRequestPage() {
             <TableBodyRow className="bg-gray-50 font-medium">
               <TableCell colSpan={5} className="text-right">Transaction Amount</TableCell>
               <TableCell className="text-right">{formatCurrency(transactionAmount)}</TableCell>
+            </TableBodyRow>
+            <TableBodyRow>
+              <TableCell colSpan={5} className="text-right">VAT / PPN</TableCell>
+              <TableCell className="text-right">{formatCurrency(vatAmount)}</TableCell>
+            </TableBodyRow>
+            <TableBodyRow>
+              <TableCell colSpan={5} className="text-right">Invoice Amount</TableCell>
+              <TableCell className="text-right">{formatCurrency(invoiceAmount)}</TableCell>
+            </TableBodyRow>
+            <TableBodyRow>
+              <TableCell colSpan={5} className="text-right">WHT / PPh</TableCell>
+              <TableCell className="text-right">({formatCurrency(whtAmount)})</TableCell>
+            </TableBodyRow>
+            <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
+              <TableCell colSpan={5} className="text-right">Grandtotal</TableCell>
+              <TableCell className="text-right">{formatCurrency(grandTotal)}</TableCell>
             </TableBodyRow>
           </tbody>
         </Table>
