@@ -1,8 +1,10 @@
 'use client';
 
-import { Edit, KeyRound, Trash } from 'lucide-react';
+import Link from 'next/link';
+import { Edit, Eye, KeyRound, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ActionsDropdown from '@/components/ui/actions/ActionsDropdown';
+import { iconActionButtonClassName } from '@/components/ui/actions/IconActionButton';
 
 interface UserActionsProps {
   userId: string;
@@ -27,7 +29,7 @@ export default function UserActions({ userId, sessionUserId, canEditUser, canDel
     return false;
   };
 
-  const actions = [
+  const dropdownActions = [
     canEditUser
       ? {
           label: 'Edit',
@@ -52,7 +54,14 @@ export default function UserActions({ userId, sessionUserId, canEditUser, canDel
       : null,
   ].filter(Boolean);
 
-  if (!actions.length) return null;
-
-  return <ActionsDropdown triggerAriaLabel="Open user actions" actions={actions} />;
+  return (
+    <div className="flex items-center gap-2">
+      <Link href={`/user-management/${userId}`} className={iconActionButtonClassName}>
+        <Eye className="h-4 w-4" />
+      </Link>
+      {dropdownActions.length > 0 && (
+        <ActionsDropdown triggerAriaLabel="Open user actions" actions={dropdownActions} />
+      )}
+    </div>
+  );
 }
