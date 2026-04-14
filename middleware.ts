@@ -15,7 +15,13 @@ export default withAuth(
     }
 
     const access = token.access as {
-      menuAccess: { budgetPlans?: boolean; budgetRequests?: boolean; userManagement?: boolean; workspaceManagement?: boolean };
+      menuAccess: {
+        budgetPlans?: boolean;
+        budgetRequests?: boolean;
+        reconciliation?: boolean;
+        userManagement?: boolean;
+        workspaceManagement?: boolean;
+      };
       activityAccess: Record<string, boolean>;
     } | undefined;
 
@@ -123,6 +129,12 @@ export default withAuth(
         return NextResponse.redirect(new URL('/forbidden', req.url));
       }
       if (req.nextUrl.pathname.includes('/new') && !activityAccess.createBudgetRequest) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+    }
+
+    if (req.nextUrl.pathname.startsWith('/reconciliation')) {
+      if (!menuAccess.reconciliation) {
         return NextResponse.redirect(new URL('/forbidden', req.url));
       }
     }

@@ -4,6 +4,7 @@ export const defaultMenuAccess: MenuAccess = {
   dashboard: true,
   budgetPlans: true,
   budgetRequests: true,
+  reconciliation: true,
   userManagement: true,
   workspaceManagement: true,
   viewDepartment: true,
@@ -47,6 +48,8 @@ export const defaultActivityAccess: ActivityAccess = {
   createUser: false,
   editUser: false,
   deleteUser: false,
+  runReconciliationSync: false,
+  editReconciliationMapping: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -54,6 +57,7 @@ export const fullMenuAccess: MenuAccess = {
   dashboard: true,
   budgetPlans: true,
   budgetRequests: true,
+  reconciliation: true,
   userManagement: true,
   workspaceManagement: true,
   viewDepartment: true,
@@ -97,4 +101,23 @@ export const fullActivityAccess: ActivityAccess = {
   createUser: true,
   editUser: true,
   deleteUser: true,
+  runReconciliationSync: true,
+  editReconciliationMapping: true,
 };
+
+/** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */
+export function mergeWithDefaultMenuAccess(stored: unknown): MenuAccess {
+  const partial =
+    stored && typeof stored === 'object' && !Array.isArray(stored)
+      ? (stored as Partial<MenuAccess>)
+      : {};
+  return { ...defaultMenuAccess, ...partial };
+}
+
+export function mergeWithDefaultActivityAccess(stored: unknown): ActivityAccess {
+  const partial =
+    stored && typeof stored === 'object' && !Array.isArray(stored)
+      ? (stored as Partial<ActivityAccess>)
+      : {};
+  return { ...defaultActivityAccess, ...partial };
+}

@@ -2,6 +2,7 @@ export interface MenuAccess {
   dashboard: boolean;
   budgetPlans: boolean;
   budgetRequests: boolean;
+  reconciliation: boolean;
   userManagement: boolean;
   workspaceManagement: boolean;
   viewDepartment: boolean;
@@ -45,4 +46,8 @@ export interface ActivityAccess {
   createUser: boolean;
   editUser: boolean;
   deleteUser: boolean;
+  /** Menjalankan sinkronisasi / integrasi data pembayaran (mis. Confins). */
+  runReconciliationSync: boolean;
+  /** Koreksi pencocokan manual antara pembayaran eksternal dan plan/request. */
+  editReconciliationMapping: boolean;
 }
