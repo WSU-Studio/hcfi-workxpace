@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { defaultActivityAccess, defaultMenuAccess } from '@/lib/default-access';
+import { mergeWithDefaultActivityAccess, mergeWithDefaultMenuAccess } from '@/lib/default-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +17,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     return NextResponse.json({
       user: { id: user.id, name: user.name },
-      menuAccess: (user.access?.menuAccess as typeof defaultMenuAccess) ?? defaultMenuAccess,
-      activityAccess: (user.access?.activityAccess as typeof defaultActivityAccess) ?? defaultActivityAccess,
+      menuAccess: mergeWithDefaultMenuAccess(user.access?.menuAccess),
+      activityAccess: mergeWithDefaultActivityAccess(user.access?.activityAccess),
     });
   } catch (error) {
     console.error('Error fetching user access:', error);

@@ -6,7 +6,15 @@ import { usePathname } from 'next/navigation';
 import { useSidebarStore } from '@/store/useSidebarStore';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
-import { IconBriefcaseFilled, IconCoins, IconId, IconLayoutDashboardFilled, IconSubtask, IconLogout } from '@tabler/icons-react';
+import {
+  IconBriefcaseFilled,
+  IconCoins,
+  IconId,
+  IconLayoutDashboardFilled,
+  IconLogout,
+  IconScale,
+  IconSubtask,
+} from '@tabler/icons-react';
 import Logo from '@/public/workxpace-logo.svg';
 import FullLogo from '@/public/workxpace-full-logo.svg';
 import { MenuAccess } from '@/types/access-control';
@@ -15,6 +23,7 @@ const restrictedMenuAccess: MenuAccess = {
   dashboard: false,
   budgetPlans: false,
   budgetRequests: false,
+  reconciliation: false,
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
@@ -38,6 +47,7 @@ const Sidebar = () => {
     { name: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboardFilled, show: menuAccess.dashboard },
     { name: 'Budget Plans', href: '/budget-plans', icon: IconCoins, show: menuAccess.budgetPlans },
     { name: 'Budget Requests', href: '/budget-requests', icon: IconBriefcaseFilled, show: menuAccess.budgetRequests },
+    { name: 'Reconciliation', href: '/reconciliation', icon: IconScale, show: menuAccess.reconciliation },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
   ].filter((i) => i.show);
@@ -46,7 +56,7 @@ const Sidebar = () => {
     return (
       <aside className={cn('relative left-0 top-0 h-screen bg-white border-r', isCollapsed ? 'w-16' : 'w-64')}>
         <div className="py-4 space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="h-11 mx-4 bg-gray-200 rounded animate-pulse" />
           ))}
         </div>

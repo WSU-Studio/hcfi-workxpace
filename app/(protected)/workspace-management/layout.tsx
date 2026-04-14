@@ -11,6 +11,7 @@ const restrictedMenuAccess: MenuAccess = {
   dashboard: false,
   budgetPlans: false,
   budgetRequests: false,
+  reconciliation: false,
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
