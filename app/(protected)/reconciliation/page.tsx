@@ -49,11 +49,8 @@ function isAutoMatchedByIncomingRef(formId: string, incomingRef: string): boolea
   const normalizedForm = normalizeRefCode(formId);
   const normalizedIncoming = normalizeRefCode(incomingRef);
   if (!normalizedForm || !normalizedIncoming) return false;
-  if (normalizedIncoming === normalizedForm) return true;
-  // Jika incoming hanya angka (contoh: 2026003), terima sebagai suffix dari form id (IT2026003).
-  if (/^[0-9]+$/.test(normalizedIncoming)) return normalizedForm.endsWith(normalizedIncoming);
-  // Jika ada huruf (contoh: ITT2026003), wajib exact match untuk menghindari typo false positive.
-  return false;
+  /** Hanya exact match (setelah trim + uppercase + strip separator). Contoh: IT2026003 vs 2026003 = tidak match. */
+  return normalizedIncoming === normalizedForm;
 }
 
 export default function ReconciliationPage() {
@@ -198,8 +195,8 @@ export default function ReconciliationPage() {
         <h2 className="text-2xl font-bold text-gray-900">Reconciliation</h2>
         <p className="mt-1 text-sm text-gray-600">
           Bandingkan budget plan, budget request yang disetujui, dan pembayaran dari Confins. Sync akan mencoba
-          auto-match by Incoming ID (ref di Confins) vs Form ID budget plan; data yang tidak cocok bisa diperbaiki
-          manual lewat popup.
+          auto-match hanya jika Incoming ID dari Confins sama persis dengan Form ID budget plan; salah ketik atau
+          format parsial harus dicocokkan manual lewat popup.
         </p>
       </div>
 

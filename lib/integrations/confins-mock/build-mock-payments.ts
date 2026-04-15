@@ -18,11 +18,6 @@ function n2(amount: number): string {
   return amount.toFixed(2);
 }
 
-function toIncomingReferenceFromPlanCode(planCode: string): string {
-  // Simulasikan input di Confins: user kadang hanya mengisi angka tanpa prefix department.
-  return planCode.replace(/^[A-Za-z]+/, '');
-}
-
 function pickSource(i: number): ConfinsPaymentSource {
   return i % 2 === 0 ? 'Core' : 'E-GL';
 }
@@ -84,7 +79,7 @@ async function paymentsFromApprovedPlans(now: Date, options: ConfinsMockFetchOpt
     seq += 1;
     out.push({
       id: `CFN-PLAN-${plan.id.slice(-8)}-A`,
-      incomingReferenceId: toIncomingReferenceFromPlanCode(plan.code),
+      incomingReferenceId: plan.code,
       voucherNumber: `VCH-${plan.code}-A`,
       postDate,
       fiscalYear: fy,
@@ -111,7 +106,7 @@ async function paymentsFromApprovedPlans(now: Date, options: ConfinsMockFetchOpt
         seq += 1;
         out.push({
           id: `CFN-PLAN-${plan.id.slice(-8)}-B`,
-          incomingReferenceId: toIncomingReferenceFromPlanCode(plan.code),
+          incomingReferenceId: plan.code,
           voucherNumber: `VCH-${plan.code}-B`,
           postDate,
           fiscalYear: fy,
@@ -172,8 +167,29 @@ function staticEdgeCasePayments(
       updatedAt: now.toISOString(),
     },
     {
+      id: 'CFN-EDGE-PARTIAL-REF',
+      incomingReferenceId: '2026003',
+      voucherNumber: 'VCH-EDGE-003',
+      postDate: midMonthIso(y, m),
+      fiscalYear: y,
+      month: m,
+      source: 'Core',
+      ebudgetPlanId: 'clid_partial_ref_only_digits',
+      description:
+        'Mock: Confins mengirim hanya angka — tidak auto-match; user harus pilih Form ID lengkap (mis. IT2026003)',
+      glAccountCode: '5100.03',
+      glAccountName: 'Mock GL — partial ref',
+      amount: n2(1_000_000),
+      currency: 'IDR',
+      departmentId: base?.departmentId ?? null,
+      departmentCode: base?.departmentCode ?? null,
+      ebudgetRequestId: null,
+      ebudgetRequestCode: null,
+      updatedAt: now.toISOString(),
+    },
+    {
       id: 'CFN-EDGE-VARIANCE',
-      incomingReferenceId: base?.incomingReferenceId ?? '2026003',
+      incomingReferenceId: base?.ebudgetPlanCode ?? base?.incomingReferenceId ?? 'MOCK-NO-BASE',
       voucherNumber: 'VCH-EDGE-002',
       postDate: midMonthIso(y, m),
       fiscalYear: y,

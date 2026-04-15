@@ -11,7 +11,7 @@ export type ConfinsPaymentSource = 'Core' | 'E-GL' | 'Manual';
 export type ConfinsCashDisbursement = {
   /** ID unik dokumen pembayaran di Confins (document/payment id). */
   id: string;
-  /** ID referensi plan yang diinput user Confins untuk matching ke Form ID budget plan. */
+  /** Referensi ke Form ID budget plan (harus sama persis dengan `code`, mis. IT2026003). */
   incomingReferenceId: string;
   voucherNumber: string;
   postDate: string;
