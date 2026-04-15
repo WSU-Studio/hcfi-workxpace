@@ -55,10 +55,10 @@ export default function ReconciliationTable({
               <TableBodyRow key={payment.id} className="border-gray-200">
                 <TableCell>{formatDate(payment.postDate)}</TableCell>
                 <TableCell>{payment.source}</TableCell>
-                <TableCell>{row.matchedPlan?.code ?? '-'}</TableCell>
+                <TableCell>{row.matchedRequest?.code ?? '-'}</TableCell>
                 <TableCell className="font-medium text-gray-700">{payment.incomingReferenceId}</TableCell>
                 <TableCell>{payment.description}</TableCell>
-                <TableCell>{row.matchedPlan?.coaId ?? '-'}</TableCell>
+                <TableCell>{row.matchedRequest?.coa ?? '-'}</TableCell>
                 <TableCell>{`${payment.glAccountCode} - ${payment.glAccountName}`}</TableCell>
                 <TableCell className="text-right">{formatCurrency(row.paidAmount)}</TableCell>
                 <TableCell className="text-right">

@@ -2,24 +2,29 @@
 
 import ManualMatchModal from '@/components/reconciliation/ManualMatchModal';
 import ReconciliationTable from '@/components/reconciliation/ReconciliationTable';
-import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Select from '@/components/ui/Select';
+import type {
+  ConfinsCashDisbursement,
+  ConfinsMockListMeta,
+} from '@/lib/integrations/confins-mock/types';
 import { formatDate } from '@/lib/utils';
-import type { ConfinsCashDisbursement, ConfinsMockListMeta } from '@/lib/integrations/confins-mock/types';
-import type { ReconciliationPlanOption, ReconciliationRow } from '@/types/reconciliation';
+import type { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 import { useSession } from 'next-auth/react';
 import { useMemo, useState } from 'react';
 
-type BudgetPlanApiItem = {
+type BudgetRequestApiItem = {
   id: string;
   code: string;
   subject: string;
   fiscalYear: number;
   departmentId: string;
-  coaId: string | null;
-  department?: { id: string; code: string; name: string };
-  allocations?: Array<{ month: number; allocation: string | number }>;
+  status: string;
+  coa?: string | null;
+  grandTotal?: string | number;
+  budgetPlan?: { code: string; subject: string };
+  department?: { name: string };
 };
 
 type DepartmentApiItem = {
@@ -28,46 +33,40 @@ type DepartmentApiItem = {
   name: string;
 };
 
-function toNumber(val: string | number | null | undefined) {
+function toNumber(val: string | number | null | undefined): number {
   if (val == null) return 0;
   if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
   const n = Number(val);
   return Number.isFinite(n) ? n : 0;
 }
 
-function buildExpectedAmountByMonth(plan: BudgetPlanApiItem, month: number) {
-  const currentMonth = plan.allocations?.find((a) => a.month === month);
-  if (currentMonth) return toNumber(currentMonth.allocation);
-  return plan.allocations?.reduce((sum, row) => sum + toNumber(row.allocation), 0) ?? 0;
-}
-
 function normalizeRefCode(v: string): string {
-  return v.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return v.trim().toUpperCase().replace(/[^A-Z0-9/]/g, '');
 }
 
-function isAutoMatchedByIncomingRef(formId: string, incomingRef: string): boolean {
-  const normalizedForm = normalizeRefCode(formId);
-  const normalizedIncoming = normalizeRefCode(incomingRef);
-  if (!normalizedForm || !normalizedIncoming) return false;
-  /** Hanya exact match (setelah trim + uppercase + strip separator). Contoh: IT2026003 vs 2026003 = tidak match. */
-  return normalizedIncoming === normalizedForm;
+function isAutoMatchedByIncomingRef(requestCode: string, incomingRef: string): boolean {
+  return normalizeRefCode(requestCode) === normalizeRefCode(incomingRef);
 }
 
 export default function ReconciliationPage() {
   const { data: session, status } = useSession();
   const now = new Date();
+
   const [fiscalYear, setFiscalYear] = useState(String(now.getFullYear()));
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [departmentId, setDepartmentId] = useState('');
+
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+
   const [payments, setPayments] = useState<ConfinsCashDisbursement[]>([]);
-  const [plans, setPlans] = useState<ReconciliationPlanOption[]>([]);
+  const [requests, setRequests] = useState<ReconciliationRequestOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentApiItem[]>([]);
+
   const [manualMap, setManualMap] = useState<Record<string, string>>({});
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
-  const [selectedManualPlanId, setSelectedManualPlanId] = useState('');
+  const [selectedManualRequestId, setSelectedManualRequestId] = useState('');
 
   const canManualMatch = Boolean(session?.user?.access?.activityAccess?.editReconciliationMapping);
   const canSync = Boolean(session?.user?.access?.activityAccess?.runReconciliationSync);
@@ -76,55 +75,61 @@ export default function ReconciliationPage() {
     if (!canSync) return;
     setSyncing(true);
     setSyncMessage(null);
+
     try {
+      const requestsUrl = new URL('/api/budget-requests', window.location.origin);
+      const paymentsUrl = new URL('/api/integrations/mock/confins/payments', window.location.origin);
       const planUrl = new URL('/api/budget-plans', window.location.origin);
-      planUrl.searchParams.set('status', 'Approved');
+
+      paymentsUrl.searchParams.set('fiscalYear', fiscalYear);
+      paymentsUrl.searchParams.set('month', month);
+      if (departmentId) paymentsUrl.searchParams.set('departmentId', departmentId);
       if (departmentId) planUrl.searchParams.set('departmentId', departmentId);
 
-      const paymentUrl = new URL('/api/integrations/mock/confins/payments', window.location.origin);
-      paymentUrl.searchParams.set('fiscalYear', fiscalYear);
-      paymentUrl.searchParams.set('month', month);
-      if (departmentId) paymentUrl.searchParams.set('departmentId', departmentId);
-
-      const [planRes, paymentRes] = await Promise.all([
+      const [reqRes, payRes, planRes] = await Promise.all([
+        fetch(requestsUrl.toString()),
+        fetch(paymentsUrl.toString()),
         fetch(planUrl.toString()),
-        fetch(paymentUrl.toString()),
       ]);
-      if (!planRes.ok || !paymentRes.ok) {
+
+      if (!reqRes.ok || !payRes.ok || !planRes.ok) {
         throw new Error('Failed to sync reconciliation data');
       }
 
-      const planData = (await planRes.json()) as {
-        plans: BudgetPlanApiItem[];
-        departments: DepartmentApiItem[];
-      };
-      const paymentData = (await paymentRes.json()) as {
+      const reqData = (await reqRes.json()) as { requests: BudgetRequestApiItem[] };
+      const payData = (await payRes.json()) as {
         payments: ConfinsCashDisbursement[];
         meta: ConfinsMockListMeta;
       };
+      const planData = (await planRes.json()) as { departments: DepartmentApiItem[] };
 
-      const monthInt = Number(month);
-      const normalizedPlans = planData.plans.map((plan) => ({
-        id: plan.id,
-        code: plan.code,
-        subject: plan.subject,
-        fiscalYear: plan.fiscalYear,
-        departmentId: plan.departmentId,
-        departmentCode: plan.department?.code ?? null,
-        departmentName: plan.department?.name ?? null,
-        coaId: plan.coaId ?? null,
-        expectedAmount: buildExpectedAmountByMonth(plan, monthInt),
-      }));
+      const yearInt = Number(fiscalYear);
+      const normalizedRequests = (reqData.requests ?? [])
+        .filter((r) => r.status === 'Approved')
+        .filter((r) => r.fiscalYear === yearInt)
+        .filter((r) => !departmentId || r.departmentId === departmentId)
+        .map((r) => ({
+          id: r.id,
+          code: r.code,
+          subject: r.subject,
+          fiscalYear: r.fiscalYear,
+          departmentId: r.departmentId,
+          departmentCode: null,
+          departmentName: r.department?.name ?? null,
+          budgetPlanCode: r.budgetPlan?.code ?? null,
+          coa: r.coa ?? null,
+          expectedAmount: toNumber(r.grandTotal),
+        }));
 
-      setPlans(normalizedPlans);
+      setRequests(normalizedRequests);
+      setPayments(payData.payments ?? []);
       setDepartments(planData.departments ?? []);
-      setPayments(paymentData.payments ?? []);
-      setLastSyncedAt(paymentData.meta?.lastSyncedAt ?? new Date().toISOString());
+      setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
       setSyncMessage(
-        `Sync berhasil: ${paymentData.meta?.recordCount ?? 0} payment ditarik, ${normalizedPlans.length} budget plan tersedia.`
+        `Sync berhasil: ${payData.meta?.recordCount ?? 0} payment ditarik, ${normalizedRequests.length} budget request tersedia.`
       );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Request failed';
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Request failed';
       setSyncMessage(message);
     } finally {
       setSyncing(false);
@@ -132,57 +137,56 @@ export default function ReconciliationPage() {
   };
 
   const rows = useMemo<ReconciliationRow[]>(() => {
-    const byId = new Map(plans.map((plan) => [plan.id, plan]));
+    const byId = new Map(requests.map((req) => [req.id, req]));
     return payments.map((payment) => {
-      const manualPlanId = manualMap[payment.id];
-      const manualPlan = manualPlanId ? byId.get(manualPlanId) ?? null : null;
-      const autoPlan =
-        plans.find((plan) => isAutoMatchedByIncomingRef(plan.code, payment.incomingReferenceId)) ?? null;
-      const selectedPlan = manualPlan ?? autoPlan;
+      const manualRequestId = manualMap[payment.id];
+      const manualRequest = manualRequestId ? byId.get(manualRequestId) ?? null : null;
+      const autoRequest =
+        requests.find((req) => isAutoMatchedByIncomingRef(req.code, payment.incomingReferenceId)) ?? null;
+      const selectedRequest = manualRequest ?? autoRequest;
       const paidAmount = toNumber(payment.amount);
-      const expectedAmount = selectedPlan?.expectedAmount ?? 0;
+      const expectedAmount = selectedRequest?.expectedAmount ?? 0;
+
       return {
         payment,
-        matchedPlan: selectedPlan,
+        matchedRequest: selectedRequest,
         expectedAmount,
         paidAmount,
         variance: paidAmount - expectedAmount,
-        matchType: manualPlan ? 'manual' : autoPlan ? 'auto' : 'unmatched',
+        matchType: manualRequest ? 'manual' : autoRequest ? 'auto' : 'unmatched',
       };
     });
-  }, [manualMap, payments, plans]);
+  }, [manualMap, payments, requests]);
 
   const activeRow = useMemo(
     () => rows.find((row) => row.payment.id === activePaymentId) ?? null,
     [activePaymentId, rows]
   );
 
-  const availablePlanOptions = useMemo(() => {
-    if (!activeRow) return plans;
-    const payment = activeRow.payment;
-    const candidates = plans.filter((plan) => {
-      if (departmentId && plan.departmentId !== departmentId) return false;
-      if (payment.departmentId && plan.departmentId !== payment.departmentId) return false;
+  const availableRequestOptions = useMemo(() => {
+    if (!activeRow) return requests;
+    const candidates = requests.filter((request) => {
+      if (departmentId && request.departmentId !== departmentId) return false;
+      if (activeRow.payment.departmentId && request.departmentId !== activeRow.payment.departmentId) return false;
       return true;
     });
-    return candidates.length > 0 ? candidates : plans;
-  }, [activeRow, departmentId, plans]);
+    return candidates.length > 0 ? candidates : requests;
+  }, [activeRow, departmentId, requests]);
 
   const openManualMatch = (paymentId: string) => {
     if (!canManualMatch) return;
-    const existing = manualMap[paymentId] ?? '';
-    setSelectedManualPlanId(existing);
+    setSelectedManualRequestId(manualMap[paymentId] ?? '');
     setActivePaymentId(paymentId);
   };
 
   const saveManualMatch = () => {
-    if (!activePaymentId || !selectedManualPlanId) return;
+    if (!activePaymentId || !selectedManualRequestId) return;
     setManualMap((prev) => ({
       ...prev,
-      [activePaymentId]: selectedManualPlanId,
+      [activePaymentId]: selectedManualRequestId,
     }));
     setActivePaymentId(null);
-    setSelectedManualPlanId('');
+    setSelectedManualRequestId('');
   };
 
   if (status === 'loading') {
@@ -194,9 +198,8 @@ export default function ReconciliationPage() {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Reconciliation</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Bandingkan budget plan, budget request yang disetujui, dan pembayaran dari Confins. Sync akan mencoba
-          auto-match hanya jika Incoming ID dari Confins sama persis dengan Form ID budget plan; salah ketik atau
-          format parsial harus dicocokkan manual lewat popup.
+          Rekonsiliasi dilakukan berbasis Budget Request. Auto-match hanya terjadi jika Incoming ID dari Confins
+          sama persis dengan Form ID budget request.
         </p>
       </div>
 
@@ -270,12 +273,12 @@ export default function ReconciliationPage() {
       <ManualMatchModal
         open={Boolean(activePaymentId)}
         row={activeRow}
-        planOptions={availablePlanOptions}
-        selectedPlanId={selectedManualPlanId}
-        onChangePlan={setSelectedManualPlanId}
+        requestOptions={availableRequestOptions}
+        selectedRequestId={selectedManualRequestId}
+        onChangeRequest={setSelectedManualRequestId}
         onClose={() => {
           setActivePaymentId(null);
-          setSelectedManualPlanId('');
+          setSelectedManualRequestId('');
         }}
         onSave={saveManualMatch}
       />

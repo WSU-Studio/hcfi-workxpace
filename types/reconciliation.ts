@@ -2,7 +2,7 @@ import type { ConfinsCashDisbursement } from '@/lib/integrations/confins-mock/ty
 
 export type ReconciliationMatchType = 'auto' | 'manual' | 'unmatched';
 
-export interface ReconciliationPlanOption {
+export interface ReconciliationRequestOption {
   id: string;
   code: string;
   subject: string;
@@ -10,13 +10,14 @@ export interface ReconciliationPlanOption {
   departmentId: string;
   departmentCode: string | null;
   departmentName: string | null;
-  coaId: string | null;
+  budgetPlanCode: string | null;
+  coa: string | null;
   expectedAmount: number;
 }
 
 export interface ReconciliationRow {
   payment: ConfinsCashDisbursement;
-  matchedPlan: ReconciliationPlanOption | null;
+  matchedRequest: ReconciliationRequestOption | null;
   expectedAmount: number;
   paidAmount: number;
   variance: number;

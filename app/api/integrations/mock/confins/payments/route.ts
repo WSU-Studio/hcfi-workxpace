@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Mock Confins: daftar cash disbursement.
- * Query: fiscalYear, month, ebudgetPlanId, departmentId, includeEdgeCases (default true).
+ * Query: fiscalYear, month, ebudgetRequestId, departmentId, includeEdgeCases (default true).
  */
 export async function GET(request: Request) {
   try {
@@ -28,8 +28,8 @@ export async function GET(request: Request) {
       if (!Number.isNaN(n) && n >= 1 && n <= 12) opts.month = n;
     }
 
-    const planId = searchParams.get('ebudgetPlanId');
-    if (planId) opts.ebudgetPlanId = planId;
+    const requestId = searchParams.get('ebudgetRequestId');
+    if (requestId) opts.ebudgetRequestId = requestId;
 
     const deptId = searchParams.get('departmentId');
     if (deptId) opts.departmentId = deptId;
