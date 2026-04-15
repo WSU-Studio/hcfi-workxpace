@@ -4,14 +4,14 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { formatCurrency } from '@/lib/utils';
-import { ReconciliationPlanOption, ReconciliationRow } from '@/types/reconciliation';
+import { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 
 interface ManualMatchModalProps {
   open: boolean;
   row: ReconciliationRow | null;
-  planOptions: ReconciliationPlanOption[];
-  selectedPlanId: string;
-  onChangePlan: (planId: string) => void;
+  requestOptions: ReconciliationRequestOption[];
+  selectedRequestId: string;
+  onChangeRequest: (requestId: string) => void;
   onClose: () => void;
   onSave: () => void;
 }
@@ -19,9 +19,9 @@ interface ManualMatchModalProps {
 export default function ManualMatchModal({
   open,
   row,
-  planOptions,
-  selectedPlanId,
-  onChangePlan,
+  requestOptions,
+  selectedRequestId,
+  onChangeRequest,
   onClose,
   onSave,
 }: ManualMatchModalProps) {
@@ -33,7 +33,7 @@ export default function ManualMatchModal({
         <div className="space-y-1">
           <h3 className="text-lg font-semibold text-gray-900">Manual Match Payment</h3>
           <p className="text-sm text-gray-600">
-            Cocokkan incoming payment ke Budget Plan yang benar ketika auto-match tidak sesuai.
+            Cocokkan incoming payment ke Budget Request yang benar ketika auto-match tidak sesuai.
           </p>
         </div>
 
@@ -51,12 +51,12 @@ export default function ManualMatchModal({
             <Input value={formatCurrency(row.paidAmount)} disabled />
           </label>
           <label className="space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-gray-700">Pilih Budget Plan</span>
-            <Select value={selectedPlanId} onChange={(e) => onChangePlan(e.target.value)}>
-              <option value="">Pilih budget plan...</option>
-              {planOptions.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {`${plan.code} | ${plan.subject} | ${plan.departmentCode ?? '-'} | exp: ${formatCurrency(plan.expectedAmount)}`}
+            <span className="font-medium text-gray-700">Pilih Budget Request</span>
+            <Select value={selectedRequestId} onChange={(e) => onChangeRequest(e.target.value)}>
+              <option value="">Pilih budget request...</option>
+              {requestOptions.map((request) => (
+                <option key={request.id} value={request.id}>
+                  {`${request.code} | ${request.subject} | plan: ${request.budgetPlanCode ?? '-'} | exp: ${formatCurrency(request.expectedAmount)}`}
                 </option>
               ))}
             </Select>
@@ -67,7 +67,7 @@ export default function ManualMatchModal({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={onSave} disabled={!selectedPlanId}>
+          <Button type="button" onClick={onSave} disabled={!selectedRequestId}>
             Save Manual Match
           </Button>
         </div>

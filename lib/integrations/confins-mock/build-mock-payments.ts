@@ -4,7 +4,7 @@ import type { ConfinsCashDisbursement, ConfinsPaymentSource } from './types';
 export type ConfinsMockFetchOptions = {
   fiscalYear?: number;
   month?: number;
-  ebudgetPlanId?: string;
+  ebudgetRequestId?: string;
   departmentId?: string;
   includeEdgeCases?: boolean;
 };
@@ -23,7 +23,7 @@ function pickSource(i: number): ConfinsPaymentSource {
 }
 
 function pickActiveMonth(
-  allocations: Array<{ month: number; allocation: unknown }>,
+  allocations: Array<{ year: number; month: number; allocation: unknown }>,
   preferredMonth?: number
 ): number {
   if (preferredMonth) return preferredMonth;
@@ -34,178 +34,143 @@ function pickActiveMonth(
   return new Date().getMonth() + 1;
 }
 
-async function paymentsFromApprovedPlans(now: Date, options: ConfinsMockFetchOptions): Promise<{
-  payments: ConfinsCashDisbursement[];
-  approvedRequestCount: number;
-}> {
-  const plans = await prisma.budgetPlan.findMany({
+async function paymentsFromApprovedRequests(
+  now: Date,
+  options: ConfinsMockFetchOptions
+): Promise<ConfinsCashDisbursement[]> {
+  const requests = await prisma.budgetRequest.findMany({
     where: {
       status: 'Approved',
       ...(options.fiscalYear != null ? { fiscalYear: options.fiscalYear } : {}),
       ...(options.departmentId ? { departmentId: options.departmentId } : {}),
+      ...(options.ebudgetRequestId ? { id: options.ebudgetRequestId } : {}),
     },
     include: {
       department: { select: { id: true, code: true } },
-      allocations: { orderBy: { month: 'asc' } },
-      budgetRequests: {
-        where: { status: 'Approved' },
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          allocations: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
-        },
-      },
+      budgetPlan: { select: { id: true, code: true } },
+      allocations: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { updatedAt: 'desc' },
     take: 60,
   });
 
   const out: ConfinsCashDisbursement[] = [];
   let seq = 0;
-  let approvedRequestCount = 0;
 
-  for (const plan of plans) {
-    const req = plan.budgetRequests[0] ?? null;
-    if (req) approvedRequestCount += 1;
-
-    const month = pickActiveMonth(plan.allocations, options.month);
-    const fy = options.fiscalYear ?? plan.fiscalYear;
+  for (const req of requests) {
+    const month = pickActiveMonth(req.allocations, options.month);
+    const fy = options.fiscalYear ?? req.fiscalYear;
     const postDate = midMonthIso(fy, month);
-    const expected = plan.allocations.find((a) => a.month === month);
-    const expectedAmount = Number(expected?.allocation ?? 0);
-    const requestTotal = req ? Number(req.grandTotal) : 0;
-    const baseAmount = requestTotal > 0 ? requestTotal : expectedAmount;
-    const paymentAmount = baseAmount > 0 ? baseAmount : 2_500_000;
+    const total = Number(req.grandTotal ?? 0);
+    const paymentAmount = total > 0 ? total : 2_500_000;
 
     seq += 1;
     out.push({
-      id: `CFN-PLAN-${plan.id.slice(-8)}-A`,
-      incomingReferenceId: plan.code,
-      voucherNumber: `VCH-${plan.code}-A`,
+      id: `CFN-REQ-${req.id.slice(-8)}-A`,
+      incomingReferenceId: req.code,
+      voucherNumber: `VCH-${req.code}-A`,
       postDate,
       fiscalYear: fy,
       month,
       source: pickSource(seq),
-      ebudgetPlanId: plan.id,
-      ebudgetPlanCode: plan.code,
-      ebudgetRequestId: req?.id ?? null,
-      ebudgetRequestCode: req?.code ?? null,
-      description: req?.subject ?? `${plan.subject} - Disbursement`,
-      glAccountCode: (plan.coaId ?? '0000.00').split(' ')[0],
-      glAccountName: plan.coaId ? `COA ${plan.coaId}` : 'COA from plan',
+      ebudgetPlanId: req.budgetPlanId,
+      ebudgetPlanCode: req.budgetPlan?.code ?? null,
+      ebudgetRequestId: req.id,
+      ebudgetRequestCode: req.code,
+      description: req.subject,
+      glAccountCode: (req.coa ?? '0000.00').split(' ')[0],
+      glAccountName: req.coa ? `COA ${req.coa}` : 'COA from request',
       amount: n2(paymentAmount),
       currency: 'IDR',
-      departmentId: plan.departmentId,
-      departmentCode: plan.department?.code ?? null,
+      departmentId: req.departmentId,
+      departmentCode: req.department?.code ?? null,
       updatedAt: now.toISOString(),
     });
 
-    // Buat skenario split payment untuk menjelaskan "1 request bisa beberapa pembayaran".
+    // Simulasi satu request bisa beberapa payment.
     if (paymentAmount >= 20_000_000) {
       const splitAmount = Math.round(paymentAmount * 0.35 * 100) / 100;
       if (splitAmount > 0) {
         seq += 1;
         out.push({
-          id: `CFN-PLAN-${plan.id.slice(-8)}-B`,
-          incomingReferenceId: plan.code,
-          voucherNumber: `VCH-${plan.code}-B`,
+          id: `CFN-REQ-${req.id.slice(-8)}-B`,
+          incomingReferenceId: req.code,
+          voucherNumber: `VCH-${req.code}-B`,
           postDate,
           fiscalYear: fy,
           month,
           source: pickSource(seq),
-          ebudgetPlanId: plan.id,
-          ebudgetPlanCode: plan.code,
-          ebudgetRequestId: req?.id ?? null,
-          ebudgetRequestCode: req?.code ?? null,
-          description: `${req?.subject ?? plan.subject} - Partial Payment`,
-          glAccountCode: (plan.coaId ?? '0000.00').split(' ')[0],
-          glAccountName: plan.coaId ? `COA ${plan.coaId}` : 'COA from plan',
+          ebudgetPlanId: req.budgetPlanId,
+          ebudgetPlanCode: req.budgetPlan?.code ?? null,
+          ebudgetRequestId: req.id,
+          ebudgetRequestCode: req.code,
+          description: `${req.subject} - Partial Payment`,
+          glAccountCode: (req.coa ?? '0000.00').split(' ')[0],
+          glAccountName: req.coa ? `COA ${req.coa}` : 'COA from request',
           amount: n2(splitAmount),
           currency: 'IDR',
-          departmentId: plan.departmentId,
-          departmentCode: plan.department?.code ?? null,
+          departmentId: req.departmentId,
+          departmentCode: req.department?.code ?? null,
           updatedAt: now.toISOString(),
         });
       }
     }
   }
 
-  return {
-    payments: out,
-    approvedRequestCount,
-  };
+  return out;
 }
 
-/** Skenario statis: salah ID plan, nominal tidak sama (untuk uji unmatched / variance). */
+/** Edge case: typo ref request + variance nominal untuk demo manual matching. */
 function staticEdgeCasePayments(
   now: Date,
   options: ConfinsMockFetchOptions,
-  matchedPlans: ConfinsCashDisbursement[]
+  matchedRequests: ConfinsCashDisbursement[]
 ): ConfinsCashDisbursement[] {
   const y = options.fiscalYear ?? now.getFullYear();
   const m = options.month ?? now.getMonth() + 1;
-  const base = matchedPlans[0];
+  const base = matchedRequests[0];
 
   return [
     {
-      id: 'CFN-EDGE-UNKNOWN-PLAN',
-      incomingReferenceId: 'ITT2026003',
+      id: 'CFN-EDGE-UNKNOWN-REQUEST',
+      incomingReferenceId: 'BR/IT/00X',
       voucherNumber: 'VCH-EDGE-001',
       postDate: midMonthIso(y, m),
       fiscalYear: y,
       month: m,
       source: 'Core',
-      ebudgetPlanId: 'clid_typo_or_unknown_budget_plan',
-      description: 'Mock: FK plan salah — harus unmatched atau koreksi manual',
+      ebudgetPlanId: null,
+      ebudgetPlanCode: null,
+      ebudgetRequestId: null,
+      ebudgetRequestCode: null,
+      description: 'Mock: referensi budget request typo, harus unmatched lalu manual match',
       glAccountCode: '5100.01',
-      glAccountName: 'Mock GL — OPEX',
+      glAccountName: 'Mock GL - OPEX',
       amount: n2(5_000_000),
       currency: 'IDR',
       departmentId: null,
       departmentCode: null,
-      ebudgetRequestId: null,
-      ebudgetRequestCode: null,
-      updatedAt: now.toISOString(),
-    },
-    {
-      id: 'CFN-EDGE-PARTIAL-REF',
-      incomingReferenceId: '2026003',
-      voucherNumber: 'VCH-EDGE-003',
-      postDate: midMonthIso(y, m),
-      fiscalYear: y,
-      month: m,
-      source: 'Core',
-      ebudgetPlanId: 'clid_partial_ref_only_digits',
-      description:
-        'Mock: Confins mengirim hanya angka — tidak auto-match; user harus pilih Form ID lengkap (mis. IT2026003)',
-      glAccountCode: '5100.03',
-      glAccountName: 'Mock GL — partial ref',
-      amount: n2(1_000_000),
-      currency: 'IDR',
-      departmentId: base?.departmentId ?? null,
-      departmentCode: base?.departmentCode ?? null,
-      ebudgetRequestId: null,
-      ebudgetRequestCode: null,
       updatedAt: now.toISOString(),
     },
     {
       id: 'CFN-EDGE-VARIANCE',
-      incomingReferenceId: base?.ebudgetPlanCode ?? base?.incomingReferenceId ?? 'MOCK-NO-BASE',
+      incomingReferenceId: base?.incomingReferenceId ?? 'BR/IT/001',
       voucherNumber: 'VCH-EDGE-002',
       postDate: midMonthIso(y, m),
       fiscalYear: y,
       month: m,
       source: 'E-GL',
-      ebudgetPlanId: base?.ebudgetPlanId ?? 'clid_same_as_valid_but_amount_differs',
-      ebudgetPlanCode: base?.ebudgetPlanCode,
-      description: 'Mock: plan valid namun amount berbeda untuk uji variance',
+      ebudgetPlanId: base?.ebudgetPlanId ?? null,
+      ebudgetPlanCode: base?.ebudgetPlanCode ?? null,
+      ebudgetRequestId: base?.ebudgetRequestId ?? null,
+      ebudgetRequestCode: base?.ebudgetRequestCode ?? null,
+      description: 'Mock: request valid tapi amount berbeda untuk uji variance',
       glAccountCode: '5200.02',
-      glAccountName: 'Mock GL — Services',
+      glAccountName: 'Mock GL - Services',
       amount: n2(600_000_000),
       currency: 'IDR',
       departmentId: base?.departmentId ?? null,
       departmentCode: base?.departmentCode ?? null,
-      ebudgetRequestId: base?.ebudgetRequestId ?? null,
-      ebudgetRequestCode: base?.ebudgetRequestCode ?? null,
       updatedAt: now.toISOString(),
     },
   ];
@@ -220,8 +185,7 @@ export async function fetchConfinsMockPayments(
   const now = new Date();
   const includeEdgeCases = options.includeEdgeCases !== false;
 
-  const fromDbResult = await paymentsFromApprovedPlans(now, options);
-  const fromDb = fromDbResult.payments;
+  const fromDb = await paymentsFromApprovedRequests(now, options);
   const edge = includeEdgeCases ? staticEdgeCasePayments(now, options, fromDb) : [];
   const merged = [...fromDb, ...edge];
 
@@ -233,8 +197,8 @@ export async function fetchConfinsMockPayments(
   if (options.month != null) {
     filtered = filtered.filter((p) => p.month === options.month);
   }
-  if (options.ebudgetPlanId) {
-    filtered = filtered.filter((p) => p.ebudgetPlanId === options.ebudgetPlanId);
+  if (options.ebudgetRequestId) {
+    filtered = filtered.filter((p) => p.ebudgetRequestId === options.ebudgetRequestId);
   }
   if (options.departmentId) {
     filtered = filtered.filter((p) => p.departmentId === options.departmentId);
@@ -242,7 +206,7 @@ export async function fetchConfinsMockPayments(
 
   return {
     payments: filtered,
-    usedLocalApprovedRequests: fromDbResult.approvedRequestCount > 0,
+    usedLocalApprovedRequests: fromDb.length > 0,
   };
 }
 
