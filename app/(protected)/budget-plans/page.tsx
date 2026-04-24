@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Import } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -81,13 +81,22 @@ export default function BudgetPlansPage() {
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
         />
-        <Link
-          href="/budget-plans/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Plan
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/budget-plans/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Plan
+          </Link>
+          <Link
+            href="/budget-plans/import"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            <Import className="w-4 h-4" />
+            Import Bulk Budget Plan
+          </Link>
+        </div>
       </div>
       <Card>
         <Table>

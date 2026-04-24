@@ -17,7 +17,6 @@ export default function NewBudgetPlanPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [excelFile, setExcelFile] = useState<File | null>(null);
   const [fiscalYears, setFiscalYears] = useState<{ year: number }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string; code: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
@@ -140,27 +139,7 @@ export default function NewBudgetPlanPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold">Create Budget Plan</h1>
-
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition">
-            Import Bulk Budget Plan
-            <input
-              type="file"
-              accept=".xls,.xlsx"
-              className="hidden"
-              onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
-            />
-          </label>
-
-          {excelFile && (
-            <span className="text-sm text-gray-500 max-w-[240px] truncate">
-              {excelFile.name}
-            </span>
-          )}
-        </div>
-      </div>
+      <h1 className="text-2xl font-semibold">Create Budget Plan</h1>
       {error && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
