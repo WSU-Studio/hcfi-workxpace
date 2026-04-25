@@ -85,6 +85,22 @@ interface ImportPreviewRow {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Revision', 'Declined'] as const;
+const SORT_OPTIONS = [
+  { value: 'createdAt-desc', label: 'Newest first' },
+  { value: 'createdAt-asc', label: 'Oldest first' },
+  { value: 'subject-asc', label: 'Subject (A-Z)' },
+  { value: 'subject-desc', label: 'Subject (Z-A)' },
+  { value: 'code-asc', label: 'Code (A-Z)' },
+  { value: 'code-desc', label: 'Code (Z-A)' },
+  { value: 'total-desc', label: 'Total budget (High-Low)' },
+  { value: 'total-asc', label: 'Total budget (Low-High)' },
+] as const;
+
+const getPlanTotal = (p: Plan) => {
+  if (!p.allocations?.length) return 0;
+  return p.allocations.reduce((sum, a) => sum + Number(a.allocation ?? 0), 0);
+};
 
 export default function BudgetPlansPage() {
   const router = useRouter();
@@ -94,6 +110,8 @@ export default function BudgetPlansPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
   const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
@@ -121,17 +139,38 @@ export default function BudgetPlansPage() {
   }, []);
 
   useEffect(() => {
-    if (!searchKeyword.trim()) setFiltered(plans);
-    else {
-      const kw = searchKeyword.toLowerCase();
-      setFiltered(plans.filter((p) => p.subject?.toLowerCase().includes(kw) || p.code?.toLowerCase().includes(kw) || p.department?.name?.toLowerCase().includes(kw)));
-    }
+    const kw = searchKeyword.trim().toLowerCase();
+    const [sortField, sortDirection] = sortBy.split('-') as [string, 'asc' | 'desc'];
+    const sortedAndFiltered = [...plans]
+      .filter((p) => {
+        const matchesKeyword =
+          !kw ||
+          p.subject?.toLowerCase().includes(kw) ||
+          p.code?.toLowerCase().includes(kw) ||
+          p.department?.name?.toLowerCase().includes(kw);
+        const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+        return matchesKeyword && matchesStatus;
+      })
+      .sort((a, b) => {
+        let compare = 0;
+
+        if (sortField === 'subject') {
+          compare = (a.subject ?? '').localeCompare(b.subject ?? '');
+        } else if (sortField === 'code') {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
+        } else if (sortField === 'total') {
+          compare = getPlanTotal(a) - getPlanTotal(b);
+        }
+
+        return sortDirection === 'asc' ? compare : -compare;
+      });
+
+    setFiltered(sortedAndFiltered);
     setCurrentPage(1);
-  }, [searchKeyword, plans]);
+  }, [searchKeyword, plans, statusFilter, sortBy]);
 
   const getTotal = (p: Plan) => {
-    if (!p.allocations?.length) return 0;
-    return p.allocations.reduce((sum, a) => sum + Number(a.allocation ?? 0), 0);
+    return getPlanTotal(p);
   };
 
   const getMonthsLabel = (p: Plan) => {
@@ -247,12 +286,36 @@ const handleImportRows = async () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Budget Plans</h1>
-      <div className="flex justify-between gap-4">
-        <SearchInput 
-          placeholder="Search..."
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-        />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            placeholder="Search..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_FILTERS)[number])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {STATUS_FILTERS.map((status) => (
+              <option key={status} value={status}>
+                {status === 'All' ? 'All statuses' : status}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as (typeof SORT_OPTIONS)[number]['value'])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex items-center gap-2">
           <Link
             href="/budget-plans/new"
