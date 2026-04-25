@@ -21,9 +21,10 @@ export default function NewBudgetPlanPage() {
   const [departments, setDepartments] = useState<{ id: string; name: string; code: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
+  const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   const [formData, setFormData] = useState({
     fiscalYear: new Date().getFullYear(),
-    originOffice: 'HQ',
+    originOffice: '',
     departmentId: '',
     projectId: '',
     subject: '',
@@ -87,9 +88,16 @@ export default function NewBudgetPlanPage() {
         setDepartments(data.departments || []);
         setProjects(data.projects || []);
         setApprovalSchemas(data.approvalSchemas || []);
+        setOriginOffices(data.originOffices || []);
         if (data.fiscalYears?.[0]) setFormData((p) => ({ ...p, fiscalYear: data.fiscalYears[0].year }));
         if (data.departments?.[0]) setFormData((p) => ({ ...p, departmentId: data.departments[0].id }));
         if (data.projects?.[0]) setFormData((p) => ({ ...p, projectId: data.projects[0].id }));
+        if (data.originOffices?.length) {
+          const activeFirst = data.originOffices.find((office: { isActive: boolean }) => office.isActive) || data.originOffices[0];
+          setFormData((p) => ({ ...p, originOffice: activeFirst.code }));
+        } else {
+          setFormData((p) => ({ ...p, originOffice: 'HQ' }));
+        }
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -155,14 +163,35 @@ export default function NewBudgetPlanPage() {
               </Select>
             </div>
             <div>
-              <label className="block mb-1.5 font-medium">Origin Office</label>
-              <Input
-                type="text"
-                value={formData.originOffice}
-                onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
-                placeholder="HQ"
-                required
-              />
+              <label className="block mb-1.5 font-medium">Origin Office *</label>
+              {originOffices.length > 0 ? (
+                <Select
+                  value={formData.originOffice}
+                  onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
+                  required
+                >
+                  <option value="">-</option>
+                  {originOffices.map((office) => (
+                    <option key={office.code} value={office.code}>
+                      {office.code} - {office.name}
+                      {office.isActive ? '' : ' (Inactive)'}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  type="text"
+                  value={formData.originOffice}
+                  onChange={(e) =>
+                    setFormData((previous) => ({
+                      ...previous,
+                      originOffice: e.target.value,
+                    }))
+                  }
+                  placeholder="HQ"
+                  required
+                />
+              )}
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Department *</label>
