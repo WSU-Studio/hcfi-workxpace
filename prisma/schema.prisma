@@ -303,6 +303,20 @@ model CostCenterMaster {
   @@map("cost_center_masters")
 }
 
+model OriginOfficeMaster {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  address    String?
+  officeType String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([name])
+  @@map("origin_office_masters")
+}
+
 model OpexMaster {
   id          String      @id @default(cuid())
   name        String      @unique
