@@ -5,6 +5,7 @@ export interface MenuAccess {
   userManagement: boolean;
   workspaceManagement: boolean;
   viewDepartment: boolean;
+  viewOriginOffice: boolean;
   viewProject: boolean;
   viewCategory: boolean;
   viewCategoryKeyIndex: boolean;
@@ -24,6 +25,9 @@ export interface ActivityAccess {
   createDepartment: boolean;
   editDepartment: boolean;
   deleteDepartment: boolean;
+  createOriginOffice: boolean;
+  editOriginOffice: boolean;
+  deleteOriginOffice: boolean;
   createProject: boolean;
   editProject: boolean;
   deleteProject: boolean;

@@ -38,15 +38,21 @@ export const authOptions: AuthOptions = {
 
         const menuAccess = isAdmin
           ? fullMenuAccess
-          : ((typeof user.access?.menuAccess === 'string'
+          : {
+              ...defaultMenuAccess,
+              ...((typeof user.access?.menuAccess === 'string'
               ? JSON.parse(user.access.menuAccess as string) as MenuAccess
-              : (user.access?.menuAccess as unknown as MenuAccess)) ?? defaultMenuAccess);
+              : (user.access?.menuAccess as unknown as MenuAccess)) ?? {}),
+            };
 
         const activityAccess = isAdmin
           ? fullActivityAccess
-          : ((typeof user.access?.activityAccess === 'string'
+          : {
+              ...defaultActivityAccess,
+              ...((typeof user.access?.activityAccess === 'string'
               ? JSON.parse(user.access.activityAccess as string) as ActivityAccess
-              : (user.access?.activityAccess as unknown as ActivityAccess)) ?? defaultActivityAccess);
+              : (user.access?.activityAccess as unknown as ActivityAccess)) ?? {}),
+            };
 
         return {
           id: user.id,
@@ -80,10 +86,14 @@ export const authOptions: AuthOptions = {
         session.user.roleId = token.roleId as string;
         session.user.departmentId = token.departmentId as string;
         session.user.role = token.role ?? '';
-        session.user.access = (token.access ?? {
+        const access = (token.access ?? {
           menuAccess: defaultMenuAccess,
           activityAccess: defaultActivityAccess,
-        }) as { menuAccess: MenuAccess; activityAccess: ActivityAccess };
+        }) as { menuAccess: Partial<MenuAccess>; activityAccess: Partial<ActivityAccess> };
+        session.user.access = {
+          menuAccess: { ...defaultMenuAccess, ...(access.menuAccess ?? {}) },
+          activityAccess: { ...defaultActivityAccess, ...(access.activityAccess ?? {}) },
+        };
       }
       return session;
     },
