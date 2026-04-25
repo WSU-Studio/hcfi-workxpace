@@ -22,6 +22,8 @@ export default function NewBudgetPlanPage() {
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
   const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
+  
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     fiscalYear: new Date().getFullYear(),
     originOffice: '',
@@ -237,7 +239,24 @@ export default function NewBudgetPlanPage() {
               rows={4}
             />
           </div>
+          <div>
+            <label className="block mb-1.5 font-medium">Upload Files</label>
 
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <label className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition w-fit">
+                Browse
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              <span className="text-sm text-gray-500 max-w-[300px] truncate">
+                {attachmentFile ? attachmentFile.name : 'No file selected'}
+              </span>
+            </div>
+          </div>
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
