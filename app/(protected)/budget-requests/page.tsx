@@ -21,12 +21,26 @@ interface BudgetRequest {
   lineItems?: { total: unknown }[];
 }
 
+const STATUS_FILTERS = ['All', 'Approved', 'Reviewed', 'Pending', 'Revision', 'Declined'] as const;
+const SORT_OPTIONS = [
+  { value: 'subject-asc', label: 'Subject (A-Z)' },
+  { value: 'subject-desc', label: 'Subject (Z-A)' },
+  { value: 'code-asc', label: 'Code (A-Z)' },
+  { value: 'code-desc', label: 'Code (Z-A)' },
+  { value: 'department-asc', label: 'Department (A-Z)' },
+  { value: 'department-desc', label: 'Department (Z-A)' },
+  { value: 'status-asc', label: 'Status (A-Z)' },
+  { value: 'status-desc', label: 'Status (Z-A)' },
+] as const;
+
 export default function BudgetRequestsPage() {
   const [requests, setRequests] = useState<BudgetRequest[]>([]);
   const [filtered, setFiltered] = useState<BudgetRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -44,25 +58,76 @@ export default function BudgetRequestsPage() {
   }, []);
 
   useEffect(() => {
-    if (!searchKeyword.trim()) setFiltered(requests);
-    else {
-      const kw = searchKeyword.toLowerCase();
-      setFiltered(requests.filter((r) => r.subject?.toLowerCase().includes(kw) || r.code?.toLowerCase().includes(kw)));
-    }
+    const kw = searchKeyword.trim().toLowerCase();
+    const [sortField, sortDirection] = sortBy.split('-') as [string, 'asc' | 'desc'];
+
+    const sortedAndFiltered = [...requests]
+      .filter((r) => {
+        const matchesKeyword =
+          !kw ||
+          r.subject?.toLowerCase().includes(kw) ||
+          r.code?.toLowerCase().includes(kw) ||
+          r.department?.name?.toLowerCase().includes(kw) ||
+          r.budgetPlan?.code?.toLowerCase().includes(kw) ||
+          r.budgetPlan?.subject?.toLowerCase().includes(kw);
+        const matchesStatus = statusFilter === 'All' || r.status === statusFilter;
+        return matchesKeyword && matchesStatus;
+      })
+      .sort((a, b) => {
+        let compare = 0;
+
+        if (sortField === 'subject') {
+          compare = (a.subject ?? '').localeCompare(b.subject ?? '');
+        } else if (sortField === 'code') {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
+        } else if (sortField === 'department') {
+          compare = (a.department?.name ?? '').localeCompare(b.department?.name ?? '');
+        } else if (sortField === 'status') {
+          compare = (a.status ?? '').localeCompare(b.status ?? '');
+        }
+
+        return sortDirection === 'asc' ? compare : -compare;
+      });
+
+    setFiltered(sortedAndFiltered);
     setCurrentPage(1);
-  }, [searchKeyword, requests]);
+  }, [searchKeyword, requests, statusFilter, sortBy]);
 
   if (isLoading) return <LoadingSpin />;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Budget Requests</h1>
-      <div className="flex justify-between gap-4">
-        <SearchInput
-          placeholder="Search..."
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-        />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            placeholder="Search..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_FILTERS)[number])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {STATUS_FILTERS.map((status) => (
+              <option key={status} value={status}>
+                {status === 'All' ? 'All statuses' : status}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as (typeof SORT_OPTIONS)[number]['value'])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <Link
           href="/budget-requests/new"
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
