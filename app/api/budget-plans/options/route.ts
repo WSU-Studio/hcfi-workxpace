@@ -3,6 +3,27 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+type OriginOfficeMasterDelegate = {
+  findMany: (args: {
+    select: {
+      code: true;
+      name: true;
+      address: true;
+      officeType: true;
+      isActive: true;
+    };
+    orderBy: Array<{ isActive: 'asc' | 'desc' } | { code: 'asc' | 'desc' }>;
+  }) => Promise<
+    Array<{
+      code: string;
+      name: string;
+      address: string | null;
+      officeType: string | null;
+      isActive: boolean;
+    }>
+  >;
+};
+
 export async function GET() {
   try {
     const [fiscalYears, departments, projects, approvalSchemas] = await Promise.all([
@@ -15,7 +36,11 @@ export async function GET() {
       }),
     ]);
 
-    const originOffices = await prisma.originOfficeMaster.findMany({
+    const originOfficeMaster = (prisma as unknown as {
+      originOfficeMaster: OriginOfficeMasterDelegate;
+    }).originOfficeMaster;
+
+    const originOffices = await originOfficeMaster.findMany({
       select: {
         code: true,
         name: true,
