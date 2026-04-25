@@ -119,8 +119,19 @@ export async function POST(req: Request) {
         select: { categoryId: true, coaId: true, opexType: true, opexAllocationId: true },
       }),
     ]);
-    const count = await prisma.budgetRequest.count({ where: { departmentId, fiscalYear: year } });
-    const code = `BR/${dept?.code ?? 'XX'}/${String(count + 1).padStart(3, '0')}`;
+    const now = new Date();
+    const codeYear = String(now.getFullYear());
+    const codeMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const departmentCode = (dept?.code ?? 'XX').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const codePrefix = `BR${departmentCode}${codeYear}${codeMonth}`;
+    const count = await prisma.budgetRequest.count({
+      where: {
+        code: {
+          startsWith: codePrefix,
+        },
+      },
+    });
+    const code = `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
     const br: any = await prisma.budgetRequest.create({
       data: {
