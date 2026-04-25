@@ -17,6 +17,13 @@ interface Activity {
 }
 
 const ACTION_FILTERS = ['All', 'create', 'update', 'delete', 'approve', 'review', 'decline'] as const;
+const NON_STATE_KEYS = new Set(['note']);
+
+interface ActivityStateChange {
+  key: string;
+  previous: unknown;
+  current: unknown;
+}
 
 function formatDetailValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return '-';
@@ -61,6 +68,71 @@ function formatDateTime(date: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function stateBaseKey(rawKey: string): string {
+  if (rawKey.startsWith('previous')) {
+    const base = rawKey.slice('previous'.length);
+    return base ? base.charAt(0).toLowerCase() + base.slice(1) : rawKey;
+  }
+  if (rawKey.startsWith('from')) {
+    const base = rawKey.slice('from'.length);
+    return base ? base.charAt(0).toLowerCase() + base.slice(1) : rawKey;
+  }
+  if (rawKey.startsWith('old')) {
+    const base = rawKey.slice('old'.length);
+    return base ? base.charAt(0).toLowerCase() + base.slice(1) : rawKey;
+  }
+  if (rawKey.startsWith('new')) {
+    const base = rawKey.slice('new'.length);
+    return base ? base.charAt(0).toLowerCase() + base.slice(1) : rawKey;
+  }
+  if (rawKey.startsWith('to')) {
+    const base = rawKey.slice('to'.length);
+    return base ? base.charAt(0).toLowerCase() + base.slice(1) : rawKey;
+  }
+  return rawKey;
+}
+
+function extractStateChanges(details: Record<string, unknown>): ActivityStateChange[] {
+  const previousState =
+    details.previousState && typeof details.previousState === 'object' && !Array.isArray(details.previousState)
+      ? (details.previousState as Record<string, unknown>)
+      : null;
+  const currentState =
+    details.currentState && typeof details.currentState === 'object' && !Array.isArray(details.currentState)
+      ? (details.currentState as Record<string, unknown>)
+      : null;
+
+  if (previousState || currentState) {
+    const keys = Array.from(new Set([...(previousState ? Object.keys(previousState) : []), ...(currentState ? Object.keys(currentState) : [])]));
+    return keys.map((key) => ({
+      key,
+      previous: previousState?.[key],
+      current: currentState?.[key],
+    }));
+  }
+
+  const map = new Map<string, ActivityStateChange>();
+
+  Object.entries(details).forEach(([rawKey, value]) => {
+    if (NON_STATE_KEYS.has(rawKey) || rawKey === 'previousState' || rawKey === 'currentState') return;
+    const key = stateBaseKey(rawKey);
+    if (!map.has(key)) map.set(key, { key, previous: null, current: null });
+
+    const item = map.get(key);
+    if (!item) return;
+
+    if (rawKey.startsWith('previous') || rawKey.startsWith('from') || rawKey.startsWith('old')) {
+      item.previous = value;
+    } else if (rawKey.startsWith('new') || rawKey.startsWith('to')) {
+      item.current = value;
+    } else {
+      item.current = value;
+    }
+  });
+
+  return Array.from(map.values());
 }
 
 export default function ActivityHistoryPage() {
@@ -138,14 +210,21 @@ export default function ActivityHistoryPage() {
               <TableHead>User</TableHead>
               <TableHead>Entity</TableHead>
               <TableHead>Action</TableHead>
-              <TableHead>Details</TableHead>
+              <TableHead>Previous State</TableHead>
+              <TableHead>Current State</TableHead>
             </TableHeaderRow>
           </thead>
           <tbody>
             {filteredActivities.length === 0 ? (
-              <TableEmptyRow colSpan={5}>No activity recorded yet.</TableEmptyRow>
+              <TableEmptyRow colSpan={6}>No activity recorded yet.</TableEmptyRow>
             ) : (
-              filteredActivities.map((a) => (
+              filteredActivities.map((a) => {
+                const stateChanges = extractStateChanges(a.details || {});
+                const hasPreviousState = stateChanges.some(
+                  (change) => change.previous !== null && change.previous !== undefined && change.previous !== ''
+                );
+
+                return (
                 <TableBodyRow className="text-sm" key={a.id}>
                   <TableCell>{formatDateTime(a.timestamp)}</TableCell>
                   <TableCell>{a.user?.name ?? '-'}</TableCell>
@@ -157,20 +236,37 @@ export default function ActivityHistoryPage() {
                   </TableCell>
                   <TableCell className="align-top">
                     <div className="max-w-xl space-y-0.5 break-words">
-                      {Object.entries(a.details || {}).length === 0 ? (
+                      {!hasPreviousState ? (
                         <span className="text-gray-500">-</span>
                       ) : (
-                        Object.entries(a.details || {}).map(([key, value]) => (
-                          <p className="text-xs" key={key}>
-                            <span className="font-medium text-gray-700">{formatDetailKey(key)}:</span>{' '}
-                            <span className="text-gray-600 whitespace-pre-wrap">{formatDetailValue(value)}</span>
+                        stateChanges
+                          .filter((change) => change.previous !== null && change.previous !== undefined && change.previous !== '')
+                          .map((change) => (
+                          <p className="text-xs" key={`prev-${change.key}`}>
+                            <span className="font-medium text-gray-700">{formatDetailKey(change.key)}:</span>{' '}
+                            <span className="text-gray-600 whitespace-pre-wrap">{formatDetailValue(change.previous)}</span>
+                          </p>
+                          ))
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="align-top">
+                    <div className="max-w-xl space-y-0.5 break-words">
+                      {stateChanges.length === 0 ? (
+                        <span className="text-gray-500">-</span>
+                      ) : (
+                        stateChanges.map((change) => (
+                          <p className="text-xs" key={`curr-${change.key}`}>
+                            <span className="font-medium text-gray-700">{formatDetailKey(change.key)}:</span>{' '}
+                            <span className="text-gray-600 whitespace-pre-wrap">{formatDetailValue(change.current)}</span>
                           </p>
                         ))
                       )}
                     </div>
                   </TableCell>
                 </TableBodyRow>
-              ))
+                );
+              })
             )}
           </tbody>
         </Table>
