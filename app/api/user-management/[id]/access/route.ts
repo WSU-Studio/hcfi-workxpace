@@ -15,10 +15,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     });
 
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const mergedMenuAccess = {
+      ...defaultMenuAccess,
+      ...((user.access?.menuAccess as Record<string, unknown>) ?? {}),
+    } as typeof defaultMenuAccess;
+    const mergedActivityAccess = {
+      ...defaultActivityAccess,
+      ...((user.access?.activityAccess as Record<string, unknown>) ?? {}),
+    } as typeof defaultActivityAccess;
+
     return NextResponse.json({
       user: { id: user.id, name: user.name },
-      menuAccess: (user.access?.menuAccess as typeof defaultMenuAccess) ?? defaultMenuAccess,
-      activityAccess: (user.access?.activityAccess as typeof defaultActivityAccess) ?? defaultActivityAccess,
+      menuAccess: mergedMenuAccess,
+      activityAccess: mergedActivityAccess,
     });
   } catch (error) {
     console.error('Error fetching user access:', error);

@@ -14,7 +14,19 @@ export async function GET() {
         include: { department: true, approvalLevels: { include: { role: true } } },
       }),
     ]);
-    return NextResponse.json({ fiscalYears, departments, projects, approvalSchemas });
+
+    const originOffices = await prisma.originOfficeMaster.findMany({
+      select: {
+        code: true,
+        name: true,
+        address: true,
+        officeType: true,
+        isActive: true,
+      },
+      orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+    });
+
+    return NextResponse.json({ fiscalYears, departments, projects, approvalSchemas, originOffices });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
