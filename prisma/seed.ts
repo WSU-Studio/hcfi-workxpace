@@ -256,6 +256,28 @@ async function main() {
     });
   }
 
+  const originOfficeSeeds = [
+    { code: '99', name: 'HEAD OFFICE', officeType: 'HO', address: 'SEQUIS LIFE SCBD DISTRICT 8' },
+    { code: '11', name: 'DKI JAKARTA', officeType: 'BRANCH', address: 'RUKO PLAZA PONDOK INDAH' },
+    { code: '12', name: 'TANGERANG', officeType: 'BRANCH', address: 'RUKO NORTHRIDGE BUSINESS CENTER' },
+  ];
+  const originOfficeMaster = (prisma as unknown as {
+    originOfficeMaster: {
+      upsert: (args: {
+        where: { code: string };
+        update: { code: string; name: string; officeType: string; address: string; isActive: boolean };
+        create: { code: string; name: string; officeType: string; address: string; isActive: boolean };
+      }) => Promise<unknown>;
+    };
+  }).originOfficeMaster;
+  for (const originOffice of originOfficeSeeds) {
+    await originOfficeMaster.upsert({
+      where: { code: originOffice.code },
+      update: { ...originOffice, isActive: true },
+      create: { ...originOffice, isActive: true },
+    });
+  }
+
   const categoryKeyIndexSeeds = [
     { name: 'CKI-01', description: 'Default category key index 01' },
     { name: 'CKI-02', description: 'Default category key index 02' },

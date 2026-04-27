@@ -248,6 +248,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await request.json();
     if (body.status) {
+      const trackedFields = [
+        'status',
+        'coaId',
+        'categoryId',
+        'categoryKeyIndexId',
+        'costCenterId',
+        'opexType',
+        'opexAllocationId',
+      ] as const;
       const before = await prisma.budgetPlan.findUnique({
         where: { id },
         include: { approvalSchema: { include: { approvalLevels: true } } },
@@ -269,7 +278,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
       }
 
-      await prisma.budgetPlan.update({
+      const updated = await prisma.budgetPlan.update({
         where: { id },
         data: {
           status: body.status,
@@ -281,7 +290,53 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId ?? undefined : null,
           opexType: body.opexType ?? undefined,
         },
+        select: {
+          status: true,
+          coaId: true,
+          categoryId: true,
+          categoryKeyIndexId: true,
+          costCenterId: true,
+          opexType: true,
+          opexAllocationId: true,
+        },
       });
+
+      const beforeState: Record<string, unknown> = {
+        status: before.status,
+        coaId: before.coaId,
+        categoryId: before.categoryId,
+        categoryKeyIndexId: before.categoryKeyIndexId,
+        costCenterId: before.costCenterId,
+        opexType: before.opexType,
+        opexAllocationId: before.opexAllocationId,
+      };
+
+      const afterState: Record<string, unknown> = {
+        status: updated.status,
+        coaId: updated.coaId,
+        categoryId: updated.categoryId,
+        categoryKeyIndexId: updated.categoryKeyIndexId,
+        costCenterId: updated.costCenterId,
+        opexType: updated.opexType,
+        opexAllocationId: updated.opexAllocationId,
+      };
+
+      const previousState: Record<string, unknown> = {};
+      const currentState: Record<string, unknown> = {};
+      trackedFields.forEach((field) => {
+        const prevValue = beforeState[field] ?? null;
+        const currValue = afterState[field] ?? null;
+        if (prevValue !== currValue) {
+          previousState[field] = prevValue;
+          currentState[field] = currValue;
+        }
+      });
+
+      if (body.declineReason !== undefined) {
+        previousState.declineReason = null;
+        currentState.declineReason = body.declineReason ?? null;
+      }
+
       await logActivity({
         userId: session.user.id,
         entityType: 'BudgetPlan',
@@ -289,15 +344,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         entityCode: before.code,
         action: body.status === 'Approved' ? 'approve' : body.status === 'Reviewed' ? 'review' : 'update',
         details: {
-          fromStatus: before.status,
-          status: body.status,
-          declineReason: body.declineReason ?? null,
-          coaId: body.coaId ?? null,
-          categoryId: body.categoryId ?? null,
-          categoryKeyIndexId: body.categoryKeyIndexId ?? null,
-          costCenterId: body.costCenterId ?? null,
-          opexType: body.opexType ?? null,
-          opexAllocationId: body.opexAllocationId ?? null,
+          previousState,
+          currentState,
         },
       });
 

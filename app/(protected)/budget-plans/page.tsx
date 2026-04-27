@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, Import, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -62,7 +62,45 @@ const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWar
   );
 };
 
+interface ImportPreviewRow {
+  fiscalYear: number;
+  originOffice: string;
+  departmentCode: string;
+  projectCode: string;
+  subject: string;
+  description: string;
+  jan: number;
+  feb: number;
+  mar: number;
+  apr: number;
+  may: number;
+  jun: number;
+  jul: number;
+  aug: number;
+  sep: number;
+  oct: number;
+  nov: number;
+  dec: number;
+  approvalSchemaCode: string;
+}
+
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Revision', 'Declined'] as const;
+const SORT_OPTIONS = [
+  { value: 'createdAt-desc', label: 'Newest first' },
+  { value: 'createdAt-asc', label: 'Oldest first' },
+  { value: 'subject-asc', label: 'Subject (A-Z)' },
+  { value: 'subject-desc', label: 'Subject (Z-A)' },
+  { value: 'code-asc', label: 'Code (A-Z)' },
+  { value: 'code-desc', label: 'Code (Z-A)' },
+  { value: 'total-desc', label: 'Total budget (High-Low)' },
+  { value: 'total-asc', label: 'Total budget (Low-High)' },
+] as const;
+
+const getPlanTotal = (p: Plan) => {
+  if (!p.allocations?.length) return 0;
+  return p.allocations.reduce((sum, a) => sum + Number(a.allocation ?? 0), 0);
+};
 
 export default function BudgetPlansPage() {
   const router = useRouter();
@@ -72,11 +110,20 @@ export default function BudgetPlansPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
   const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentPlans = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportPreviewRow[]>([]);
+  const [importFileName, setImportFileName] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+
 
   const fetchData = async () => {
     const res = await fetch('/api/budget-plans', { credentials: 'include' });
@@ -92,17 +139,38 @@ export default function BudgetPlansPage() {
   }, []);
 
   useEffect(() => {
-    if (!searchKeyword.trim()) setFiltered(plans);
-    else {
-      const kw = searchKeyword.toLowerCase();
-      setFiltered(plans.filter((p) => p.subject?.toLowerCase().includes(kw) || p.code?.toLowerCase().includes(kw) || p.department?.name?.toLowerCase().includes(kw)));
-    }
+    const kw = searchKeyword.trim().toLowerCase();
+    const [sortField, sortDirection] = sortBy.split('-') as [string, 'asc' | 'desc'];
+    const sortedAndFiltered = [...plans]
+      .filter((p) => {
+        const matchesKeyword =
+          !kw ||
+          p.subject?.toLowerCase().includes(kw) ||
+          p.code?.toLowerCase().includes(kw) ||
+          p.department?.name?.toLowerCase().includes(kw);
+        const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+        return matchesKeyword && matchesStatus;
+      })
+      .sort((a, b) => {
+        let compare = 0;
+
+        if (sortField === 'subject') {
+          compare = (a.subject ?? '').localeCompare(b.subject ?? '');
+        } else if (sortField === 'code') {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
+        } else if (sortField === 'total') {
+          compare = getPlanTotal(a) - getPlanTotal(b);
+        }
+
+        return sortDirection === 'asc' ? compare : -compare;
+      });
+
+    setFiltered(sortedAndFiltered);
     setCurrentPage(1);
-  }, [searchKeyword, plans]);
+  }, [searchKeyword, plans, statusFilter, sortBy]);
 
   const getTotal = (p: Plan) => {
-    if (!p.allocations?.length) return 0;
-    return p.allocations.reduce((sum, a) => sum + Number(a.allocation ?? 0), 0);
+    return getPlanTotal(p);
   };
 
   const getMonthsLabel = (p: Plan) => {
@@ -113,24 +181,158 @@ export default function BudgetPlansPage() {
     return withAlloc.length === 12 ? 'All Months' : withAlloc.join(', ') || '-';
   };
 
+const numberValue = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return value;
+
+  const cleaned = String(value).replace(/\./g, '').replace(',', '.');
+  return Number(cleaned) || 0;
+};
+
+const textValue = (value: unknown) => {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+};
+
+const handlePreviewImportFile = async (file: File) => {
+  setImportError('');
+  setImportRows([]);
+  setImportFileName(file.name);
+
+  try {
+    const XLSX = await import('xlsx');
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      raw: false,
+    } as Parameters<typeof XLSX.utils.sheet_to_json>[1]);
+
+    const mappedRows: ImportPreviewRow[] = rows
+      .filter((row) => textValue(row['Subject']))
+      .map((row) => ({
+        fiscalYear: numberValue(row['Fiscal Year']),
+        originOffice: textValue(row['Origin Office']),
+        departmentCode: textValue(row['Department Code']),
+        projectCode: textValue(row['Project Code']),
+        subject: textValue(row['Subject']),
+        description: textValue(row['Description']),
+        jan: numberValue(row['Jan']),
+        feb: numberValue(row['Feb']),
+        mar: numberValue(row['Mar']),
+        apr: numberValue(row['Apr']),
+        may: numberValue(row['May']),
+        jun: numberValue(row['Jun']),
+        jul: numberValue(row['Jul']),
+        aug: numberValue(row['Aug']),
+        sep: numberValue(row['Sep']),
+        oct: numberValue(row['Oct']),
+        nov: numberValue(row['Nov']),
+        dec: numberValue(row['Dec']),
+        approvalSchemaCode: textValue(row['Approval Schema Code']),
+      }));
+
+    if (mappedRows.length === 0) {
+      setImportError('No valid data found in Excel file');
+      return;
+    }
+
+    setImportRows(mappedRows);
+  } catch {
+    setImportError('Failed to read Excel file');
+  }
+};
+
+const handleImportRows = async () => {
+  setImportError('');
+
+  if (importRows.length === 0) {
+    setImportError('Please upload and preview Excel file first');
+    return;
+  }
+
+  setIsImporting(true);
+
+  try {
+    const res = await fetch('/api/budget-plans/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: importRows }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setImportError(data.error ?? 'Failed to import budget plans');
+      return;
+    }
+
+    setIsImportModalOpen(false);
+    setImportRows([]);
+    setImportFileName('');
+    await fetchData();
+  } catch {
+    setImportError('Failed to import budget plans');
+  } finally {
+    setIsImporting(false);
+  }
+};
+
+
   if (isLoading) return <LoadingSpin />;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Budget Plans</h1>
-      <div className="flex justify-between gap-4">
-        <SearchInput 
-          placeholder="Search..."
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-        />
-        <Link
-          href="/budget-plans/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Plan
-        </Link>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            placeholder="Search..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_FILTERS)[number])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {STATUS_FILTERS.map((status) => (
+              <option key={status} value={status}>
+                {status === 'All' ? 'All statuses' : status}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as (typeof SORT_OPTIONS)[number]['value'])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/budget-plans/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Plan
+          </Link>
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            <Import className="w-4 h-4" />
+            Import Bulk Budget Plan
+          </button>
+        </div>
       </div>
       <Card>
         <Table>
@@ -214,6 +416,149 @@ export default function BudgetPlansPage() {
           router.push(`/budget-plans/${planId}/edit`);
         }}
       />
+    
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">Import Bulk Budget Plan</h2>
+                <p className="text-sm text-gray-500">
+                  Download template, upload Excel file, preview data, then import.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="rounded-lg p-2 hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto px-6 py-5 max-h-[calc(90vh-150px)]">
+              {importError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                  {importError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <a
+                  href="/templates/Template_Bulk_Import_Budget_Plan.xlsx"
+                  download
+                  className="inline-flex w-fit items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Download Template
+                </a>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label className="inline-flex w-fit cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Upload XLSX
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePreviewImportFile(file);
+                      }}
+                    />
+                  </label>
+
+                  <span className="max-w-[280px] truncate text-sm text-gray-500">
+                    {importFileName || 'No file selected'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-300 overflow-x-auto">
+                <table className="min-w-[1200px] w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left border-b">#</th>
+                      <th className="px-3 py-2 text-left border-b">Fiscal Year</th>
+                      <th className="px-3 py-2 text-left border-b">Origin Office</th>
+                      <th className="px-3 py-2 text-left border-b">Department Code</th>
+                      <th className="px-3 py-2 text-left border-b">Project Code</th>
+                      <th className="px-3 py-2 text-left border-b">Subject</th>
+                      <th className="px-3 py-2 text-left border-b">Description</th>
+                      <th className="px-3 py-2 text-right border-b">Jan</th>
+                      <th className="px-3 py-2 text-right border-b">Feb</th>
+                      <th className="px-3 py-2 text-right border-b">Mar</th>
+                      <th className="px-3 py-2 text-right border-b">Apr</th>
+                      <th className="px-3 py-2 text-right border-b">May</th>
+                      <th className="px-3 py-2 text-right border-b">Jun</th>
+                      <th className="px-3 py-2 text-right border-b">Jul</th>
+                      <th className="px-3 py-2 text-right border-b">Aug</th>
+                      <th className="px-3 py-2 text-right border-b">Sep</th>
+                      <th className="px-3 py-2 text-right border-b">Oct</th>
+                      <th className="px-3 py-2 text-right border-b">Nov</th>
+                      <th className="px-3 py-2 text-right border-b">Dec</th>
+                      <th className="px-3 py-2 text-left border-b">Approval Schema Code</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {importRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={20} className="px-3 py-8 text-center text-gray-500">
+                          Upload Excel file to preview data
+                        </td>
+                      </tr>
+                    ) : (
+                      importRows.map((row, index) => (
+                        <tr key={index} className="border-b last:border-b-0">
+                          <td className="px-3 py-2">{index + 1}</td>
+                          <td className="px-3 py-2">{row.fiscalYear}</td>
+                          <td className="px-3 py-2">{row.originOffice}</td>
+                          <td className="px-3 py-2">{row.departmentCode}</td>
+                          <td className="px-3 py-2">{row.projectCode}</td>
+                          <td className="px-3 py-2">{row.subject}</td>
+                          <td className="px-3 py-2">{row.description}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.jan)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.feb)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.mar)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.apr)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.may)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.jun)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.jul)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.aug)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.sep)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.oct)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.nov)}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(row.dec)}</td>
+                          <td className="px-3 py-2">{row.approvalSchemaCode}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isImporting || importRows.length === 0}
+                onClick={handleImportRows}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isImporting ? 'Importing...' : 'Import Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

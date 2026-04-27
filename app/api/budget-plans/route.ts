@@ -72,10 +72,19 @@ export async function POST(request: Request) {
       where: { id: body.departmentId },
       select: { code: true },
     });
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const departmentCode = (dept?.code ?? 'BP').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const codePrefix = `${departmentCode}${year}${month}`;
     const count = await prisma.budgetPlan.count({
-      where: { departmentId: body.departmentId, fiscalYear: body.fiscalYear },
+      where: {
+        code: {
+          startsWith: codePrefix,
+        },
+      },
     });
-    const code = body.code || `${dept?.code ?? 'BP'}${body.fiscalYear}${String(count + 1).padStart(3, '0')}`;
+    const code = body.code || `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
     const plan = await prisma.budgetPlan.create({
       data: {

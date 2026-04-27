@@ -8,6 +8,8 @@ import {
   fullActivityAccess,
   mergeWithDefaultMenuAccess,
   mergeWithDefaultActivityAccess,
+  defaultMenuAccess,
+  defaultActivityAccess,
 } from '@/lib/default-access';
 
 export const authOptions: AuthOptions = {
@@ -41,18 +43,23 @@ export const authOptions: AuthOptions = {
         const roleCode = user.userRoles[0].role.roleCode;
         const isAdmin = roleCode === 'ADMIN';
 
-        const storedMenu =
-          typeof user.access?.menuAccess === 'string'
-            ? JSON.parse(user.access.menuAccess as string)
-            : user.access?.menuAccess;
-        const storedActivity =
-          typeof user.access?.activityAccess === 'string'
-            ? JSON.parse(user.access.activityAccess as string)
-            : user.access?.activityAccess;
+        const menuAccess = isAdmin
+          ? fullMenuAccess
+          : {
+              ...defaultMenuAccess,
+              ...((typeof user.access?.menuAccess === 'string'
+              ? JSON.parse(user.access.menuAccess as string) as MenuAccess
+              : (user.access?.menuAccess as unknown as MenuAccess)) ?? {}),
+            };
 
-        const menuAccess = isAdmin ? fullMenuAccess : mergeWithDefaultMenuAccess(storedMenu);
-
-        const activityAccess = isAdmin ? fullActivityAccess : mergeWithDefaultActivityAccess(storedActivity);
+        const activityAccess = isAdmin
+          ? fullActivityAccess
+          : {
+              ...defaultActivityAccess,
+              ...((typeof user.access?.activityAccess === 'string'
+              ? JSON.parse(user.access.activityAccess as string) as ActivityAccess
+              : (user.access?.activityAccess as unknown as ActivityAccess)) ?? {}),
+            };
 
         return {
           id: user.id,
@@ -101,12 +108,13 @@ export const authOptions: AuthOptions = {
         session.user.roleId = token.roleId as string;
         session.user.departmentId = token.departmentId as string;
         session.user.role = token.role ?? '';
-        const raw = token.access as
-          | { menuAccess?: MenuAccess; activityAccess?: ActivityAccess }
-          | undefined;
+        const access = (token.access ?? {
+          menuAccess: defaultMenuAccess,
+          activityAccess: defaultActivityAccess,
+        }) as { menuAccess: Partial<MenuAccess>; activityAccess: Partial<ActivityAccess> };
         session.user.access = {
-          menuAccess: mergeWithDefaultMenuAccess(raw?.menuAccess),
-          activityAccess: mergeWithDefaultActivityAccess(raw?.activityAccess),
+          menuAccess: { ...defaultMenuAccess, ...(access.menuAccess ?? {}) },
+          activityAccess: { ...defaultActivityAccess, ...(access.activityAccess ?? {}) },
         };
       }
       return session;

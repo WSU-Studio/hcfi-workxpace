@@ -119,10 +119,21 @@ export async function POST(req: Request) {
         select: { categoryId: true, coaId: true, opexType: true, opexAllocationId: true },
       }),
     ]);
-    const count = await prisma.budgetRequest.count({ where: { departmentId, fiscalYear: year } });
-    const code = `BR/${dept?.code ?? 'XX'}/${String(count + 1).padStart(3, '0')}`;
+    const now = new Date();
+    const codeYear = String(now.getFullYear());
+    const codeMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const departmentCode = (dept?.code ?? 'XX').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const codePrefix = `BR${departmentCode}${codeYear}${codeMonth}`;
+    const count = await prisma.budgetRequest.count({
+      where: {
+        code: {
+          startsWith: codePrefix,
+        },
+      },
+    });
+    const code = `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
-    const br: any = await prisma.budgetRequest.create({
+    const br = await prisma.budgetRequest.create({
       data: {
         code,
         budgetPlanId,
@@ -168,10 +179,10 @@ export async function POST(req: Request) {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
       },
-    } as any);
+    });
 
     const totalRequested = (br.lineItems ?? []).reduce(
-      (sum: number, li: { total?: number | string | null }) => sum + toNumber(li.total),
+      (sum, li) => sum + Number(li.total ?? 0),
       0
     );
 
@@ -200,7 +211,7 @@ export async function POST(req: Request) {
         invoiceAmount: Number(br.invoiceAmount ?? 0),
         grandTotal: Number(br.grandTotal ?? 0),
         monthCount: br.allocations.length,
-        allocations: (br.allocations ?? []).map((allocation: { year: number; month: number; allocation: number | string }) => ({
+        allocations: (br.allocations ?? []).map((allocation) => ({
           year: allocation.year,
           month: allocation.month,
           allocation: Number(allocation.allocation),

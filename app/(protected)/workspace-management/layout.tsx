@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase, IconCategory, IconHierarchy2, IconTag } from '@tabler/icons-react';
+import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase, IconCategory, IconHierarchy2, IconTag, IconMapPin } from '@tabler/icons-react';
 import { MenuAccess } from '@/types/access-control';
 
 const restrictedMenuAccess: MenuAccess = {
@@ -15,6 +15,7 @@ const restrictedMenuAccess: MenuAccess = {
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
+  viewOriginOffice: false,
   viewProject: false,
   viewCategory: false,
   viewCategoryKeyIndex: false,
@@ -35,6 +36,7 @@ export default function WorkspaceManagementLayout({
 
   const subNavigation = [
     { name: 'Department', href: '/workspace-management/department', icon: IconBuilding, show: menuAccess.viewDepartment },
+    { name: 'Origin Office', href: '/workspace-management/origin-office', icon: IconMapPin, show: menuAccess.viewOriginOffice },
     { name: 'Project', href: '/workspace-management/project', icon: IconBriefcase, show: menuAccess.viewProject },
     { name: 'Category', href: '/workspace-management/category', icon: IconCategory, show: menuAccess.viewCategory },
     { name: 'Category Key Index', href: '/workspace-management/category-key-index', icon: IconTag, show: menuAccess.viewCategoryKeyIndex },
