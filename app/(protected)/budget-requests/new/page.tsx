@@ -366,14 +366,6 @@ export default function NewBudgetRequestPage() {
               rows={3}
             />
           </div>
-          <div>
-            <label className="block mb-1.5 font-medium">Notes</label>
-            <Input
-              type="text"
-              value={formData.notes}
-              onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
-            />
-          </div>
           
           <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 hidden">
             <h2 className="text-base font-semibold text-gray-900">Classification (Default from Budget Plan)</h2>
@@ -446,6 +438,15 @@ export default function NewBudgetRequestPage() {
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </Select>
+          </div>
+
+          <div>
+            <label className="block mb-1.5 font-medium">Notes</label>
+            <Input
+              type="text"
+              value={formData.notes}
+              onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
