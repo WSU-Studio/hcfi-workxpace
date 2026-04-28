@@ -284,7 +284,9 @@ export default function NewBudgetPlanPage() {
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
-            <MonthChecklistSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} showSelectAll />
+            <div className="mb-4">
+              <MonthChecklistSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} showSelectAll />
+            </div>
 
             <div className="flex items-center gap-2 mb-4">
               <label className="text-sm font-medium shrink-0">Base Amount</label>

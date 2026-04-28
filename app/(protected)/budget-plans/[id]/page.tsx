@@ -36,6 +36,11 @@ type PlanDetail = {
     approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
   } | null;
 };
+type OriginOfficeOption = {
+  code: string;
+  name: string;
+  isActive: boolean;
+};
 
 function normalizeSupportingDocs(input: unknown) {
   if (!Array.isArray(input)) return [];
@@ -65,6 +70,7 @@ export default function BudgetPlanDetailPage() {
   const id = params.id as string;
   const { data: session } = useSession();
   const [plan, setPlan] = useState<PlanDetail | null>(null);
+  const [originOffices, setOriginOffices] = useState<OriginOfficeOption[]>([]);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
   const [histories, setHistories] = useState<BudgetPlanHistoryEntry[]>([]);
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
@@ -80,6 +86,7 @@ export default function BudgetPlanDetailPage() {
           const body = await r.json().catch(() => ({}));
           setLoadError(typeof body?.error === 'string' ? body.error : `Could not load plan (${r.status})`);
           setPlan(null);
+          setOriginOffices([]);
           setAccountOptions([]);
           setHistories([]);
           setReviewMeta(null);
@@ -87,6 +94,7 @@ export default function BudgetPlanDetailPage() {
         }
         const data = await r.json();
         setPlan(data?.plan ?? null);
+        setOriginOffices(data?.originOffices || []);
         setAccountOptions(data?.accountOptions || []);
         setHistories(data?.histories || []);
         setReviewMeta(data?.reviewMeta ?? null);
@@ -94,6 +102,7 @@ export default function BudgetPlanDetailPage() {
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
+        setOriginOffices([]);
         setReviewMeta(null);
       })
       .finally(() => setIsLoading(false));
@@ -108,6 +117,11 @@ export default function BudgetPlanDetailPage() {
     () => normalizeSupportingDocs(plan?.supportingDocs),
     [plan?.supportingDocs]
   );
+  const originOfficeLabel = useMemo(() => {
+    if (!plan?.originOffice) return '-';
+    const office = originOffices.find((item) => item.code === plan.originOffice);
+    return office ? `${office.code} - ${office.name}` : plan.originOffice;
+  }, [plan?.originOffice, originOffices]);
 
   if (isLoading) return <LoadingSpin />;
   if (loadError) return <div className="text-red-500">{loadError}</div>;
@@ -136,7 +150,7 @@ export default function BudgetPlanDetailPage() {
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
           <div><span className="text-gray-500">Project:</span> {plan.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
-          <div><span className="text-gray-500">Origin Office:</span> {plan.originOffice || '-'}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div className="col-span-2">
             <span className="text-gray-500">Status:</span>{' '}
             <span className={`px-2 py-0.5 rounded text-sm ${plan.status === 'Approved' ? 'bg-green-100' : plan.status === 'Pending' ? 'bg-yellow-100' : 'bg-gray-100'}`}>{plan.status}</span>
