@@ -80,7 +80,57 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       },
       select: { status: true },
     });
-    const totalRequested = (before?.lineItems || []).reduce((sum, li) => sum + Number(li.total ?? 0), 0);
+    if (Array.isArray(body?.lineItems) && body.lineItems.length > 0) {
+      const normalizedLineItems = body.lineItems.map(
+        (lineItem: { item?: string; qty?: unknown; unitPrice?: unknown; deduction?: unknown }) => {
+          const qty = Math.max(0, Math.round(Number(lineItem.qty ?? 0)));
+          const unitPrice = Math.max(0, Number(lineItem.unitPrice ?? 0));
+          const deduction = Math.max(0, Number(lineItem.deduction ?? 0));
+          const subtotal = qty * unitPrice;
+          const total = Math.max(0, subtotal - deduction);
+          return {
+            item: String(lineItem.item ?? ''),
+            qty,
+            unitPrice,
+            subtotal,
+            deduction,
+            total,
+          };
+        }
+      );
+      const totalAmount = normalizedLineItems.reduce((sum, lineItem) => sum + lineItem.total, 0);
+      const vatPercent = Number(before.vatPercent ?? 11);
+      const whtPercent = Number(before.whtPercent ?? 2);
+      const vatAmount = Math.round(totalAmount * (vatPercent / 100));
+      const whtAmount = Math.round(totalAmount * (whtPercent / 100));
+      const invoiceAmount = totalAmount + vatAmount;
+      const grandTotal = invoiceAmount - whtAmount;
+
+      await prisma.$transaction(async (tx) => {
+        await tx.budgetRequestLineItem.deleteMany({ where: { budgetRequestId: id } });
+        await tx.budgetRequest.update({
+          where: { id },
+          data: {
+            totalAmount,
+            vatAmount,
+            whtAmount,
+            invoiceAmount,
+            grandTotal,
+            lineItems: {
+              create: normalizedLineItems,
+            },
+          },
+        });
+      });
+    }
+    const totalRequested = Array.isArray(body?.lineItems) && body.lineItems.length > 0
+      ? body.lineItems.reduce((sum: number, lineItem: { qty?: unknown; unitPrice?: unknown; deduction?: unknown }) => {
+          const qty = Math.max(0, Math.round(Number(lineItem.qty ?? 0)));
+          const unitPrice = Math.max(0, Number(lineItem.unitPrice ?? 0));
+          const deduction = Math.max(0, Number(lineItem.deduction ?? 0));
+          return sum + Math.max(0, qty * unitPrice - deduction);
+        }, 0)
+      : (before?.lineItems || []).reduce((sum, li) => sum + Number(li.total ?? 0), 0);
     await logActivity({
       userId: session.user.id,
       entityType: 'BudgetRequest',
