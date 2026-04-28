@@ -9,6 +9,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
+import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -37,26 +38,12 @@ export default function NewBudgetPlanPage() {
   const [allocations, setAllocations] = useState<Record<number, number>>(
     Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]))
   );
-  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const [baseAmount, setBaseAmount] = useState<string>('');
   const [error, setError] = useState('');
 
   const selectedMonthsSorted = [...selectedMonths].sort((a, b) => a - b);
   const totalAlloc = selectedMonthsSorted.reduce((sum, m) => sum + (allocations[m] || 0), 0);
-
-  const toggleMonth = (month: number) => {
-    setSelectedMonths((prev) => {
-      const next = new Set(prev);
-      if (next.has(month)) next.delete(month);
-      else next.add(month);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedMonths.size === 12) setSelectedMonths(new Set());
-    else setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
-  };
 
   const parseBaseAmount = (s: string) => {
     const cleaned = s.replace(/\./g, '').replace(',', '.');
@@ -297,33 +284,7 @@ export default function NewBudgetPlanPage() {
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
-            <div className="flex items-center gap-4 mb-3">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selectedMonths.size === 12}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium">select all</span>
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {MONTH_NAMES.map((name, i) => {
-                  const month = i + 1;
-                  return (
-                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedMonths.has(month)}
-                        onChange={() => toggleMonth(month)}
-                        className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">{name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+            <MonthChecklistSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} showSelectAll />
 
             <div className="flex items-center gap-2 mb-4">
               <label className="text-sm font-medium shrink-0">Base Amount</label>
