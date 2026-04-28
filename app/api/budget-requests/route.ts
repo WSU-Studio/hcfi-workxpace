@@ -50,6 +50,7 @@ export async function GET() {
         id: true,
         code: true,
         subject: true,
+        description: true,
         fiscalYear: true,
         originOffice: true,
         departmentId: true,

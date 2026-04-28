@@ -33,6 +33,7 @@ export default function NewBudgetRequestPage() {
     id: string;
     code: string;
     subject: string;
+    description?: string | null;
     fiscalYear: number;
     originOffice: string | null;
     departmentId: string;
@@ -142,12 +143,13 @@ export default function NewBudgetRequestPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const handlePlanSelect = (planId: string) => {
+  const handlePlanSelect = async (planId: string) => {
     const plan = plans.find((p) => p.id === planId);
     setFormData((p) => ({
       ...p,
       budgetPlanId: planId,
       subject: plan ? `${plan.subject} - Request` : p.subject,
+      description: plan ? (plan.description ?? '') : p.description,
       fiscalYear: plan?.fiscalYear ?? p.fiscalYear,
       originOffice: plan?.originOffice ?? p.originOffice,
       departmentId: plan?.departmentId ?? p.departmentId,
@@ -160,6 +162,28 @@ export default function NewBudgetRequestPage() {
       opexAllocation: plan?.opexAllocationId ?? '',
       opexType: plan?.opexType ?? '',
     }));
+
+    if (!planId) return;
+
+    try {
+      const response = await fetch(`/api/budget-plans/${planId}`);
+      if (!response.ok) return;
+      const payload = await response.json();
+      const selectedPlan = payload?.plan;
+      setFormData((previous) => ({
+        ...previous,
+        fiscalYear: selectedPlan?.fiscalYear ?? previous.fiscalYear,
+        originOffice: selectedPlan?.originOffice ?? previous.originOffice,
+        departmentId: selectedPlan?.departmentId ?? previous.departmentId,
+        projectId: selectedPlan?.projectId ?? previous.projectId,
+        description:
+          typeof selectedPlan?.description === 'string'
+            ? selectedPlan.description
+            : (plan?.description ?? previous.description),
+      }));
+    } catch {
+      // keep current description if detail fetch fails
+    }
   };
   const isBudgetPlanSelected = formData.budgetPlanId !== '';
   const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
