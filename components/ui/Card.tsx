@@ -45,8 +45,8 @@ const Card = ({
           type="button"
           className={cn(
             'shrink-0 rounded-md p-1 text-gray-500 transition-colors',
-            'hover:bg-gray-100 hover:text-gray-800',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500',
+            'hover:bg-blue-100/70 hover:text-gray-800',
+            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 cursor-pointer',
           )}
           aria-expanded={!isCollapsed}
           aria-label={isCollapsed ? 'Expand card' : 'Collapse card'}

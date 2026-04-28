@@ -280,7 +280,7 @@ export default function NewBudgetRequestPage() {
                 value={formData.fiscalYear}
                 onChange={(e) => setFormData((p) => ({ ...p, fiscalYear: Number(e.target.value) }))}
                 required
-                disabled={isBudgetPlanSelected}
+                readonly={isBudgetPlanSelected}
               >
                 {fiscalYears.map((fy) => (
                   <option key={fy.year} value={fy.year}>{fy.year}</option>
@@ -294,7 +294,7 @@ export default function NewBudgetRequestPage() {
                   value={formData.originOffice}
                   onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
                   required
-                  disabled={isBudgetPlanSelected}
+                  readonly={isBudgetPlanSelected}
                 >
                   <option value="">-</option>
                   {originOffices.map((office) => (
@@ -326,7 +326,7 @@ export default function NewBudgetRequestPage() {
                 value={formData.departmentId}
                 onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
                 required
-                disabled={isBudgetPlanSelected}
+                readonly={isBudgetPlanSelected}
               >
                 <option value="">-</option>
                 {departments.map((d) => (
@@ -339,7 +339,7 @@ export default function NewBudgetRequestPage() {
               <Select
                 value={formData.projectId}
                 onChange={(e) => setFormData((p) => ({ ...p, projectId: e.target.value }))}
-                disabled={isBudgetPlanSelected}
+                readonly={isBudgetPlanSelected}
               >
                 <option value="">-</option>
                 {projects.map((p) => (
