@@ -21,6 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       include: {
         budgetPlan: {
           include: {
+            project: { select: { name: true } },
             category: { select: { name: true } },
             costCenter: { select: { name: true } },
             categoryKeyIndex: { select: { name: true } },
@@ -209,6 +210,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           allocations: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
           budgetPlan: {
             include: {
+              project: { select: { name: true } },
               category: { select: { name: true } },
               costCenter: { select: { name: true } },
               categoryKeyIndex: { select: { name: true } },

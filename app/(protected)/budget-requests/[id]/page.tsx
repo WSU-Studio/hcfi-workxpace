@@ -39,7 +39,12 @@ export default function BudgetRequestDetailPage() {
     whtAmount?: number;
     invoiceAmount?: number;
     grandTotal?: number;
-    budgetPlan: { code: string; subject: string };
+    budgetPlan: {
+      code: string;
+      subject: string;
+      originOffice?: string | null;
+      project?: { name: string } | null;
+    };
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
     allocations: { year: number; month: number; allocation: number }[];
@@ -108,7 +113,9 @@ export default function BudgetRequestDetailPage() {
           <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
           <div><span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}</div>
           <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
+          <div><span className="text-gray-500">Project:</span> {data.budgetPlan?.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {data.budgetPlan?.originOffice || '-'}</div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
             <span
