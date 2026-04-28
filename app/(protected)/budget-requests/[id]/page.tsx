@@ -71,6 +71,7 @@ export default function BudgetRequestDetailPage() {
     histories?: HistoryEntry[];
     canReview?: boolean;
     accountOptions?: { id: string; accountCode: string; accountName: string }[];
+    originOffices?: { code: string; name: string; isActive: boolean }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -113,6 +114,12 @@ export default function BudgetRequestDetailPage() {
     return account ? `${account.accountCode} - ${account.accountName}` : coaId;
   })();
   const opexType = data.budgetPlan?.opexType || '-';
+  const originOfficeLabel = (() => {
+    const officeCode = data.budgetPlan?.originOffice;
+    if (!officeCode) return '-';
+    const office = data.originOffices?.find((item) => item.code === officeCode);
+    return office ? `${office.code} - ${office.name}` : officeCode;
+  })();
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -140,7 +147,7 @@ export default function BudgetRequestDetailPage() {
           <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
           <div><span className="text-gray-500">Project:</span> {data.budgetPlan?.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
-          <div><span className="text-gray-500">Origin Office:</span> {data.budgetPlan?.originOffice || '-'}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
             <span

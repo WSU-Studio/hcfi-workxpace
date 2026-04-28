@@ -12,6 +12,23 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+type OriginOfficeMasterDelegate = {
+  findMany: (args: {
+    select: {
+      code: true;
+      name: true;
+      isActive: true;
+    };
+    orderBy: Array<{ isActive: 'asc' | 'desc' } | { code: 'asc' | 'desc' }>;
+  }) => Promise<
+    Array<{
+      code: string;
+      name: string;
+      isActive: boolean;
+    }>
+  >;
+};
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
@@ -59,11 +76,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         requestorId: br.requestorId ?? null,
         actorUserId: session.user.id,
       });
-    const [categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexAllocationOptions] = await Promise.all([
+    const originOfficeMaster = (prisma as unknown as {
+      originOfficeMaster: OriginOfficeMasterDelegate;
+    }).originOfficeMaster;
+    const [categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexAllocationOptions, originOffices] = await Promise.all([
       prisma.categoryMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.categoryKeyIndexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      originOfficeMaster.findMany({
+        select: { code: true, name: true, isActive: true },
+        orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+      }),
     ]);
 
     return NextResponse.json({
@@ -75,6 +99,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       categoryKeyIndexOptions,
       costCenterOptions,
       opexAllocationOptions,
+      originOffices,
     });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
