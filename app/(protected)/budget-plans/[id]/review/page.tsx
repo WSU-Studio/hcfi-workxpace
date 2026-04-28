@@ -40,6 +40,7 @@ export default function ReviewBudgetPlanPage() {
     approvalSchema?: { approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } }[] };
   } | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string; description: string }[]>([]);
+  const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [costCenterOptions, setCostCenterOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
@@ -77,6 +78,7 @@ export default function ReviewBudgetPlanPage() {
           setLoadError(typeof body?.error === 'string' ? body.error : `Could not load plan (${r.status})`);
           setPlan(null);
           setAccountOptions([]);
+          setOriginOffices([]);
           setCategoryOptions([]);
           setCategoryKeyIndexOptions([]);
           setCostCenterOptions([]);
@@ -89,6 +91,7 @@ export default function ReviewBudgetPlanPage() {
         const p = data?.plan;
         setPlan(p);
         setAccountOptions(data?.accountOptions || []);
+        setOriginOffices(data?.originOffices || []);
         setCategoryOptions(data?.categoryOptions || []);
         setCategoryKeyIndexOptions(data?.categoryKeyIndexOptions || []);
         setCostCenterOptions(data?.costCenterOptions || []);
@@ -109,6 +112,7 @@ export default function ReviewBudgetPlanPage() {
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
+        setOriginOffices([]);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -191,6 +195,12 @@ export default function ReviewBudgetPlanPage() {
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const selectedOriginOffice = plan.originOffice
+    ? originOffices.find((office) => office.code === plan.originOffice)
+    : null;
+  const originOfficeLabel = selectedOriginOffice
+    ? `${selectedOriginOffice.code} - ${selectedOriginOffice.name}`
+    : (plan.originOffice || '-');
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
   const canEditClassification = canTakeAction;
   const formatDateTime = (date: string) =>
@@ -213,7 +223,7 @@ export default function ReviewBudgetPlanPage() {
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
-          <div><span className="text-gray-500">Origin Office:</span> {plan.originOffice || '-'}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div className="col-span-2">
             <span className="text-gray-500">Subject:</span>
             <p className="font-medium">{plan.subject}</p>
