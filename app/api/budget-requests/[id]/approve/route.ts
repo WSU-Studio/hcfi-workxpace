@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
-        lineItems: { select: { total: true } },
+        lineItems: { select: { item: true, qty: true, unitPrice: true, deduction: true, total: true } },
         approvalSchema: {
           include: {
             approvalLevels: { orderBy: { stepOrder: 'asc' } },
@@ -66,6 +66,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       newStatus = isLastStep ? 'Approved' : 'Reviewed';
     }
 
+    const lineItemsFromReview = Array.isArray(body?.lineItems) ? body.lineItems : [];
+    const qtyUnitPriceAdjusted =
+      lineItemsFromReview.length > 0 &&
+      (lineItemsFromReview.length !== before.lineItems.length ||
+        lineItemsFromReview.some(
+          (lineItem: { qty?: unknown; unitPrice?: unknown }, index: number) =>
+            Math.max(0, Math.round(Number(lineItem.qty ?? 0))) !== Math.max(0, Number(before.lineItems[index]?.qty ?? 0)) ||
+            Math.max(0, Number(lineItem.unitPrice ?? 0)) !== Math.max(0, Number(before.lineItems[index]?.unitPrice ?? 0))
+        ));
+
     const updated = await prisma.budgetRequest.update({
       where: { id },
       data: {
@@ -80,8 +90,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       },
       select: { status: true },
     });
-    if (Array.isArray(body?.lineItems) && body.lineItems.length > 0) {
-      const normalizedLineItems = body.lineItems.map(
+    if (lineItemsFromReview.length > 0) {
+      const normalizedLineItems = lineItemsFromReview.map(
         (lineItem: { item?: string; qty?: unknown; unitPrice?: unknown; deduction?: unknown }) => {
           const qty = Math.max(0, Math.round(Number(lineItem.qty ?? 0)));
           const unitPrice = Math.max(0, Number(lineItem.unitPrice ?? 0));
@@ -98,7 +108,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           };
         }
       );
-      const totalAmount = normalizedLineItems.reduce((sum, lineItem) => sum + lineItem.total, 0);
+      const totalAmount = normalizedLineItems.reduce(
+        (sum: number, lineItem: { total: number }) => sum + lineItem.total,
+        0
+      );
       const vatPercent = Number(before.vatPercent ?? 11);
       const whtPercent = Number(before.whtPercent ?? 2);
       const vatAmount = Math.round(totalAmount * (vatPercent / 100));
@@ -123,14 +136,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         });
       });
     }
-    const totalRequested = Array.isArray(body?.lineItems) && body.lineItems.length > 0
-      ? body.lineItems.reduce((sum: number, lineItem: { qty?: unknown; unitPrice?: unknown; deduction?: unknown }) => {
+    const totalRequested = lineItemsFromReview.length > 0
+      ? lineItemsFromReview.reduce((sum: number, lineItem: { qty?: unknown; unitPrice?: unknown; deduction?: unknown }) => {
           const qty = Math.max(0, Math.round(Number(lineItem.qty ?? 0)));
           const unitPrice = Math.max(0, Number(lineItem.unitPrice ?? 0));
           const deduction = Math.max(0, Number(lineItem.deduction ?? 0));
           return sum + Math.max(0, qty * unitPrice - deduction);
         }, 0)
       : (before?.lineItems || []).reduce((sum, li) => sum + Number(li.total ?? 0), 0);
+    const qtyUnitPriceAdjustmentNote = qtyUnitPriceAdjusted
+      ? updated.status === 'Approved'
+        ? 'Approved with qty/price item adjustment on review step.'
+        : 'Reviewed with qty/price item adjustment.'
+      : null;
     await logActivity({
       userId: session.user.id,
       entityType: 'BudgetRequest',
@@ -153,6 +171,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         coa: body?.coaId ?? before?.coa ?? null,
         type: body?.opexType ?? before?.type ?? null,
         opexAllocation: body?.opexAllocationId ?? before?.opexAllocation ?? null,
+        qtyUnitPriceAdjustmentNote,
       },
     });
     return NextResponse.json({ success: true });

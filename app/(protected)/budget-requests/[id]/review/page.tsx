@@ -14,7 +14,7 @@ type HistoryEntry = {
   id: string;
   action: string;
   timestamp: string;
-  details: { status?: string; declineReason?: string } | null;
+  details: { status?: string; declineReason?: string; qtyUnitPriceAdjustmentNote?: string | null } | null;
   user: { name: string | null } | null;
 };
 
@@ -250,7 +250,7 @@ export default function ReviewBudgetRequestPage() {
                     formatCurrency(Number(li.unitPrice ?? 0))
                   )}
                 </TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(li.subtotal ?? Number(li.unitPrice ?? 0) * li.qty))}</TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0) * li.qty)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
                 <TableCell className="text-right">{formatCurrency(Math.max(0, Number(li.unitPrice ?? 0) * li.qty - Number(li.deduction ?? 0)))}</TableCell>
               </TableBodyRow>
@@ -463,6 +463,9 @@ export default function ReviewBudgetRequestPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {history.details?.qtyUnitPriceAdjustmentNote ? (
+                  <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
+                ) : null}
               </div>
             ))}
           </div>
