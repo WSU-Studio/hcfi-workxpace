@@ -20,6 +20,17 @@ type HistoryEntry = {
   user: { name: string | null } | null;
 };
 
+function ReadonlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+        {value || '-'}
+      </p>
+    </div>
+  );
+}
+
 export default function BudgetRequestDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -42,8 +53,14 @@ export default function BudgetRequestDetailPage() {
     budgetPlan: {
       code: string;
       subject: string;
+      coaId?: string | null;
+      opexType?: string | null;
       originOffice?: string | null;
       project?: { name: string } | null;
+      category?: { name: string } | null;
+      costCenter?: { name: string } | null;
+      categoryKeyIndex?: { name: string } | null;
+      opexAllocation?: { name: string } | null;
     };
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
@@ -53,6 +70,7 @@ export default function BudgetRequestDetailPage() {
     } | null;
     histories?: HistoryEntry[];
     canReview?: boolean;
+    accountOptions?: { id: string; accountCode: string; accountName: string }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -88,6 +106,13 @@ export default function BudgetRequestDetailPage() {
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const completedSteps =
     data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
+  const accountLabel = (() => {
+    const coaId = data.budgetPlan?.coaId;
+    if (!coaId) return '-';
+    const account = data.accountOptions?.find((item) => item.id === coaId);
+    return account ? `${account.accountCode} - ${account.accountName}` : coaId;
+  })();
+  const opexType = data.budgetPlan?.opexType || '-';
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -214,6 +239,26 @@ export default function BudgetRequestDetailPage() {
               </tbody>
             </Table>
           ) : null}
+        </div>
+
+        <div className="space-y-3 border-t border-gray-100 pt-4">
+          <h3 className="font-medium">Classification</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ReadonlyField label="Cost Center" value={data.budgetPlan?.costCenter?.name ?? ''} />
+            <ReadonlyField label="Category" value={data.budgetPlan?.category?.name ?? ''} />
+            <ReadonlyField label="Category Key Index" value={data.budgetPlan?.categoryKeyIndex?.name ?? ''} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <ReadonlyField label="Kode Akun" value={accountLabel} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ReadonlyField label="Type" value={opexType} />
+            {data.budgetPlan?.opexType === 'OPEX' ? (
+              <ReadonlyField label="Opex Allocation" value={data.budgetPlan?.opexAllocation?.name ?? ''} />
+            ) : null}
+          </div>
         </div>
       </Card>
 
