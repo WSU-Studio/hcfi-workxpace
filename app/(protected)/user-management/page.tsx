@@ -13,6 +13,18 @@ import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRo
 import UserActions from './components/UserActions';
 import { UserListItem } from '@/types/user-management';
 
+const STATUS_FILTERS = ['All', 'Active', 'Inactive'] as const;
+const SORT_OPTIONS = [
+  { value: 'createdAt-desc', label: 'Newest first' },
+  { value: 'createdAt-asc', label: 'Oldest first' },
+  { value: 'name-asc', label: 'Name (A-Z)' },
+  { value: 'name-desc', label: 'Name (Z-A)' },
+  { value: 'role-asc', label: 'Role (A-Z)' },
+  { value: 'role-desc', label: 'Role (Z-A)' },
+  { value: 'department-asc', label: 'Department (A-Z)' },
+  { value: 'department-desc', label: 'Department (Z-A)' },
+] as const;
+
 export default function UserManagementPage() {
   const { data: session } = useSession();
   const [users, setUsers] = useState<UserListItem[]>([]);
@@ -21,6 +33,8 @@ export default function UserManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
 
   const canCreateUser = Boolean(session?.user?.access?.activityAccess?.createUser);
   const canEditUser = Boolean(session?.user?.access?.activityAccess?.editUser);
@@ -50,12 +64,13 @@ export default function UserManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (!searchKeyword.trim()) {
-      setFilteredUsers(users);
-    } else {
-      const kw = searchKeyword.trim().toLowerCase();
-      setFilteredUsers(
-        users.filter((user) =>
+    const kw = searchKeyword.trim().toLowerCase();
+    const [sortField, sortDirection] = sortBy.split('-') as [string, 'asc' | 'desc'];
+
+    const sortedAndFiltered = [...users]
+      .filter((user) => {
+        const matchesKeyword =
+          !kw ||
           [
             user.name,
             user.email,
@@ -64,12 +79,30 @@ export default function UserManagementPage() {
             user.role?.roleCode ?? '',
             user.department?.name ?? '',
             user.department?.code ?? '',
-          ].some((value) => value.toLowerCase().includes(kw))
-        )
-      );
-    }
+          ].some((value) => value.toLowerCase().includes(kw));
+        const matchesStatus =
+          statusFilter === 'All' || (statusFilter === 'Active' ? user.isActive : !user.isActive);
+        return matchesKeyword && matchesStatus;
+      })
+      .sort((a, b) => {
+        let compare = 0;
+
+        if (sortField === 'name') {
+          compare = (a.name ?? '').localeCompare(b.name ?? '');
+        } else if (sortField === 'role') {
+          compare = (a.role?.roleName ?? '').localeCompare(b.role?.roleName ?? '');
+        } else if (sortField === 'department') {
+          compare = (a.department?.name ?? '').localeCompare(b.department?.name ?? '');
+        } else {
+          compare = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        }
+
+        return sortDirection === 'asc' ? compare : -compare;
+      });
+
+    setFilteredUsers(sortedAndFiltered);
     setCurrentPage(1);
-  }, [searchKeyword, users]);
+  }, [searchKeyword, users, statusFilter, sortBy]);
 
   const stats = useMemo(
     () => ({
@@ -104,12 +137,36 @@ export default function UserManagementPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <SearchInput
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-          placeholder="Search user, role, department..."
-        />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="Search user, role, department..."
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_FILTERS)[number])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            {STATUS_FILTERS.map((status) => (
+              <option key={status} value={status}>
+                {status === 'All' ? 'All statuses' : status}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as (typeof SORT_OPTIONS)[number]['value'])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         {canCreateUser && (
           <Link href="/user-management/new" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             <Plus className="h-4 w-4" />

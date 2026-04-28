@@ -13,6 +13,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textare
   return (
     <textarea
       ref={ref}
+      value={value}
       className={cn(textareaFieldClassName, className)}
       required={required}
       aria-required={required}

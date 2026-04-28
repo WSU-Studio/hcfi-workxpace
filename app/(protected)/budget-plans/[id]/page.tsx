@@ -31,10 +31,30 @@ type PlanDetail = {
   categoryKeyIndex?: { id: string; name: string } | null;
   costCenter?: { id: string; name: string } | null;
   opexAllocation?: { id: string; name: string } | null;
+  supportingDocs?: unknown;
   approvalSchema?: {
     approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
   } | null;
 };
+type OriginOfficeOption = {
+  code: string;
+  name: string;
+  isActive: boolean;
+};
+
+function normalizeSupportingDocs(input: unknown) {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'string') {
+        return item.url;
+      }
+      return null;
+    })
+    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+}
 
 function ReadonlyField({ label, value }: { label: string; value: string }) {
   return (
@@ -50,6 +70,7 @@ export default function BudgetPlanDetailPage() {
   const id = params.id as string;
   const { data: session } = useSession();
   const [plan, setPlan] = useState<PlanDetail | null>(null);
+  const [originOffices, setOriginOffices] = useState<OriginOfficeOption[]>([]);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
   const [histories, setHistories] = useState<BudgetPlanHistoryEntry[]>([]);
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
@@ -65,6 +86,7 @@ export default function BudgetPlanDetailPage() {
           const body = await r.json().catch(() => ({}));
           setLoadError(typeof body?.error === 'string' ? body.error : `Could not load plan (${r.status})`);
           setPlan(null);
+          setOriginOffices([]);
           setAccountOptions([]);
           setHistories([]);
           setReviewMeta(null);
@@ -72,6 +94,7 @@ export default function BudgetPlanDetailPage() {
         }
         const data = await r.json();
         setPlan(data?.plan ?? null);
+        setOriginOffices(data?.originOffices || []);
         setAccountOptions(data?.accountOptions || []);
         setHistories(data?.histories || []);
         setReviewMeta(data?.reviewMeta ?? null);
@@ -79,6 +102,7 @@ export default function BudgetPlanDetailPage() {
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
+        setOriginOffices([]);
         setReviewMeta(null);
       })
       .finally(() => setIsLoading(false));
@@ -89,6 +113,15 @@ export default function BudgetPlanDetailPage() {
     const a = accountOptions.find((x) => x.id === plan.coaId);
     return a ? `${a.accountCode} - ${a.accountName}` : plan.coaId;
   }, [plan?.coaId, accountOptions]);
+  const supportingDocUrls = useMemo(
+    () => normalizeSupportingDocs(plan?.supportingDocs),
+    [plan?.supportingDocs]
+  );
+  const originOfficeLabel = useMemo(() => {
+    if (!plan?.originOffice) return '-';
+    const office = originOffices.find((item) => item.code === plan.originOffice);
+    return office ? `${office.code} - ${office.name}` : plan.originOffice;
+  }, [plan?.originOffice, originOffices]);
 
   if (isLoading) return <LoadingSpin />;
   if (loadError) return <div className="text-red-500">{loadError}</div>;
@@ -117,7 +150,7 @@ export default function BudgetPlanDetailPage() {
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
           <div><span className="text-gray-500">Project:</span> {plan.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
-          <div><span className="text-gray-500">Origin Office:</span> {plan.originOffice || '-'}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div className="col-span-2">
             <span className="text-gray-500">Status:</span>{' '}
             <span className={`px-2 py-0.5 rounded text-sm ${plan.status === 'Approved' ? 'bg-green-100' : plan.status === 'Pending' ? 'bg-yellow-100' : 'bg-gray-100'}`}>{plan.status}</span>
@@ -125,6 +158,26 @@ export default function BudgetPlanDetailPage() {
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
             <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+          </div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Supporting Documents:</span>
+            {supportingDocUrls.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {supportingDocUrls.map((url, index) => (
+                  <a
+                    key={`${url}-${index}`}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Document {index + 1}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-gray-700">-</p>
+            )}
           </div>
         </div>
       </Card>
@@ -260,6 +313,11 @@ export default function BudgetPlanDetailPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {(history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote) ? (
+                  <p className="text-amber-700">
+                    {history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

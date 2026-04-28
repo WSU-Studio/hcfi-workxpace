@@ -16,9 +16,20 @@ type HistoryEntry = {
   id: string;
   action: string;
   timestamp: string;
-  details: { status?: string; declineReason?: string } | null;
+  details: { status?: string; declineReason?: string; qtyUnitPriceAdjustmentNote?: string | null } | null;
   user: { name: string | null } | null;
 };
+
+function ReadonlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+        {value || '-'}
+      </p>
+    </div>
+  );
+}
 
 export default function BudgetRequestDetailPage() {
   const params = useParams();
@@ -39,7 +50,18 @@ export default function BudgetRequestDetailPage() {
     whtAmount?: number;
     invoiceAmount?: number;
     grandTotal?: number;
-    budgetPlan: { code: string; subject: string };
+    budgetPlan: {
+      code: string;
+      subject: string;
+      coaId?: string | null;
+      opexType?: string | null;
+      originOffice?: string | null;
+      project?: { name: string } | null;
+      category?: { name: string } | null;
+      costCenter?: { name: string } | null;
+      categoryKeyIndex?: { name: string } | null;
+      opexAllocation?: { name: string } | null;
+    };
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
     allocations: { year: number; month: number; allocation: number }[];
@@ -48,6 +70,8 @@ export default function BudgetRequestDetailPage() {
     } | null;
     histories?: HistoryEntry[];
     canReview?: boolean;
+    accountOptions?: { id: string; accountCode: string; accountName: string }[];
+    originOffices?: { code: string; name: string; isActive: boolean }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -83,6 +107,19 @@ export default function BudgetRequestDetailPage() {
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const completedSteps =
     data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
+  const accountLabel = (() => {
+    const coaId = data.budgetPlan?.coaId;
+    if (!coaId) return '-';
+    const account = data.accountOptions?.find((item) => item.id === coaId);
+    return account ? `${account.accountCode} - ${account.accountName}` : coaId;
+  })();
+  const opexType = data.budgetPlan?.opexType || '-';
+  const originOfficeLabel = (() => {
+    const officeCode = data.budgetPlan?.originOffice;
+    if (!officeCode) return '-';
+    const office = data.originOffices?.find((item) => item.code === officeCode);
+    return office ? `${office.code} - ${office.name}` : officeCode;
+  })();
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -108,7 +145,9 @@ export default function BudgetRequestDetailPage() {
           <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
           <div><span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}</div>
           <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
+          <div><span className="text-gray-500">Project:</span> {data.budgetPlan?.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
             <span
@@ -208,6 +247,26 @@ export default function BudgetRequestDetailPage() {
             </Table>
           ) : null}
         </div>
+
+        <div className="space-y-3 border-t border-gray-100 pt-4">
+          <h3 className="font-medium">Classification</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ReadonlyField label="Cost Center" value={data.budgetPlan?.costCenter?.name ?? ''} />
+            <ReadonlyField label="Category" value={data.budgetPlan?.category?.name ?? ''} />
+            <ReadonlyField label="Category Key Index" value={data.budgetPlan?.categoryKeyIndex?.name ?? ''} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <ReadonlyField label="Kode Akun" value={accountLabel} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ReadonlyField label="Type" value={opexType} />
+            {data.budgetPlan?.opexType === 'OPEX' ? (
+              <ReadonlyField label="Opex Allocation" value={data.budgetPlan?.opexAllocation?.name ?? ''} />
+            ) : null}
+          </div>
+        </div>
       </Card>
 
       <Card collapsible header={<h3 className="font-medium">Approval Escalation</h3>}>
@@ -289,6 +348,9 @@ export default function BudgetRequestDetailPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {history.details?.qtyUnitPriceAdjustmentNote ? (
+                  <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
+                ) : null}
               </div>
             ))}
           </div>

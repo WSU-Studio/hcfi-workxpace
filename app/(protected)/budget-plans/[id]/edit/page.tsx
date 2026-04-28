@@ -9,6 +9,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
+import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -22,6 +23,7 @@ export default function EditBudgetPlanPage() {
   const [fiscalYears, setFiscalYears] = useState<{ year: number }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string; code: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
   const [formData, setFormData] = useState({
     fiscalYear: 0,
@@ -35,33 +37,24 @@ export default function EditBudgetPlanPage() {
   const [allocations, setAllocations] = useState<Record<number, number>>(
     () => Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]))
   );
-  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const [baseAmount, setBaseAmount] = useState<string>('');
   const [error, setError] = useState('');
   const [histories, setHistories] = useState<{
     id: string;
     action: string;
-    details: { status?: string; declineReason?: string | null } | null;
+    details: {
+      status?: string;
+      declineReason?: string | null;
+      allocationAdjustmentNote?: string | null;
+      currentState?: { allocationAdjustmentNote?: string | null } | null;
+    } | null;
     timestamp: string;
     user: { name: string };
   }[]>([]);
 
   const selectedMonthsSorted = [...selectedMonths].sort((a, b) => a - b);
   const totalAlloc = selectedMonthsSorted.reduce((sum, m) => sum + (allocations[m] || 0), 0);
-
-  const toggleMonth = (month: number) => {
-    setSelectedMonths((prev) => {
-      const next = new Set(prev);
-      if (next.has(month)) next.delete(month);
-      else next.add(month);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedMonths.size === 12) setSelectedMonths(new Set());
-    else setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
-  };
 
   const parseBaseAmount = (s: string) => {
     const cleaned = s.replace(/\./g, '').replace(',', '.');
@@ -117,18 +110,19 @@ export default function EditBudgetPlanPage() {
             approvalSchemaId: p.approvalSchemaId || '',
           });
           const allocs: Record<number, number> = Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]));
-          const withValue = new Set<number>();
+          const withValue: number[] = [];
           (p.allocations || []).forEach((a: { month: number; allocation: unknown }) => {
             const v = Number(a.allocation ?? 0);
             allocs[a.month] = v;
-            if (v > 0) withValue.add(a.month);
+            if (v > 0) withValue.push(a.month);
           });
           setAllocations(allocs);
-          setSelectedMonths(withValue.size > 0 ? withValue : new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+          setSelectedMonths(withValue.length > 0 ? withValue : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         }
         setFiscalYears(data.fiscalYears || []);
         setDepartments(data.departments || []);
         setProjects(data.projects || []);
+        setOriginOffices(data.originOffices || []);
         setApprovalSchemas(data.approvalSchemas || []);
         setHistories(data.histories || []);
       })
@@ -195,12 +189,18 @@ export default function EditBudgetPlanPage() {
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Origin Office</label>
-              <Input
-                type="text"
+              <Select
                 value={formData.originOffice}
                 onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
-                placeholder="HQ"
-              />
+              >
+                <option value="">-</option>
+                {originOffices.map((office) => (
+                  <option key={office.code} value={office.code}>
+                    {office.code} - {office.name}
+                    {office.isActive ? '' : ' (Inactive)'}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Department *</label>
@@ -254,32 +254,8 @@ export default function EditBudgetPlanPage() {
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
-            <div className="flex items-center gap-4 mb-3">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selectedMonths.size === 12}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium">select all</span>
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {MONTH_NAMES.map((name, i) => {
-                  const month = i + 1;
-                  return (
-                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedMonths.has(month)}
-                        onChange={() => toggleMonth(month)}
-                        className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">{name}</span>
-                    </label>
-                  );
-                })}
-              </div>
+            <div className="mb-4">
+              <MonthChecklistSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} showSelectAll />
             </div>
 
             <div className="flex items-center gap-2 mb-4">
@@ -403,6 +379,11 @@ export default function EditBudgetPlanPage() {
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-red-700">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {(history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote) ? (
+                  <p className="text-amber-700">
+                    {history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote}
+                  </p>
                 ) : null}
               </div>
             ))}

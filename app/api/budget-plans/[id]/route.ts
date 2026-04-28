@@ -8,6 +8,23 @@ import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/b
 
 export const dynamic = 'force-dynamic';
 
+type OriginOfficeMasterDelegate = {
+  findMany: (args: {
+    select: {
+      code: true;
+      name: true;
+      isActive: true;
+    };
+    orderBy: Array<{ isActive: 'asc' | 'desc' } | { code: 'asc' | 'desc' }>;
+  }) => Promise<
+    Array<{
+      code: string;
+      name: string;
+      isActive: boolean;
+    }>
+  >;
+};
+
 function isValidReviewTransition(currentStatus: string, nextStatus: string) {
   if (currentStatus === 'Draft') {
     return ['Reviewed', 'Revision', 'Declined'].includes(nextStatus);
@@ -98,7 +115,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
     const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
     const projects = await prisma.project.findMany({ orderBy: { code: 'asc' } });
-    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, histories] = await Promise.all([
+    const originOfficeMaster = (prisma as unknown as {
+      originOfficeMaster: OriginOfficeMasterDelegate;
+    }).originOfficeMaster;
+
+    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, originOffices, histories] = await Promise.all([
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
         include: { department: true, approvalLevels: { include: { role: true } } },
@@ -108,6 +129,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      originOfficeMaster.findMany({
+        select: {
+          code: true,
+          name: true,
+          isActive: true,
+        },
+        orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+      }),
       prisma.activityHistory.findMany({
         where: { entityType: 'BudgetPlan', entityId: id },
         include: { user: { select: { name: true } } },
@@ -136,6 +165,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       costCenterOptions,
       opexOptions,
       opexAllocationOptions,
+      originOffices,
       histories,
       reviewMeta: { canReview, nextStepOrder },
     });
@@ -259,7 +289,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ] as const;
       const before = await prisma.budgetPlan.findUnique({
         where: { id },
-        include: { approvalSchema: { include: { approvalLevels: true } } },
+        include: {
+          approvalSchema: { include: { approvalLevels: true } },
+          allocations: true,
+        },
       });
       if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -301,6 +334,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         },
       });
 
+      let allocationAdjusted = false;
+      if (Array.isArray(body.allocations)) {
+        const incomingAllocationMap = new Map<number, number>();
+        body.allocations.forEach((item: { month: number; allocation: unknown }) => {
+          incomingAllocationMap.set(Number(item.month), Number(item.allocation ?? 0));
+        });
+        allocationAdjusted = [...Array(12)].some((_, index) => {
+          const month = index + 1;
+          const beforeValue =
+            Number(before.allocations.find((allocation) => allocation.month === month)?.allocation ?? 0);
+          const afterValue = Number(incomingAllocationMap.get(month) ?? 0);
+          return beforeValue !== afterValue;
+        });
+
+        await prisma.budgetPlanAllocation.deleteMany({ where: { budgetPlanId: id } });
+        for (let month = 1; month <= 12; month++) {
+          const allocationEntry = body.allocations.find((item: { month: number }) => item.month === month);
+          await prisma.budgetPlanAllocation.create({
+            data: {
+              budgetPlanId: id,
+              month,
+              allocation: Number(allocationEntry?.allocation ?? 0),
+            },
+          });
+        }
+      }
+
       const beforeState: Record<string, unknown> = {
         status: before.status,
         coaId: before.coaId,
@@ -336,6 +396,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         previousState.declineReason = null;
         currentState.declineReason = body.declineReason ?? null;
       }
+      const allocationAdjustmentNote = allocationAdjusted
+        ? body.status === 'Approved'
+          ? 'Approved with allocation adjustment.'
+          : body.status === 'Reviewed'
+            ? 'Reviewed with allocation adjustment.'
+            : 'Allocation adjustment done during review process.'
+        : null;
+      if (allocationAdjusted) {
+        currentState.allocationAdjustmentNote = allocationAdjustmentNote;
+      }
 
       await logActivity({
         userId: session.user.id,
@@ -346,6 +416,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         details: {
           previousState,
           currentState,
+          allocationAdjustmentNote,
         },
       });
 

@@ -8,12 +8,13 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
+import Input from '@/components/ui/Input';
 
 type HistoryEntry = {
   id: string;
   action: string;
   timestamp: string;
-  details: { status?: string; declineReason?: string } | null;
+  details: { status?: string; declineReason?: string; qtyUnitPriceAdjustmentNote?: string | null } | null;
   user: { name: string | null } | null;
 };
 
@@ -77,6 +78,9 @@ export default function ReviewBudgetRequestPage() {
     opexType: 'OPEX',
     opexAllocationId: '',
   });
+  const [reviewLineItems, setReviewLineItems] = useState<
+    { item: string; qty: number; unitPrice: number; deduction: number }[]
+  >([]);
 
   useEffect(() => {
     fetch(`/api/budget-requests/${id}`, { credentials: 'include' })
@@ -84,6 +88,14 @@ export default function ReviewBudgetRequestPage() {
       .then((payload) => {
         setData(payload);
         if (!payload) return;
+        setReviewLineItems(
+          (payload.lineItems || []).map((lineItem: { item?: string; qty?: number; unitPrice?: number; deduction?: number }) => ({
+            item: lineItem.item || '',
+            qty: Number(lineItem.qty ?? 0),
+            unitPrice: Number(lineItem.unitPrice ?? 0),
+            deduction: Number(lineItem.deduction ?? 0),
+          }))
+        );
         setClassification({
           costCenterId: payload.costCenter || payload.budgetPlan?.costCenterId || '',
           categoryId: payload.category || payload.budgetPlan?.categoryId || '',
@@ -109,6 +121,12 @@ export default function ReviewBudgetRequestPage() {
           coaId: classification.coaId || null,
           opexType: classification.opexType || null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
+          lineItems: reviewLineItems.map((lineItem) => ({
+            item: lineItem.item,
+            qty: lineItem.qty,
+            unitPrice: lineItem.unitPrice,
+            deduction: lineItem.deduction,
+          })),
         }),
       });
       if (res.ok) router.push(`/budget-requests/${id}`);
@@ -121,11 +139,16 @@ export default function ReviewBudgetRequestPage() {
   if (isLoading) return <LoadingSpin />;
   if (!data) return <div className="text-gray-600">Not found</div>;
 
-  const transactionAmount = data.lineItems?.reduce((sum, li) => sum + Number(li.total ?? 0), 0) ?? 0;
-  const vatAmount = Number(data.vatAmount ?? 0);
-  const whtAmount = Number(data.whtAmount ?? 0);
-  const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
-  const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
+  const transactionAmount = reviewLineItems.reduce(
+    (sum, lineItem) => sum + Math.max(0, lineItem.qty * lineItem.unitPrice - lineItem.deduction),
+    0
+  );
+  const vatPercent = Number((data as { vatPercent?: number }).vatPercent ?? 11);
+  const whtPercent = Number((data as { whtPercent?: number }).whtPercent ?? 2);
+  const vatAmount = Math.round(transactionAmount * (vatPercent / 100));
+  const whtAmount = Math.round(transactionAmount * (whtPercent / 100));
+  const invoiceAmount = transactionAmount + vatAmount;
+  const grandTotal = invoiceAmount - whtAmount;
   const canEditClassification = Boolean(data.canReview);
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const completedSteps = data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
@@ -186,14 +209,50 @@ export default function ReviewBudgetRequestPage() {
             </TableHeaderRow>
           </thead>
           <tbody>
-            {data.lineItems.map((li, i) => (
+            {reviewLineItems.map((li, i) => (
               <TableBodyRow key={`${li.item}-${i}`}>
                 <TableCell>{li.item}</TableCell>
-                <TableCell className="text-right">{li.qty}</TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0))}</TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(li.subtotal ?? Number(li.unitPrice ?? 0) * li.qty))}</TableCell>
+                <TableCell className="text-right">
+                  {canEditClassification ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      value={li.qty}
+                      onChange={(e) =>
+                        setReviewLineItems((previous) =>
+                          previous.map((item, index) =>
+                            index === i ? { ...item, qty: Number(e.target.value) || 0 } : item
+                          )
+                        )
+                      }
+                      className="max-w-[100px] text-right"
+                    />
+                  ) : (
+                    li.qty
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {canEditClassification ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      value={li.unitPrice}
+                      onChange={(e) =>
+                        setReviewLineItems((previous) =>
+                          previous.map((item, index) =>
+                            index === i ? { ...item, unitPrice: Number(e.target.value) || 0 } : item
+                          )
+                        )
+                      }
+                      className="max-w-[160px] text-right"
+                    />
+                  ) : (
+                    formatCurrency(Number(li.unitPrice ?? 0))
+                  )}
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0) * li.qty)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(li.total ?? 0))}</TableCell>
+                <TableCell className="text-right">{formatCurrency(Math.max(0, Number(li.unitPrice ?? 0) * li.qty - Number(li.deduction ?? 0)))}</TableCell>
               </TableBodyRow>
             ))}
             <TableBodyRow className="bg-gray-50 font-medium">
@@ -404,6 +463,9 @@ export default function ReviewBudgetRequestPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {history.details?.qtyUnitPriceAdjustmentNote ? (
+                  <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
+                ) : null}
               </div>
             ))}
           </div>
