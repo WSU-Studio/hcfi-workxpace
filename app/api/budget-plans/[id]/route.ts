@@ -8,6 +8,23 @@ import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/b
 
 export const dynamic = 'force-dynamic';
 
+type OriginOfficeMasterDelegate = {
+  findMany: (args: {
+    select: {
+      code: true;
+      name: true;
+      isActive: true;
+    };
+    orderBy: Array<{ isActive: 'asc' | 'desc' } | { code: 'asc' | 'desc' }>;
+  }) => Promise<
+    Array<{
+      code: string;
+      name: string;
+      isActive: boolean;
+    }>
+  >;
+};
+
 function isValidReviewTransition(currentStatus: string, nextStatus: string) {
   if (currentStatus === 'Draft') {
     return ['Reviewed', 'Revision', 'Declined'].includes(nextStatus);
@@ -98,7 +115,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
     const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
     const projects = await prisma.project.findMany({ orderBy: { code: 'asc' } });
-    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, histories] = await Promise.all([
+    const originOfficeMaster = (prisma as unknown as {
+      originOfficeMaster: OriginOfficeMasterDelegate;
+    }).originOfficeMaster;
+
+    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, originOffices, histories] = await Promise.all([
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
         include: { department: true, approvalLevels: { include: { role: true } } },
@@ -108,6 +129,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      originOfficeMaster.findMany({
+        select: {
+          code: true,
+          name: true,
+          isActive: true,
+        },
+        orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+      }),
       prisma.activityHistory.findMany({
         where: { entityType: 'BudgetPlan', entityId: id },
         include: { user: { select: { name: true } } },
@@ -136,6 +165,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       costCenterOptions,
       opexOptions,
       opexAllocationOptions,
+      originOffices,
       histories,
       reviewMeta: { canReview, nextStepOrder },
     });
