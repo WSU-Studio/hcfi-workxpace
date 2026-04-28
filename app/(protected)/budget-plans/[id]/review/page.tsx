@@ -8,6 +8,7 @@ import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
+import Input from '@/components/ui/Input';
 import { PenSquare } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
@@ -61,6 +62,9 @@ export default function ReviewBudgetPlanPage() {
     opexAllocationId: '',
     opexType: 'OPEX',
   });
+  const [allocations, setAllocations] = useState<Record<number, number>>(
+    Object.fromEntries([...Array(12)].map((_, index) => [index + 1, 0]))
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
@@ -99,6 +103,13 @@ export default function ReviewBudgetPlanPage() {
         setReviewMeta(data?.reviewMeta || { canReview: false, nextStepOrder: null });
         setHistories(data?.histories || []);
         if (p) {
+          const nextAllocations: Record<number, number> = Object.fromEntries(
+            [...Array(12)].map((_, index) => [index + 1, 0])
+          );
+          (p.allocations || []).forEach((allocation: { month: number; allocation: unknown }) => {
+            nextAllocations[allocation.month] = Number(allocation.allocation ?? 0);
+          });
+          setAllocations(nextAllocations);
           setClassification({
             coaId: p.coaId || '',
             categoryId: p.categoryId || '',
@@ -151,6 +162,10 @@ export default function ReviewBudgetPlanPage() {
           opexId: null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
           opexType: classification.opexType || null,
+          allocations: [...Array(12)].map((_, index) => ({
+            month: index + 1,
+            allocation: allocations[index + 1] ?? 0,
+          })),
         }),
       });
       if (res.ok) {
@@ -178,6 +193,10 @@ export default function ReviewBudgetPlanPage() {
           opexId: null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
           opexType: classification.opexType || null,
+          allocations: [...Array(12)].map((_, index) => ({
+            month: index + 1,
+            allocation: allocations[index + 1] ?? 0,
+          })),
         }),
       });
       if (res.ok) {
@@ -194,7 +213,11 @@ export default function ReviewBudgetPlanPage() {
   if (loadError) return <div className="text-red-500">{loadError}</div>;
   if (!plan) return <div className="text-red-500">Not found</div>;
 
-  const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const allocationRows = [...Array(12)].map((_, index) => ({
+    month: index + 1,
+    allocation: allocations[index + 1] ?? 0,
+  }));
+  const total = allocationRows.reduce((sum, allocation) => sum + allocation.allocation, 0);
   const selectedOriginOffice = plan.originOffice
     ? originOffices.find((office) => office.code === plan.originOffice)
     : null;
@@ -251,11 +274,27 @@ export default function ReviewBudgetPlanPage() {
               </TableHeaderRow>
             </thead>
             <tbody>
-              {(plan.allocations || []).map((a, i) => (
+              {allocationRows.map((a, i) => (
                 <TableBodyRow key={a.month}>
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
-                  <TableCell>{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                  <TableCell>
+                    {canEditClassification ? (
+                      <Input
+                        type="number"
+                        value={a.allocation}
+                        onChange={(e) =>
+                          setAllocations((previous) => ({
+                            ...previous,
+                            [a.month]: Number(e.target.value) || 0,
+                          }))
+                        }
+                        className="max-w-[180px]"
+                      />
+                    ) : (
+                      formatCurrency(Number(a.allocation ?? 0))
+                    )}
+                  </TableCell>
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">

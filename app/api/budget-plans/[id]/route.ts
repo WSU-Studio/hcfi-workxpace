@@ -331,6 +331,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         },
       });
 
+      if (Array.isArray(body.allocations)) {
+        await prisma.budgetPlanAllocation.deleteMany({ where: { budgetPlanId: id } });
+        for (let month = 1; month <= 12; month++) {
+          const allocationEntry = body.allocations.find((item: { month: number }) => item.month === month);
+          await prisma.budgetPlanAllocation.create({
+            data: {
+              budgetPlanId: id,
+              month,
+              allocation: Number(allocationEntry?.allocation ?? 0),
+            },
+          });
+        }
+      }
+
       const beforeState: Record<string, unknown> = {
         status: before.status,
         coaId: before.coaId,
