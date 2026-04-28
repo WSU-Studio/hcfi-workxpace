@@ -9,12 +9,13 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { formatCurrency } from '@/lib/utils';
-import MonthAllocationSelector from '@/components/budget-request/MonthAllocationSelector';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
   getItemTotal,
   getItemSubtotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 import Textarea from '@/components/ui/Textarea';
 
 const buildEmptyLineItem = (): BudgetRequestLineItemInput => ({
@@ -163,6 +164,11 @@ export default function NewBudgetRequestPage() {
   };
   const isBudgetPlanSelected = formData.budgetPlanId !== '';
   const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
+  const toggleMonth = (month: number) => {
+    setSelectedMonths((previous) =>
+      previous.includes(month) ? previous.filter((currentMonth) => currentMonth !== month) : [...previous, month]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,7 +368,8 @@ export default function NewBudgetRequestPage() {
               ))}
             </Select>
           </div>
-          <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+
+          <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 hidden">
             <h2 className="text-base font-semibold text-gray-900">Classification (Default from Budget Plan)</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -383,13 +390,30 @@ export default function NewBudgetRequestPage() {
               </div>
             </div>
           </div>
+
           <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <h2 className="text-base font-semibold text-gray-900">Request Allocation</h2>
             <div>
               <label className="mb-2 block font-medium">Month / Period Allocation *</label>
-              <MonthAllocationSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} />
+              <div className="flex flex-wrap gap-3">
+                {MONTH_NAMES.map((name, index) => {
+                  const month = index + 1;
+                  return (
+                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedMonths.includes(month)}
+                        onChange={() => toggleMonth(month)}
+                        className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{name}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
+
           <div className="space-y-3 rounded-xl border border-gray-200 p-4">
             <h2 className="text-base font-semibold text-gray-900">Items</h2>
             <BudgetRequestItemsEditor
