@@ -43,7 +43,12 @@ export default function EditBudgetPlanPage() {
   const [histories, setHistories] = useState<{
     id: string;
     action: string;
-    details: { status?: string; declineReason?: string | null } | null;
+    details: {
+      status?: string;
+      declineReason?: string | null;
+      allocationAdjustmentNote?: string | null;
+      currentState?: { allocationAdjustmentNote?: string | null } | null;
+    } | null;
     timestamp: string;
     user: { name: string };
   }[]>([]);
@@ -374,6 +379,11 @@ export default function EditBudgetPlanPage() {
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-red-700">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {(history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote) ? (
+                  <p className="text-amber-700">
+                    {history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote}
+                  </p>
                 ) : null}
               </div>
             ))}

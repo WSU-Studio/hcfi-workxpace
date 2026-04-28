@@ -313,6 +313,11 @@ export default function BudgetPlanDetailPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {(history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote) ? (
+                  <p className="text-amber-700">
+                    {history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

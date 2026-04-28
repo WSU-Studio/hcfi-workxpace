@@ -1,7 +1,12 @@
 export type BudgetPlanHistoryEntry = {
   id: string;
   action: string;
-  details: { status?: string; declineReason?: string | null } | null;
+  details: {
+    status?: string;
+    declineReason?: string | null;
+    allocationAdjustmentNote?: string | null;
+    currentState?: { allocationAdjustmentNote?: string | null } | null;
+  } | null;
   timestamp: string;
   user: { name: string };
 };

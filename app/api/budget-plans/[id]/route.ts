@@ -289,7 +289,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ] as const;
       const before = await prisma.budgetPlan.findUnique({
         where: { id },
-        include: { approvalSchema: { include: { approvalLevels: true } } },
+        include: {
+          approvalSchema: { include: { approvalLevels: true } },
+          allocations: true,
+        },
       });
       if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -331,7 +334,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         },
       });
 
+      let allocationAdjusted = false;
       if (Array.isArray(body.allocations)) {
+        const incomingAllocationMap = new Map<number, number>();
+        body.allocations.forEach((item: { month: number; allocation: unknown }) => {
+          incomingAllocationMap.set(Number(item.month), Number(item.allocation ?? 0));
+        });
+        allocationAdjusted = [...Array(12)].some((_, index) => {
+          const month = index + 1;
+          const beforeValue =
+            Number(before.allocations.find((allocation) => allocation.month === month)?.allocation ?? 0);
+          const afterValue = Number(incomingAllocationMap.get(month) ?? 0);
+          return beforeValue !== afterValue;
+        });
+
         await prisma.budgetPlanAllocation.deleteMany({ where: { budgetPlanId: id } });
         for (let month = 1; month <= 12; month++) {
           const allocationEntry = body.allocations.find((item: { month: number }) => item.month === month);
@@ -380,6 +396,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         previousState.declineReason = null;
         currentState.declineReason = body.declineReason ?? null;
       }
+      const allocationAdjustmentNote = allocationAdjusted
+        ? body.status === 'Approved'
+          ? 'Approved with allocation adjustment.'
+          : body.status === 'Reviewed'
+            ? 'Reviewed with allocation adjustment.'
+            : 'Allocation adjustment done during review process.'
+        : null;
+      if (allocationAdjusted) {
+        currentState.allocationAdjustmentNote = allocationAdjustmentNote;
+      }
 
       await logActivity({
         userId: session.user.id,
@@ -390,6 +416,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         details: {
           previousState,
           currentState,
+          allocationAdjustmentNote,
         },
       });
 

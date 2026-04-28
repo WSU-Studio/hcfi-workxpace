@@ -50,7 +50,11 @@ export default function ReviewBudgetPlanPage() {
   const [histories, setHistories] = useState<{
     id: string;
     action: string;
-    details: { status?: string; declineReason?: string | null } | null;
+    details: {
+      status?: string;
+      declineReason?: string | null;
+      allocationAdjustmentNote?: string | null;
+    } | null;
     timestamp: string;
     user: { name: string };
   }[]>([]);
@@ -579,6 +583,11 @@ export default function ReviewBudgetPlanPage() {
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {history.details?.allocationAdjustmentNote ? (
+                  <p className="text-amber-700">
+                    {history.details?.allocationAdjustmentNote}
+                  </p>
                 ) : null}
               </div>
             ))}
