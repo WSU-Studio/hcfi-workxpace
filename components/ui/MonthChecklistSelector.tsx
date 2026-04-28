@@ -33,7 +33,7 @@ export default function MonthChecklistSelector({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-wrap gap-3">
       {showSelectAll && (
         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
           <input
