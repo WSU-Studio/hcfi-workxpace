@@ -6,6 +6,8 @@ import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import { formatCurrency } from '@/lib/utils';
 import MonthAllocationSelector from '@/components/budget-request/MonthAllocationSelector';
 import BudgetRequestItemsEditor, {
@@ -13,6 +15,7 @@ import BudgetRequestItemsEditor, {
   getItemTotal,
   getItemSubtotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
+import Textarea from '@/components/ui/Textarea';
 
 const buildEmptyLineItem = (): BudgetRequestLineItemInput => ({
   id: crypto.randomUUID(),
@@ -30,7 +33,10 @@ export default function NewBudgetRequestPage() {
     id: string;
     code: string;
     subject: string;
+    fiscalYear: number;
+    originOffice: string | null;
     departmentId: string;
+    projectId?: string | null;
     categoryId?: string | null;
     categoryKeyIndexId?: string | null;
     costCenterId?: string | null;
@@ -43,8 +49,16 @@ export default function NewBudgetRequestPage() {
     opexAllocation?: { name: string } | null;
   }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
+  const [fiscalYears, setFiscalYears] = useState<{ year: number }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   const [formData, setFormData] = useState({
     budgetPlanId: '',
+    fiscalYear: new Date().getFullYear(),
+    originOffice: '',
+    departmentId: '',
+    projectId: '',
     subject: '',
     description: '',
     notes: '',
@@ -91,15 +105,39 @@ export default function NewBudgetRequestPage() {
   }, [selectedMonths, totalAmount]);
 
   useEffect(() => {
-    fetch('/api/budget-requests')
-      .then((r) => r.json())
-      .then((data) => {
-        setPlans(data.plans || []);
-      });
-    fetch('/api/workspace-management/approval-schema')
-      .then((r) => r.json())
-      .then((data) => {
-        setApprovalSchemas(data.schemas?.filter((s: { type: string }) => s.type === 'BudgetRequest') || []);
+    Promise.all([
+      fetch('/api/budget-requests').then((r) => r.json()),
+      fetch('/api/workspace-management/approval-schema').then((r) => r.json()),
+      fetch('/api/budget-plans/options').then((r) => r.json()),
+    ])
+      .then(([budgetRequestData, approvalSchemaData, budgetPlanOptionsData]) => {
+        const nextFiscalYears = budgetPlanOptionsData.fiscalYears || [];
+        const nextDepartments = budgetPlanOptionsData.departments || [];
+        const nextProjects = budgetPlanOptionsData.projects || [];
+        const nextOriginOffices = budgetPlanOptionsData.originOffices || [];
+
+        setPlans(budgetRequestData.plans || []);
+        setApprovalSchemas(
+          approvalSchemaData.schemas?.filter((s: { type: string }) => s.type === 'BudgetRequest') || []
+        );
+        setFiscalYears(nextFiscalYears);
+        setDepartments(nextDepartments);
+        setProjects(nextProjects);
+        setOriginOffices(nextOriginOffices);
+
+        setFormData((previous) => ({
+          ...previous,
+          fiscalYear: nextFiscalYears?.[0]?.year ?? previous.fiscalYear,
+          departmentId: nextDepartments?.[0]?.id ?? previous.departmentId,
+          projectId: nextProjects?.[0]?.id ?? previous.projectId,
+          originOffice:
+            nextOriginOffices.length > 0
+              ? (
+                  nextOriginOffices.find((office: { isActive: boolean }) => office.isActive) ||
+                  nextOriginOffices[0]
+                )?.code ?? previous.originOffice
+              : previous.originOffice || 'HQ',
+        }));
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -110,6 +148,10 @@ export default function NewBudgetRequestPage() {
       ...p,
       budgetPlanId: planId,
       subject: plan ? `${plan.subject} - Request` : p.subject,
+      fiscalYear: plan?.fiscalYear ?? p.fiscalYear,
+      originOffice: plan?.originOffice ?? p.originOffice,
+      departmentId: plan?.departmentId ?? p.departmentId,
+      projectId: plan?.projectId ?? p.projectId,
       category: plan?.categoryId ?? '',
       categoryKeyIndex: plan?.categoryKeyIndexId ?? '',
       costCenter: plan?.costCenterId ?? '',
@@ -119,6 +161,8 @@ export default function NewBudgetRequestPage() {
       opexType: plan?.opexType ?? '',
     }));
   };
+  const isBudgetPlanSelected = formData.budgetPlanId !== '';
+  const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,14 +182,13 @@ export default function NewBudgetRequestPage() {
     }
     setIsSubmitting(true);
     try {
-      const plan = plans.find((p) => p.id === formData.budgetPlanId);
       const res = await fetch('/api/budget-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          fiscalYear: new Date().getFullYear(),
-          departmentId: plan?.departmentId,
+          fiscalYear: formData.fiscalYear,
+          departmentId: formData.departmentId,
           selectedMonths,
           vatPercent: taxConfig.vatPercent,
           vatAmount,
@@ -182,7 +225,7 @@ export default function NewBudgetRequestPage() {
   if (isLoading) return <LoadingSpin />;
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Create Budget Request</h1>
       {plans.length === 0 && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg">
@@ -194,58 +237,130 @@ export default function NewBudgetRequestPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block mb-1.5 font-medium">Budget Plan (Approved) *</label>
-            <select
+            <Select
               value={formData.budgetPlanId}
               onChange={(e) => handlePlanSelect(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg bg-white"
               required
             >
-              <option value="">- Select -</option>
+              <option value="">-</option>
               {plans.map((p) => (
-                <option key={p.id} value={p.id}>{p.code} - {p.subject}</option>
+                <option key={p.id} value={p.id}>{p.code} - {p.subject} - {p.fiscalYear}</option>
               ))}
-            </select>
+            </Select>
           </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="block mb-1.5 font-medium">Fiscal Year *</label>
+              <Select
+                value={formData.fiscalYear}
+                onChange={(e) => setFormData((p) => ({ ...p, fiscalYear: Number(e.target.value) }))}
+                required
+                disabled={isBudgetPlanSelected}
+              >
+                {fiscalYears.map((fy) => (
+                  <option key={fy.year} value={fy.year}>{fy.year}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 font-medium">Origin Office *</label>
+              {originOffices.length > 0 ? (
+                <Select
+                  value={formData.originOffice}
+                  onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
+                  required
+                  disabled={isBudgetPlanSelected}
+                >
+                  <option value="">-</option>
+                  {originOffices.map((office) => (
+                    <option key={office.code} value={office.code}>
+                      {office.code} - {office.name}
+                      {office.isActive ? '' : ' (Inactive)'}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  type="text"
+                  value={formData.originOffice}
+                  onChange={(e) =>
+                    setFormData((previous) => ({
+                      ...previous,
+                      originOffice: e.target.value,
+                    }))
+                  }
+                  placeholder="HQ"
+                  required
+                  readOnly={isBudgetPlanSelected}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block mb-1.5 font-medium">Department *</label>
+              <Select
+                value={formData.departmentId}
+                onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
+                required
+                disabled={isBudgetPlanSelected}
+              >
+                <option value="">-</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block mb-1.5 font-medium">Project</label>
+              <Select
+                value={formData.projectId}
+                onChange={(e) => setFormData((p) => ({ ...p, projectId: e.target.value }))}
+                disabled={isBudgetPlanSelected}
+              >
+                <option value="">-</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
           <div>
             <label className="block mb-1.5 font-medium">Subject *</label>
-            <input
+            <Input
               type="text"
               value={formData.subject}
               onChange={(e) => setFormData((p) => ({ ...p, subject: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
               required
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <textarea
+            <Textarea
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
               rows={3}
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Notes</label>
-            <input
+            <Input
               type="text"
               value={formData.notes}
               onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg"
             />
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Approval Schema</label>
-            <select
+            <Select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
-              className="w-full px-4 py-2 border rounded-lg bg-white"
             >
               <option value="">-</option>
-              {approvalSchemas.map((s) => (
+              {schemasForDept.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <h2 className="text-base font-semibold text-gray-900">Classification (Default from Budget Plan)</h2>
