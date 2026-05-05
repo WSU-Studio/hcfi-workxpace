@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Edit, Eye, KeyRound, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import ActionsDropdown from '@/components/ui/actions/ActionsDropdown';
+import ActionsDropdown, { type DropdownAction } from '@/components/ui/actions/ActionsDropdown';
 import { iconActionButtonClassName } from '@/components/ui/actions/IconActionButton';
 
 interface UserActionsProps {
@@ -29,30 +29,27 @@ export default function UserActions({ userId, sessionUserId, canEditUser, canDel
     return false;
   };
 
-  const dropdownActions = [
-    canEditUser
-      ? {
-          label: 'Edit',
-          icon: Edit,
-          onSelect: () => router.push(`/user-management/${userId}/edit`),
-        }
-      : null,
-    canEditUser
-      ? {
-          label: 'Access Control',
-          icon: KeyRound,
-          onSelect: () => router.push(`/user-management/${userId}/access-control`),
-        }
-      : null,
-    canDeleteUser && sessionUserId !== userId
-      ? {
-          label: 'Delete',
-          icon: Trash,
-          variant: 'danger' as const,
-          onSelect: handleDelete,
-        }
-      : null,
-  ].filter(Boolean);
+  const dropdownActions: DropdownAction[] = [];
+  if (canEditUser) {
+    dropdownActions.push({
+      label: 'Edit',
+      icon: Edit,
+      onSelect: () => router.push(`/user-management/${userId}/edit`),
+    });
+    dropdownActions.push({
+      label: 'Access Control',
+      icon: KeyRound,
+      onSelect: () => router.push(`/user-management/${userId}/access-control`),
+    });
+  }
+  if (canDeleteUser && sessionUserId !== userId) {
+    dropdownActions.push({
+      label: 'Delete',
+      icon: Trash,
+      variant: 'danger',
+      onSelect: handleDelete,
+    });
+  }
 
   return (
     <div className="flex items-center gap-2">

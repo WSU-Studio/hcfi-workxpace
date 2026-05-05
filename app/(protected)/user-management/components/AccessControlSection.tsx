@@ -5,7 +5,8 @@ import { ActivityAccess, MenuAccess } from '@/types/access-control';
 interface AccessControlSectionProps {
   title: string;
   items: Array<{ key: string; label: string }>;
-  access: Record<string, boolean>;
+  /** Checkbox state; indexed by `items[].key` */
+  access: MenuAccess | ActivityAccess;
   onChange: (key: string, value: boolean) => void;
   columns?: number;
 }
@@ -28,7 +29,7 @@ export default function AccessControlSection({ title, items, access, onChange, c
           >
             <input
               type="checkbox"
-              checked={Boolean(access[item.key])}
+              checked={Boolean((access as unknown as Record<string, boolean>)[item.key])}
               onChange={(e) => onChange(item.key, e.target.checked)}
               className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
@@ -40,7 +41,7 @@ export default function AccessControlSection({ title, items, access, onChange, c
   );
 }
 
-export const menuAccessItems: Array<{ key: keyof MenuAccess; label: string }> = [
+export const menuAccessItems: Array<{ key: string; label: string }> = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'budgetPlans', label: 'Budget Plans' },
   { key: 'budgetRequests', label: 'Budget Requests' },
@@ -57,7 +58,7 @@ export const menuAccessItems: Array<{ key: keyof MenuAccess; label: string }> = 
   { key: 'viewActivityHistory', label: 'View Activity History Page' },
 ];
 
-export const activityAccessItems: Array<{ key: keyof ActivityAccess; label: string }> = [
+export const activityAccessItems: Array<{ key: string; label: string }> = [
   { key: 'createBudgetPlan', label: 'Create Budget Plan' },
   { key: 'editBudgetPlan', label: 'Edit Budget Plan' },
   { key: 'deleteBudgetPlan', label: 'Delete Budget Plan' },
@@ -69,7 +70,7 @@ export const activityAccessItems: Array<{ key: keyof ActivityAccess; label: stri
   { key: 'deleteUser', label: 'Delete User' },
 ];
 
-export const workspaceManagementAccessItems: Array<{ key: keyof ActivityAccess; label: string }> = [
+export const workspaceManagementAccessItems: Array<{ key: string; label: string }> = [
   { key: 'createDepartment', label: 'Department: Create' },
   { key: 'editDepartment', label: 'Department: Edit' },
   { key: 'deleteDepartment', label: 'Department: Delete' },
