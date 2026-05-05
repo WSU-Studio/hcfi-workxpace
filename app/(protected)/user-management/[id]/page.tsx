@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import { formatDate } from '@/lib/utils';
