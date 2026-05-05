@@ -1,5 +1,6 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import type { ActivityAccess, MenuAccess } from '@/types/access-control';
 
 export default withAuth(
   function middleware(req) {
@@ -15,11 +16,11 @@ export default withAuth(
     }
 
     const access = token.access as {
-      menuAccess: { budgetPlans?: boolean; budgetRequests?: boolean; userManagement?: boolean; workspaceManagement?: boolean };
-      activityAccess: Record<string, boolean>;
+      menuAccess?: Partial<MenuAccess>;
+      activityAccess?: Partial<ActivityAccess>;
     } | undefined;
 
-    const menuAccess = access?.menuAccess ?? {};
+    const menuAccess: Partial<MenuAccess> = access?.menuAccess ?? {};
     const activityAccess = access?.activityAccess ?? {};
 
     if (req.nextUrl.pathname.startsWith('/workspace-management')) {

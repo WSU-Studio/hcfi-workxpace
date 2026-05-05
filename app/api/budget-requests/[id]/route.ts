@@ -255,10 +255,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       });
     });
 
-    const br: any = updated;
+    const br = updated;
 
     const totalRequested = (br.lineItems ?? []).reduce(
-      (sum: number, li: { total?: number | string | null }) => sum + toNumber(li.total),
+      (sum, li) => sum + toNumber(li.total),
       0
     );
 

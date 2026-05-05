@@ -11,6 +11,57 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+async function resolveNotificationUserIds(requestId: string, actorUserId: string) {
+  const request = await prisma.budgetRequest.findUnique({
+    where: { id: requestId },
+    include: { approvalSchema: { include: { approvalLevels: true } } },
+  });
+  if (!request) return [];
+
+  const roleIds = Array.from(new Set((request.approvalSchema?.approvalLevels || []).map((level) => level.roleId)));
+  const users = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { id: request.requestorId || undefined },
+        { roleId: { in: roleIds } },
+        { userRoles: { some: { roleId: { in: roleIds } } } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return Array.from(new Set(users.map((user) => user.id))).filter((id) => id !== actorUserId);
+}
+
+async function createApprovalNotifications(params: {
+  requestId: string;
+  actorUserId: string;
+  status: string;
+  requestCode: string;
+  adjustmentNote?: string | null;
+}) {
+  const recipientIds = await resolveNotificationUserIds(params.requestId, params.actorUserId);
+  if (!recipientIds.length) return;
+
+  const titleByStatus: Record<string, string> = {
+    Reviewed: 'Budget Request Reviewed',
+    Approved: 'Budget Request Approved',
+  };
+  const title = titleByStatus[params.status] || 'Budget Request Updated';
+  const messageBase = `${params.requestCode} status changed to ${params.status}.`;
+  const message = params.adjustmentNote ? `${messageBase} ${params.adjustmentNote}` : messageBase;
+
+  await prisma.notification.createMany({
+    data: recipientIds.map((userId) => ({
+      userId,
+      title,
+      message,
+      type: params.status === 'Approved' ? 'success' : 'info',
+    })),
+  });
+}
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
@@ -173,6 +224,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         opexAllocation: body?.opexAllocationId ?? before?.opexAllocation ?? null,
         qtyUnitPriceAdjustmentNote,
       },
+    });
+    await createApprovalNotifications({
+      requestId: id,
+      actorUserId: session.user.id,
+      status: updated.status,
+      requestCode: before?.code ?? id,
+      adjustmentNote: qtyUnitPriceAdjustmentNote,
     });
     return NextResponse.json({ success: true });
   } catch {
