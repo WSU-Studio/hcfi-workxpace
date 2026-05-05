@@ -27,6 +27,7 @@ const restrictedMenuAccess: MenuAccess = {
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
+  viewOriginOffice: false,
   viewProject: false,
   viewCategory: false,
   viewCategoryKeyIndex: false,

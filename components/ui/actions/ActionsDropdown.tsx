@@ -7,7 +7,7 @@ import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 import { cn } from '@/lib/utils';
 import IconActionButton from '@/components/ui/actions/IconActionButton';
 
-type DropdownAction = {
+export type DropdownAction = {
   label: string;
   icon: LucideIcon;
   onSelect: () => void | boolean | Promise<void | boolean>;
