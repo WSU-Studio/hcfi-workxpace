@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -16,10 +17,12 @@ interface Department {
 }
 
 export default function DepartmentDetailPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const id = params.id as string;
   const [department, setDepartment] = useState<Department | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const canEditDepartment = Boolean(session?.user?.access?.activityAccess?.editDepartment);
 
   useEffect(() => {
     if (!id) return;
@@ -69,14 +72,16 @@ export default function DepartmentDetailPage() {
           <label className="text-sm text-gray-500">Head</label>
           <p className="font-medium">{department.head?.name ?? '-'}</p>
         </div>
-        <div className="pt-4">
-          <Link
-            href={`/workspace-management/department/${id}/edit`}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Edit
-          </Link>
-        </div>
+        {canEditDepartment && (
+          <div className="pt-4">
+            <Link
+              href={`/workspace-management/department/${id}/edit`}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Edit
+            </Link>
+          </div>
+        )}
       </Card>
     </div>
   );

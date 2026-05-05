@@ -4,31 +4,26 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import accountOptions from '@/data/accounts.json';
+import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
 
-async function getUserRoleIds(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+type OriginOfficeMasterDelegate = {
+  findMany: (args: {
     select: {
-      roleId: true,
-      userRoles: { select: { roleId: true } },
-    },
-  });
-  if (!user) return [];
-  return Array.from(new Set([user.roleId, ...user.userRoles.map((ur) => ur.roleId)]));
-}
-
-function getNextApprovalStep(
-  status: string,
-  levels: { stepOrder: number; roleId: string; levelType: string }[]
-) {
-  const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-  if (!ordered.length) return null;
-  if (status === 'Draft') return ordered[0];
-  if (status === 'Reviewed' && ordered.length > 1) return ordered[1];
-  return null;
-}
+      code: true;
+      name: true;
+      isActive: true;
+    };
+    orderBy: Array<{ isActive: 'asc' | 'desc' } | { code: 'asc' | 'desc' }>;
+  }) => Promise<
+    Array<{
+      code: string;
+      name: string;
+      isActive: boolean;
+    }>
+  >;
+};
 
 function isValidReviewTransition(currentStatus: string, nextStatus: string) {
   if (currentStatus === 'Draft') {
@@ -120,7 +115,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
     const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
     const projects = await prisma.project.findMany({ orderBy: { code: 'asc' } });
-    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, histories] = await Promise.all([
+    const originOfficeMaster = (prisma as unknown as {
+      originOfficeMaster: OriginOfficeMasterDelegate;
+    }).originOfficeMaster;
+
+    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, originOffices, histories] = await Promise.all([
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
         include: { department: true, approvalLevels: { include: { role: true } } },
@@ -130,6 +129,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.opexAllocationMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      originOfficeMaster.findMany({
+        select: {
+          code: true,
+          name: true,
+          isActive: true,
+        },
+        orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+      }),
       prisma.activityHistory.findMany({
         where: { entityType: 'BudgetPlan', entityId: id },
         include: { user: { select: { name: true } } },
@@ -140,8 +147,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     let canReview = false;
     let nextStepOrder: number | null = null;
     if (session?.user?.id && plan.approvalSchema?.approvalLevels?.length) {
-      const userRoleIds = await getUserRoleIds(session.user.id);
-      const next = getNextApprovalStep(plan.status, plan.approvalSchema.approvalLevels);
+      const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+      const next = getNextBudgetPlanApprovalStep(plan.status, plan.approvalSchema.approvalLevels);
       nextStepOrder = next?.stepOrder ?? null;
       canReview = !!next && userRoleIds.includes(next.roleId);
     }
@@ -158,6 +165,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       costCenterOptions,
       opexOptions,
       opexAllocationOptions,
+      originOffices,
       histories,
       reviewMeta: { canReview, nextStepOrder },
     });
@@ -173,6 +181,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await request.json();
+    const existing = await prisma.budgetPlan.findUnique({
+      where: { id },
+      select: { id: true, code: true, requestorId: true, status: true },
+    });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (existing.requestorId !== session.user.id) {
+      return NextResponse.json({ error: 'Only requestor can edit this budget plan' }, { status: 403 });
+    }
 
     await prisma.budgetPlan.update({
       where: { id },
@@ -192,11 +208,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         opexId: null,
         opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
         opexType: body.opexType || null,
+        status: 'Draft',
       },
     });
 
     await prisma.budgetPlanAllocation.deleteMany({ where: { budgetPlanId: id } });
     const allocations = body.allocations || [];
+    const selectedMonths = allocations
+      .filter((a: { month: number; allocation: number }) => Number(a?.allocation ?? 0) > 0)
+      .map((a: { month: number }) => a.month)
+      .sort((a: number, b: number) => a - b);
+    const totalAllocation = allocations.reduce(
+      (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
+      0
+    );
     for (let m = 1; m <= 12; m++) {
       const alloc = allocations.find((a: { month: number }) => a.month === m);
       await prisma.budgetPlanAllocation.create({
@@ -205,6 +230,37 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           month: m,
           allocation: alloc?.allocation ?? 0,
         },
+      });
+    }
+
+    await logActivity({
+      userId: session.user.id,
+      entityType: 'BudgetPlan',
+      entityId: id,
+      entityCode: existing.code,
+      action: 'update',
+      details: {
+        status: 'Draft',
+        previousStatus: existing.status,
+        note: 'Plan updated by requestor. Approval restarted from step 1.',
+        subject: body.subject ?? null,
+        fiscalYear: body.fiscalYear ?? null,
+        originOffice: body.originOffice ?? null,
+        departmentId: body.departmentId ?? null,
+        projectId: body.projectId ?? null,
+        approvalSchemaId: body.approvalSchemaId ?? null,
+        monthCount: selectedMonths.length,
+        selectedMonths,
+        totalAllocation,
+      },
+    });
+
+    if (existing.status !== 'Draft') {
+      await createApprovalNotifications({
+        planId: id,
+        actorUserId: session.user.id,
+        status: 'Draft',
+        planCode: existing.code,
       });
     }
 
@@ -222,28 +278,40 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await request.json();
     if (body.status) {
+      const trackedFields = [
+        'status',
+        'coaId',
+        'categoryId',
+        'categoryKeyIndexId',
+        'costCenterId',
+        'opexType',
+        'opexAllocationId',
+      ] as const;
       const before = await prisma.budgetPlan.findUnique({
         where: { id },
-        include: { approvalSchema: { include: { approvalLevels: true } } },
+        include: {
+          approvalSchema: { include: { approvalLevels: true } },
+          allocations: true,
+        },
       });
       if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
       if (['Reviewed', 'Approved', 'Revision', 'Declined'].includes(body.status)) {
         const levels = before.approvalSchema?.approvalLevels ?? [];
-        const next = getNextApprovalStep(before.status, levels);
+        const next = getNextBudgetPlanApprovalStep(before.status, levels);
         if (!isValidReviewTransition(before.status, body.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
         }
         if (!next) {
           return NextResponse.json({ error: 'No available review step' }, { status: 400 });
         }
-        const userRoleIds = await getUserRoleIds(session.user.id);
+        const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
         if (!userRoleIds.includes(next.roleId)) {
           return NextResponse.json({ error: 'You are not allowed to review at this stage' }, { status: 403 });
         }
       }
 
-      await prisma.budgetPlan.update({
+      const updated = await prisma.budgetPlan.update({
         where: { id },
         data: {
           status: body.status,
@@ -255,7 +323,90 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId ?? undefined : null,
           opexType: body.opexType ?? undefined,
         },
+        select: {
+          status: true,
+          coaId: true,
+          categoryId: true,
+          categoryKeyIndexId: true,
+          costCenterId: true,
+          opexType: true,
+          opexAllocationId: true,
+        },
       });
+
+      let allocationAdjusted = false;
+      if (Array.isArray(body.allocations)) {
+        const incomingAllocationMap = new Map<number, number>();
+        body.allocations.forEach((item: { month: number; allocation: unknown }) => {
+          incomingAllocationMap.set(Number(item.month), Number(item.allocation ?? 0));
+        });
+        allocationAdjusted = [...Array(12)].some((_, index) => {
+          const month = index + 1;
+          const beforeValue =
+            Number(before.allocations.find((allocation) => allocation.month === month)?.allocation ?? 0);
+          const afterValue = Number(incomingAllocationMap.get(month) ?? 0);
+          return beforeValue !== afterValue;
+        });
+
+        await prisma.budgetPlanAllocation.deleteMany({ where: { budgetPlanId: id } });
+        for (let month = 1; month <= 12; month++) {
+          const allocationEntry = body.allocations.find((item: { month: number }) => item.month === month);
+          await prisma.budgetPlanAllocation.create({
+            data: {
+              budgetPlanId: id,
+              month,
+              allocation: Number(allocationEntry?.allocation ?? 0),
+            },
+          });
+        }
+      }
+
+      const beforeState: Record<string, unknown> = {
+        status: before.status,
+        coaId: before.coaId,
+        categoryId: before.categoryId,
+        categoryKeyIndexId: before.categoryKeyIndexId,
+        costCenterId: before.costCenterId,
+        opexType: before.opexType,
+        opexAllocationId: before.opexAllocationId,
+      };
+
+      const afterState: Record<string, unknown> = {
+        status: updated.status,
+        coaId: updated.coaId,
+        categoryId: updated.categoryId,
+        categoryKeyIndexId: updated.categoryKeyIndexId,
+        costCenterId: updated.costCenterId,
+        opexType: updated.opexType,
+        opexAllocationId: updated.opexAllocationId,
+      };
+
+      const previousState: Record<string, unknown> = {};
+      const currentState: Record<string, unknown> = {};
+      trackedFields.forEach((field) => {
+        const prevValue = beforeState[field] ?? null;
+        const currValue = afterState[field] ?? null;
+        if (prevValue !== currValue) {
+          previousState[field] = prevValue;
+          currentState[field] = currValue;
+        }
+      });
+
+      if (body.declineReason !== undefined) {
+        previousState.declineReason = null;
+        currentState.declineReason = body.declineReason ?? null;
+      }
+      const allocationAdjustmentNote = allocationAdjusted
+        ? body.status === 'Approved'
+          ? 'Approved with allocation adjustment.'
+          : body.status === 'Reviewed'
+            ? 'Reviewed with allocation adjustment.'
+            : 'Allocation adjustment done during review process.'
+        : null;
+      if (allocationAdjusted) {
+        currentState.allocationAdjustmentNote = allocationAdjustmentNote;
+      }
+
       await logActivity({
         userId: session.user.id,
         entityType: 'BudgetPlan',
@@ -263,8 +414,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         entityCode: before.code,
         action: body.status === 'Approved' ? 'approve' : body.status === 'Reviewed' ? 'review' : 'update',
         details: {
-          status: body.status,
-          declineReason: body.declineReason ?? null,
+          previousState,
+          currentState,
+          allocationAdjustmentNote,
         },
       });
 

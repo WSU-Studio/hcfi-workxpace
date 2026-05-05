@@ -4,6 +4,15 @@ export interface MenuAccess {
   budgetRequests: boolean;
   userManagement: boolean;
   workspaceManagement: boolean;
+  viewDepartment: boolean;
+  viewOriginOffice: boolean;
+  viewProject: boolean;
+  viewCategory: boolean;
+  viewCategoryKeyIndex: boolean;
+  viewCostCenter: boolean;
+  viewRole: boolean;
+  viewApprovalSchema: boolean;
+  viewActivityHistory: boolean;
 }
 
 export interface ActivityAccess {
@@ -16,6 +25,9 @@ export interface ActivityAccess {
   createDepartment: boolean;
   editDepartment: boolean;
   deleteDepartment: boolean;
+  createOriginOffice: boolean;
+  editOriginOffice: boolean;
+  deleteOriginOffice: boolean;
   createProject: boolean;
   editProject: boolean;
   deleteProject: boolean;
@@ -25,6 +37,15 @@ export interface ActivityAccess {
   createApprovalSchema: boolean;
   editApprovalSchema: boolean;
   deleteApprovalSchema: boolean;
+  createCategory: boolean;
+  editCategory: boolean;
+  deleteCategory: boolean;
+  createCategoryKeyIndex: boolean;
+  editCategoryKeyIndex: boolean;
+  deleteCategoryKeyIndex: boolean;
+  createCostCenter: boolean;
+  editCostCenter: boolean;
+  deleteCostCenter: boolean;
   createUser: boolean;
   editUser: boolean;
   deleteUser: boolean;

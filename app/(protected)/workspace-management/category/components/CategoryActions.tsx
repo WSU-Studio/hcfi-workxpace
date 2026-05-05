@@ -9,9 +9,11 @@ import { iconActionButtonClassName } from '@/components/ui/actions/IconActionBut
 interface CategoryActionsProps {
   categoryId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function CategoryActions({ categoryId, onDelete }: CategoryActionsProps) {
+export default function CategoryActions({ categoryId, onDelete, canEdit, canDelete }: CategoryActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,13 +38,15 @@ export default function CategoryActions({ categoryId, onDelete }: CategoryAction
       <Link href={`/workspace-management/category/${categoryId}`} className={iconActionButtonClassName}>
         <Eye className="w-4 h-4" />
       </Link>
-      <ActionsDropdown
-        triggerAriaLabel="Open category actions"
-        actions={[
-          { label: 'Edit', icon: Edit, onSelect: () => router.push(`/workspace-management/category/${categoryId}/edit`) },
-          { label: 'Delete', icon: Trash, variant: 'danger', onSelect: handleDelete },
-        ]}
-      />
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open category actions"
+          actions={[
+            ...(canEdit ? [{ label: 'Edit', icon: Edit, onSelect: () => router.push(`/workspace-management/category/${categoryId}/edit`) }] : []),
+            ...(canDelete ? [{ label: 'Delete', icon: Trash, variant: 'danger' as const, onSelect: handleDelete }] : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

@@ -9,9 +9,11 @@ import { iconActionButtonClassName } from '@/components/ui/actions/IconActionBut
 interface CostCenterActionsProps {
   costCenterId: string;
   onDelete: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-export default function CostCenterActions({ costCenterId, onDelete }: CostCenterActionsProps) {
+export default function CostCenterActions({ costCenterId, onDelete, canEdit, canDelete }: CostCenterActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,13 +38,19 @@ export default function CostCenterActions({ costCenterId, onDelete }: CostCenter
       <Link href={`/workspace-management/cost-center/${costCenterId}`} className={iconActionButtonClassName}>
         <Eye className="w-4 h-4" />
       </Link>
-      <ActionsDropdown
-        triggerAriaLabel="Open cost center actions"
-        actions={[
-          { label: 'Edit', icon: Edit, onSelect: () => router.push(`/workspace-management/cost-center/${costCenterId}/edit`) },
-          { label: 'Delete', icon: Trash, variant: 'danger', onSelect: handleDelete },
-        ]}
-      />
+      {(canEdit || canDelete) && (
+        <ActionsDropdown
+          triggerAriaLabel="Open cost center actions"
+          actions={[
+            ...(canEdit
+              ? [{ label: 'Edit', icon: Edit, onSelect: () => router.push(`/workspace-management/cost-center/${costCenterId}/edit`) }]
+              : []),
+            ...(canDelete
+              ? [{ label: 'Delete', icon: Trash, variant: 'danger' as const, onSelect: handleDelete }]
+              : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

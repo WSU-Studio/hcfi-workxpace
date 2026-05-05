@@ -303,6 +303,20 @@ model CostCenterMaster {
   @@map("cost_center_masters")
 }
 
+model OriginOfficeMaster {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  address    String?
+  officeType String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([name])
+  @@map("origin_office_masters")
+}
+
 model OpexMaster {
   id          String      @id @default(cuid())
   name        String      @unique
@@ -348,10 +362,19 @@ model BudgetRequest {
   requestorId      String?
   requestDate      DateTime
   status           String                 @default("Draft") // Draft | Pending | Approved
+  totalAmount      Decimal                @default(0) @db.Decimal(18, 2)
+  vatPercent       Decimal                @default(11) @db.Decimal(5, 2)
+  vatAmount        Decimal                @default(0) @db.Decimal(18, 2)
+  whtPercent       Decimal                @default(2) @db.Decimal(5, 2)
+  whtAmount        Decimal                @default(0) @db.Decimal(18, 2)
+  invoiceAmount    Decimal                @default(0) @db.Decimal(18, 2)
+  grandTotal       Decimal                @default(0) @db.Decimal(18, 2)
   approvalSchemaId String?
   notes            String?                @db.Text
   supportingDocs   Json?
   category         String?
+  categoryKeyIndex String?
+  costCenter       String?
   coa              String?
   type             String?                // OPEX etc
   opexAllocation   String?
@@ -362,11 +385,26 @@ model BudgetRequest {
   department       Department             @relation(fields: [departmentId], references: [id])
   approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
   lineItems        BudgetRequestLineItem[]
+  allocations      BudgetRequestAllocation[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+model BudgetRequestAllocation {
+  id              String        @id @default(cuid())
+  budgetRequestId String
+  year            Int
+  month           Int           // 1-12
+  allocation      Decimal       @db.Decimal(18, 2)
+  budgetRequest   BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetRequestId, year, month])
+  @@index([budgetRequestId])
+  @@index([year, month])
+  @@map("budget_request_allocations")
 }
 
 model BudgetRequestLineItem {

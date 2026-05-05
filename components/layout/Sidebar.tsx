@@ -9,20 +9,30 @@ import { useSession } from 'next-auth/react';
 import { IconBriefcaseFilled, IconCoins, IconId, IconLayoutDashboardFilled, IconSubtask, IconLogout } from '@tabler/icons-react';
 import Logo from '@/public/workxpace-logo.svg';
 import FullLogo from '@/public/workxpace-full-logo.svg';
+import { MenuAccess } from '@/types/access-control';
+
+const restrictedMenuAccess: MenuAccess = {
+  dashboard: false,
+  budgetPlans: false,
+  budgetRequests: false,
+  userManagement: false,
+  workspaceManagement: false,
+  viewDepartment: false,
+  viewProject: false,
+  viewCategory: false,
+  viewCategoryKeyIndex: false,
+  viewCostCenter: false,
+  viewRole: false,
+  viewApprovalSchema: false,
+  viewActivityHistory: false,
+};
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { data: session, status } = useSession();
 
-  const defaultAccess = {
-    dashboard: true,
-    budgetPlans: true,
-    budgetRequests: true,
-    userManagement: true,
-    workspaceManagement: true,
-  };
-  const menuAccess = (session?.user as { access?: { menuAccess?: typeof defaultAccess } })?.access?.menuAccess ?? defaultAccess;
+  const menuAccess = (session?.user as { access?: { menuAccess?: MenuAccess } })?.access?.menuAccess ?? restrictedMenuAccess;
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboardFilled, show: menuAccess.dashboard },

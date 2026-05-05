@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, Import, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
@@ -15,9 +16,51 @@ interface Plan {
   code: string;
   subject: string;
   status: string;
+  canEdit?: boolean;
+  canReview?: boolean;
   department: { name: string };
   allocations?: { allocation: unknown }[];
 }
+
+interface EditWarningModalProps {
+  isOpen: boolean;
+  planSubject?: string;
+  onCancel: () => void;
+  onContinue: () => void;
+}
+
+const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          The status of the budget plan
+          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
+          the initial status and needs to go through the approval process again.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface ImportPreviewRow {
   fiscalYear: number;
@@ -42,16 +85,34 @@ interface ImportPreviewRow {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Revision', 'Declined'] as const;
+const SORT_OPTIONS = [
+  { value: 'createdAt-desc', label: 'Newest first' },
+  { value: 'createdAt-asc', label: 'Oldest first' },
+  { value: 'subject-asc', label: 'Subject (A-Z)' },
+  { value: 'subject-desc', label: 'Subject (Z-A)' },
+  { value: 'code-asc', label: 'Code (A-Z)' },
+  { value: 'code-desc', label: 'Code (Z-A)' },
+  { value: 'total-desc', label: 'Total budget (High-Low)' },
+  { value: 'total-asc', label: 'Total budget (Low-High)' },
+] as const;
 
-const REVIEW_NAV_STATUSES = new Set(['Draft', 'Reviewed', 'Approved', 'Revision', 'Declined', 'Pending']);
+const getPlanTotal = (p: Plan) => {
+  if (!p.allocations?.length) return 0;
+  return p.allocations.reduce((sum, a) => sum + Number(a.allocation ?? 0), 0);
+};
 
 export default function BudgetPlansPage() {
+  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [filtered, setFiltered] = useState<Plan[]>([]);
   const [, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
+  const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -65,7 +126,7 @@ export default function BudgetPlansPage() {
 
 
   const fetchData = async () => {
-    const res = await fetch('/api/budget-plans');
+    const res = await fetch('/api/budget-plans', { credentials: 'include' });
     const data = await res.json();
     const list = data.plans || [];
     setPlans(list);
@@ -78,17 +139,38 @@ export default function BudgetPlansPage() {
   }, []);
 
   useEffect(() => {
-    if (!searchKeyword.trim()) setFiltered(plans);
-    else {
-      const kw = searchKeyword.toLowerCase();
-      setFiltered(plans.filter((p) => p.subject?.toLowerCase().includes(kw) || p.code?.toLowerCase().includes(kw) || p.department?.name?.toLowerCase().includes(kw)));
-    }
+    const kw = searchKeyword.trim().toLowerCase();
+    const [sortField, sortDirection] = sortBy.split('-') as [string, 'asc' | 'desc'];
+    const sortedAndFiltered = [...plans]
+      .filter((p) => {
+        const matchesKeyword =
+          !kw ||
+          p.subject?.toLowerCase().includes(kw) ||
+          p.code?.toLowerCase().includes(kw) ||
+          p.department?.name?.toLowerCase().includes(kw);
+        const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+        return matchesKeyword && matchesStatus;
+      })
+      .sort((a, b) => {
+        let compare = 0;
+
+        if (sortField === 'subject') {
+          compare = (a.subject ?? '').localeCompare(b.subject ?? '');
+        } else if (sortField === 'code') {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
+        } else if (sortField === 'total') {
+          compare = getPlanTotal(a) - getPlanTotal(b);
+        }
+
+        return sortDirection === 'asc' ? compare : -compare;
+      });
+
+    setFiltered(sortedAndFiltered);
     setCurrentPage(1);
-  }, [searchKeyword, plans]);
+  }, [searchKeyword, plans, statusFilter, sortBy]);
 
   const getTotal = (p: Plan) => {
-    if (!p.allocations?.length) return 0;
-    return p.allocations.reduce((sum, a) => sum + Number(a.allocation ?? 0), 0);
+    return getPlanTotal(p);
   };
 
   const getMonthsLabel = (p: Plan) => {
@@ -204,12 +286,36 @@ const handleImportRows = async () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Budget Plans</h1>
-      <div className="flex justify-between gap-4">
-        <SearchInput 
-          placeholder="Search..."
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-        />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            placeholder="Search..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_FILTERS)[number])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {STATUS_FILTERS.map((status) => (
+              <option key={status} value={status}>
+                {status === 'All' ? 'All statuses' : status}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as (typeof SORT_OPTIONS)[number]['value'])}
+            className="h-10 rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer hover:border-blue-500"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex items-center gap-2">
           <Link
             href="/budget-plans/new"
@@ -254,7 +360,11 @@ const handleImportRows = async () => {
                   <TableCell>{p.code}</TableCell>
                   <TableCell>{p.subject}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-0.5 rounded text-sm ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}>
+                    <span className={`px-2 py-0.5 rounded text-sm 
+                      ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : 
+                      p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                      p.status === 'Revision' ? 'bg-amber-100 text-amber-800' :
+                      p.status === 'Declined' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
                       {p.status}
                     </span>
                   </TableCell>
@@ -263,17 +373,27 @@ const handleImportRows = async () => {
                   <TableCell>{getMonthsLabel(p)}</TableCell>
                   <TableCell>
                     <Link href={`/budget-plans/${p.id}`} className="text-blue-600 hover:underline">View</Link>
-                    {p.status === 'Draft' && (
+                    {p.canEdit ? (
                       <>
                         {' | '}
-                        <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                        {p.status === 'Approved' ? (
+                          <button
+                            type="button"
+                            onClick={() => setPlanToConfirmEdit(p)}
+                            className="text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <Link href={`/budget-plans/${p.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                        )}
                       </>
-                    )}
-                    {REVIEW_NAV_STATUSES.has(p.status) ? (
+                    ) : null}
+                    {p.canReview ? (
                       <>
                         {' | '}
                         <Link href={`/budget-plans/${p.id}/review`} className="text-blue-600 hover:underline">
-                          {p.status === 'Draft' || p.status === 'Reviewed' ? 'Review' : 'Review (read-only)'}
+                          Review
                         </Link>
                       </>
                     ) : null}
@@ -285,6 +405,17 @@ const handleImportRows = async () => {
         </Table>
       </Card>
       <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <EditWarningModal
+        isOpen={Boolean(planToConfirmEdit)}
+        planSubject={planToConfirmEdit?.subject}
+        onCancel={() => setPlanToConfirmEdit(null)}
+        onContinue={() => {
+          if (!planToConfirmEdit) return;
+          const planId = planToConfirmEdit.id;
+          setPlanToConfirmEdit(null);
+          router.push(`/budget-plans/${planId}/edit`);
+        }}
+      />
     
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

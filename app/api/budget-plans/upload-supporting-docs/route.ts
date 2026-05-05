@@ -1,0 +1,88 @@
+import { randomUUID } from 'crypto';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { getS3Client, getS3PublicUrl } from '@/lib/s3';
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9.\-_]/g, '-');
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const bucket = process.env.AWS_S3_BUCKET;
+    const region = process.env.AWS_REGION;
+    if (!bucket || !region) {
+      return NextResponse.json(
+        { error: 'AWS bucket configuration is missing' },
+        { status: 400 }
+      );
+    }
+
+    const formData = await request.formData();
+    const files = formData.getAll('files').filter((entry): entry is File => entry instanceof File);
+
+    if (files.length === 0) {
+      return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
+    }
+
+    if (files.length > 10) {
+      return NextResponse.json(
+        { error: 'Maximum 10 files are allowed per upload' },
+        { status: 400 }
+      );
+    }
+
+    const s3Client = getS3Client();
+    const uploaded = await Promise.all(
+      files.map(async (file) => {
+        if (!ALLOWED_MIME_TYPES.has(file.type)) {
+          throw new Error(`File type is not allowed: ${file.name}`);
+        }
+
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          throw new Error(`File is too large (max 10MB): ${file.name}`);
+        }
+
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        const key = `budget-plans/supporting-docs/${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name)}`;
+
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: fileBuffer,
+            ContentType: file.type || 'application/octet-stream',
+          })
+        );
+
+        return {
+          fileName: file.name,
+          url: getS3PublicUrl(bucket, region, key),
+        };
+      })
+    );
+
+    return NextResponse.json({ files: uploaded });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to upload files';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

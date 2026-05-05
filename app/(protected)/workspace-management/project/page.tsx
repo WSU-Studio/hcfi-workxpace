@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -12,6 +13,7 @@ import { Project } from '@/types/project';
 import ProjectActions from './components/ProjectActions';
 
 export default function ProjectPage() {
+  const { data: session } = useSession();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +22,9 @@ export default function ProjectPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const itemsPerPage = 10;
+  const canCreateProject = Boolean(session?.user?.access?.activityAccess?.createProject);
+  const canEditProject = Boolean(session?.user?.access?.activityAccess?.editProject);
+  const canDeleteProject = Boolean(session?.user?.access?.activityAccess?.deleteProject);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentProjects = filteredProjects.slice(startIndex, startIndex + itemsPerPage);
 
@@ -76,13 +81,15 @@ export default function ProjectPage() {
       <h1 className="text-2xl font-semibold">Project</h1>
       <div className="flex items-center justify-between gap-4">
         <SearchInput value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
-        <Link
-          href="/workspace-management/project/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Project
-        </Link>
+        {canCreateProject && (
+          <Link
+            href="/workspace-management/project/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Project
+          </Link>
+        )}
       </div>
 
       {error && <div className="text-red-500 py-4">{error}</div>}
@@ -109,7 +116,12 @@ export default function ProjectPage() {
                   <TableCell>{project.name}</TableCell>
                   <TableCell>{project.description || '-'}</TableCell>
                   <TableCell>
-                    <ProjectActions projectId={project.id} onDelete={refetch} />
+                    <ProjectActions
+                      projectId={project.id}
+                      onDelete={refetch}
+                      canEdit={canEditProject}
+                      canDelete={canDeleteProject}
+                    />
                   </TableCell>
                 </TableBodyRow>
               ))

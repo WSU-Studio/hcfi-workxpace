@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -10,10 +11,12 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 type CategoryKeyIndex = { id: string; name: string; description: string | null };
 
 export default function CategoryKeyIndexDetailPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const id = params.id as string;
   const [categoryKeyIndex, setCategoryKeyIndex] = useState<CategoryKeyIndex | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const canEditCategoryKeyIndex = Boolean(session?.user?.access?.activityAccess?.editCategoryKeyIndex);
 
   useEffect(() => {
     if (!id) return;
@@ -43,11 +46,13 @@ export default function CategoryKeyIndexDetailPage() {
           <label className="text-sm text-gray-500">Description</label>
           <p className="text-gray-700">{categoryKeyIndex.description || '-'}</p>
         </div>
-        <div className="pt-4">
-          <Link href={`/workspace-management/category-key-index/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Edit
-          </Link>
-        </div>
+        {canEditCategoryKeyIndex && (
+          <div className="pt-4">
+            <Link href={`/workspace-management/category-key-index/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              Edit
+            </Link>
+          </div>
+        )}
       </Card>
     </div>
   );

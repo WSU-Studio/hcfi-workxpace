@@ -9,6 +9,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
+import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -21,11 +22,13 @@ export default function NewBudgetPlanPage() {
   const [departments, setDepartments] = useState<{ id: string; name: string; code: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
   const [approvalSchemas, setApprovalSchemas] = useState<{ id: string; name: string; departmentId: string }[]>([]);
+  const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [formData, setFormData] = useState({
     fiscalYear: new Date().getFullYear(),
-    originOffice: 'HQ',
+    originOffice: '',
     departmentId: '',
     projectId: '',
     subject: '',
@@ -35,26 +38,12 @@ export default function NewBudgetPlanPage() {
   const [allocations, setAllocations] = useState<Record<number, number>>(
     Object.fromEntries([...Array(12)].map((_, i) => [i + 1, 0]))
   );
-  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const [baseAmount, setBaseAmount] = useState<string>('');
   const [error, setError] = useState('');
 
   const selectedMonthsSorted = [...selectedMonths].sort((a, b) => a - b);
   const totalAlloc = selectedMonthsSorted.reduce((sum, m) => sum + (allocations[m] || 0), 0);
-
-  const toggleMonth = (month: number) => {
-    setSelectedMonths((prev) => {
-      const next = new Set(prev);
-      if (next.has(month)) next.delete(month);
-      else next.add(month);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedMonths.size === 12) setSelectedMonths(new Set());
-    else setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
-  };
 
   const parseBaseAmount = (s: string) => {
     const cleaned = s.replace(/\./g, '').replace(',', '.');
@@ -89,9 +78,16 @@ export default function NewBudgetPlanPage() {
         setDepartments(data.departments || []);
         setProjects(data.projects || []);
         setApprovalSchemas(data.approvalSchemas || []);
+        setOriginOffices(data.originOffices || []);
         if (data.fiscalYears?.[0]) setFormData((p) => ({ ...p, fiscalYear: data.fiscalYears[0].year }));
         if (data.departments?.[0]) setFormData((p) => ({ ...p, departmentId: data.departments[0].id }));
         if (data.projects?.[0]) setFormData((p) => ({ ...p, projectId: data.projects[0].id }));
+        if (data.originOffices?.length) {
+          const activeFirst = data.originOffices.find((office: { isActive: boolean }) => office.isActive) || data.originOffices[0];
+          setFormData((p) => ({ ...p, originOffice: activeFirst.code }));
+        } else {
+          setFormData((p) => ({ ...p, originOffice: 'HQ' }));
+        }
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -111,11 +107,32 @@ export default function NewBudgetPlanPage() {
     }
     setIsSubmitting(true);
     try {
+      let supportingDocs: string[] = [];
+      if (attachmentFiles.length > 0) {
+        setIsUploadingAttachments(true);
+        const uploadFormData = new FormData();
+        attachmentFiles.forEach((file) => uploadFormData.append('files', file));
+
+        const uploadRes = await fetch('/api/budget-plans/upload-supporting-docs', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+
+        const uploadBody = await uploadRes.json();
+        if (!uploadRes.ok) {
+          setError(uploadBody.error ?? 'Failed to upload supporting documents');
+          return;
+        }
+
+        supportingDocs = (uploadBody.files ?? []).map((item: { url: string }) => item.url);
+      }
+
       const res = await fetch('/api/budget-plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          supportingDocs,
           allocations: selectedMonthsSorted.map((month) => ({
             month,
             allocation: allocations[month] ?? 0,
@@ -131,6 +148,7 @@ export default function NewBudgetPlanPage() {
     } catch {
       setError('Failed');
     } finally {
+      setIsUploadingAttachments(false);
       setIsSubmitting(false);
     }
   };
@@ -157,14 +175,35 @@ export default function NewBudgetPlanPage() {
               </Select>
             </div>
             <div>
-              <label className="block mb-1.5 font-medium">Origin Office</label>
-              <Input
-                type="text"
-                value={formData.originOffice}
-                onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
-                placeholder="HQ"
-                required
-              />
+              <label className="block mb-1.5 font-medium">Origin Office *</label>
+              {originOffices.length > 0 ? (
+                <Select
+                  value={formData.originOffice}
+                  onChange={(e) => setFormData((p) => ({ ...p, originOffice: e.target.value }))}
+                  required
+                >
+                  <option value="">-</option>
+                  {originOffices.map((office) => (
+                    <option key={office.code} value={office.code}>
+                      {office.code} - {office.name}
+                      {office.isActive ? '' : ' (Inactive)'}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  type="text"
+                  value={formData.originOffice}
+                  onChange={(e) =>
+                    setFormData((previous) => ({
+                      ...previous,
+                      originOffice: e.target.value,
+                    }))
+                  }
+                  placeholder="HQ"
+                  required
+                />
+              )}
             </div>
             <div>
               <label className="block mb-1.5 font-medium">Department *</label>
@@ -211,52 +250,42 @@ export default function NewBudgetPlanPage() {
             />
           </div>
           <div>
-            <label className="block mb-1.5 font-medium">Upload Files</label>
+            <label className="block mb-1.5 font-medium">Supporting Documents</label>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <label className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition w-fit">
-                Browse
+                Upload Documents
                 <input
                   type="file"
                   className="hidden"
-                  onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                  multiple
+                  onChange={(e) => setAttachmentFiles(Array.from(e.target.files || []))}
                 />
               </label>
 
               <span className="text-sm text-gray-500 max-w-[300px] truncate">
-                {attachmentFile ? attachmentFile.name : 'No file selected'}
+                {attachmentFiles.length > 0
+                  ? `${attachmentFiles.length} file selected`
+                  : 'No file selected'}
               </span>
             </div>
+            {attachmentFiles.length > 0 && (
+              <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <ul className="space-y-1 text-sm text-gray-700">
+                  {attachmentFiles.map((file) => (
+                    <li key={`${file.name}-${file.lastModified}`} className="truncate">
+                      {file.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div>
             <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
-            <div className="flex items-center gap-4 mb-3">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selectedMonths.size === 12}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium">select all</span>
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {MONTH_NAMES.map((name, i) => {
-                  const month = i + 1;
-                  return (
-                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedMonths.has(month)}
-                        onChange={() => toggleMonth(month)}
-                        className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">{name}</span>
-                    </label>
-                  );
-                })}
-              </div>
+            <div className="mb-4">
+              <MonthChecklistSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} showSelectAll />
             </div>
 
             <div className="flex items-center gap-2 mb-4">
@@ -339,8 +368,8 @@ export default function NewBudgetPlanPage() {
               <X className="w-4 h-4" />
               Cancel
             </ButtonLink>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {isSubmitting ? 'Submitting...' : 'Submit'}
+            <button type="submit" disabled={isSubmitting || isUploadingAttachments} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {isUploadingAttachments ? 'Uploading documents...' : isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
           </div>
         </form>

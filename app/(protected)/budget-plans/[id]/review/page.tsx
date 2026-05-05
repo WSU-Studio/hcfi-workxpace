@@ -8,6 +8,7 @@ import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
+import Input from '@/components/ui/Input';
 import { PenSquare } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
@@ -40,6 +41,7 @@ export default function ReviewBudgetPlanPage() {
     approvalSchema?: { approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } }[] };
   } | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string; description: string }[]>([]);
+  const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [costCenterOptions, setCostCenterOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
@@ -48,7 +50,11 @@ export default function ReviewBudgetPlanPage() {
   const [histories, setHistories] = useState<{
     id: string;
     action: string;
-    details: { status?: string; declineReason?: string | null } | null;
+    details: {
+      status?: string;
+      declineReason?: string | null;
+      allocationAdjustmentNote?: string | null;
+    } | null;
     timestamp: string;
     user: { name: string };
   }[]>([]);
@@ -60,6 +66,9 @@ export default function ReviewBudgetPlanPage() {
     opexAllocationId: '',
     opexType: 'OPEX',
   });
+  const [allocations, setAllocations] = useState<Record<number, number>>(
+    Object.fromEntries([...Array(12)].map((_, index) => [index + 1, 0]))
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
@@ -77,6 +86,7 @@ export default function ReviewBudgetPlanPage() {
           setLoadError(typeof body?.error === 'string' ? body.error : `Could not load plan (${r.status})`);
           setPlan(null);
           setAccountOptions([]);
+          setOriginOffices([]);
           setCategoryOptions([]);
           setCategoryKeyIndexOptions([]);
           setCostCenterOptions([]);
@@ -89,6 +99,7 @@ export default function ReviewBudgetPlanPage() {
         const p = data?.plan;
         setPlan(p);
         setAccountOptions(data?.accountOptions || []);
+        setOriginOffices(data?.originOffices || []);
         setCategoryOptions(data?.categoryOptions || []);
         setCategoryKeyIndexOptions(data?.categoryKeyIndexOptions || []);
         setCostCenterOptions(data?.costCenterOptions || []);
@@ -96,6 +107,13 @@ export default function ReviewBudgetPlanPage() {
         setReviewMeta(data?.reviewMeta || { canReview: false, nextStepOrder: null });
         setHistories(data?.histories || []);
         if (p) {
+          const nextAllocations: Record<number, number> = Object.fromEntries(
+            [...Array(12)].map((_, index) => [index + 1, 0])
+          );
+          (p.allocations || []).forEach((allocation: { month: number; allocation: unknown }) => {
+            nextAllocations[allocation.month] = Number(allocation.allocation ?? 0);
+          });
+          setAllocations(nextAllocations);
           setClassification({
             coaId: p.coaId || '',
             categoryId: p.categoryId || '',
@@ -109,6 +127,7 @@ export default function ReviewBudgetPlanPage() {
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
+        setOriginOffices([]);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -147,6 +166,10 @@ export default function ReviewBudgetPlanPage() {
           opexId: null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
           opexType: classification.opexType || null,
+          allocations: [...Array(12)].map((_, index) => ({
+            month: index + 1,
+            allocation: allocations[index + 1] ?? 0,
+          })),
         }),
       });
       if (res.ok) {
@@ -174,6 +197,10 @@ export default function ReviewBudgetPlanPage() {
           opexId: null,
           opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
           opexType: classification.opexType || null,
+          allocations: [...Array(12)].map((_, index) => ({
+            month: index + 1,
+            allocation: allocations[index + 1] ?? 0,
+          })),
         }),
       });
       if (res.ok) {
@@ -190,9 +217,27 @@ export default function ReviewBudgetPlanPage() {
   if (loadError) return <div className="text-red-500">{loadError}</div>;
   if (!plan) return <div className="text-red-500">Not found</div>;
 
-  const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const allocationRows = [...Array(12)].map((_, index) => ({
+    month: index + 1,
+    allocation: allocations[index + 1] ?? 0,
+  }));
+  const total = allocationRows.reduce((sum, allocation) => sum + allocation.allocation, 0);
+  const selectedOriginOffice = plan.originOffice
+    ? originOffices.find((office) => office.code === plan.originOffice)
+    : null;
+  const originOfficeLabel = selectedOriginOffice
+    ? `${selectedOriginOffice.code} - ${selectedOriginOffice.name}`
+    : (plan.originOffice || '-');
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
   const canEditClassification = canTakeAction;
+  const formatDateTime = (date: string) =>
+    new Date(date).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -200,24 +245,30 @@ export default function ReviewBudgetPlanPage() {
       <h1 className="text-2xl font-semibold">Review Budget Plan</h1>
 
       <Card className="p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-4">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
-          <div><span className="text-gray-500">Origin Office:</span> {plan.originOffice || '-'}</div>
+          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Subject:</span>
+            <p className="font-medium">{plan.subject}</p>
+          </div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Description:</span>
+            <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+          </div>
         </div>
-        <div>
-          <span className="text-gray-500">Subject:</span>
-          <p className="font-medium">{plan.subject}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Description:</span>
-          <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
-        </div>
+      </Card>
 
+      <Card
+        collapsible
+        header={
+          <h3 className="font-medium">Monthly Allocation</h3>
+        }
+      >
         <div>
-          <h3 className="font-medium mb-2">Monthly Allocation</h3>
           <Table>
             <thead>
               <TableHeaderRow>  
@@ -227,11 +278,27 @@ export default function ReviewBudgetPlanPage() {
               </TableHeaderRow>
             </thead>
             <tbody>
-              {(plan.allocations || []).map((a, i) => (
+              {allocationRows.map((a, i) => (
                 <TableBodyRow key={a.month}>
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
-                  <TableCell>{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                  <TableCell>
+                    {canEditClassification ? (
+                      <Input
+                        type="number"
+                        value={a.allocation}
+                        onChange={(e) =>
+                          setAllocations((previous) => ({
+                            ...previous,
+                            [a.month]: Number(e.target.value) || 0,
+                          }))
+                        }
+                        className="max-w-[180px]"
+                      />
+                    ) : (
+                      formatCurrency(Number(a.allocation ?? 0))
+                    )}
+                  </TableCell>
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">
@@ -242,7 +309,7 @@ export default function ReviewBudgetPlanPage() {
           </Table>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 mt-8">
           <h3 className="font-medium">Classification</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
@@ -345,10 +412,14 @@ export default function ReviewBudgetPlanPage() {
             ) : null}
           </div>
         </div>
-
+      </Card>
+        
+      <div>
         {plan.approvalSchema?.approvalLevels?.length ? (
-          <div>
-            <h3 className="font-medium mb-2">Approval Escalation</h3>
+          <Card
+            collapsible
+            header={<h3 className="font-medium">Approval Escalation</h3>}
+          >
             <Table>
               <thead>
                 <TableHeaderRow>
@@ -388,33 +459,33 @@ export default function ReviewBudgetPlanPage() {
                 })}
               </tbody>
             </Table>
-          </div>
-        ) : null}
 
-        {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
-            <button
-              type="button"
-              onClick={() => setIsDeclineModalOpen(true)}
-              disabled={isSubmitting || !canTakeAction}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
-            >
-              Decline
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsApproveModalOpen(true)}
-              disabled={isSubmitting || !canTakeAction}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
-            >
-              {isSubmitting ? 'Processing...' : 'Approve'}
-            </button>
-          </div>
-        )}
-      </Card>
+            {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
+              <div className="flex justify-end gap-3 pt-4">
+                <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
+                <button
+                  type="button"
+                  onClick={() => setIsDeclineModalOpen(true)}
+                  disabled={isSubmitting || !canTakeAction}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                  title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsApproveModalOpen(true)}
+                  disabled={isSubmitting || !canTakeAction}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                  title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
+                >
+                  {isSubmitting ? 'Processing...' : 'Approve'}
+                </button>
+              </div>
+            )}
+          </Card>
+        ) : null}
+      </div>
 
       {isDeclineModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
@@ -492,8 +563,10 @@ export default function ReviewBudgetPlanPage() {
         </div>
       ) : null}
 
-      <Card className="p-6">
-        <h3 className="font-medium mb-3">Budget Plan History</h3>
+      <Card
+        collapsible
+        header={<h3 className="font-medium">Budget Plan History</h3>}
+      >
         {histories.length === 0 ? (
           <p className="text-sm text-gray-500">No history yet.</p>
         ) : (
@@ -503,13 +576,18 @@ export default function ReviewBudgetPlanPage() {
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
-                  <span className="text-gray-500">on {formatDate(history.timestamp)}</span>
+                  <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
                 </p>
                 {history.details?.status ? (
                   <p className="text-gray-600">Status: {history.details.status}</p>
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {history.details?.allocationAdjustmentNote ? (
+                  <p className="text-amber-700">
+                    {history.details?.allocationAdjustmentNote}
+                  </p>
                 ) : null}
               </div>
             ))}

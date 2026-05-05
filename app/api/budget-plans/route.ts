@@ -3,11 +3,17 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import {
+  canUserActOnCurrentBudgetPlanStep,
+  getBudgetPlanUserRoleIds,
+} from '@/lib/budget-plan-review-eligibility';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') ?? '';
     const status = searchParams.get('status') ?? '';
@@ -28,6 +34,7 @@ export async function GET(request: Request) {
       include: {
         department: { select: { id: true, code: true, name: true } },
         allocations: { orderBy: { month: 'asc' } },
+        approvalSchema: { include: { approvalLevels: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -38,7 +45,17 @@ export async function GET(request: Request) {
       orderBy: { code: 'asc' },
     });
 
-    return NextResponse.json({ plans, departments });
+    const enrichedPlans = plans.map(({ approvalSchema, ...plan }) => ({
+      ...plan,
+      canEdit: !!session?.user?.id && plan.requestorId === session.user.id,
+      canReview: canUserActOnCurrentBudgetPlanStep({
+        planStatus: plan.status,
+        approvalLevels: approvalSchema?.approvalLevels ?? [],
+        userRoleIds,
+      }),
+    }));
+
+    return NextResponse.json({ plans: enrichedPlans, departments });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });
@@ -55,10 +72,19 @@ export async function POST(request: Request) {
       where: { id: body.departmentId },
       select: { code: true },
     });
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const departmentCode = (dept?.code ?? 'BP').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const codePrefix = `${departmentCode}${year}${month}`;
     const count = await prisma.budgetPlan.count({
-      where: { departmentId: body.departmentId, fiscalYear: body.fiscalYear },
+      where: {
+        code: {
+          startsWith: codePrefix,
+        },
+      },
     });
-    const code = body.code || `${dept?.code ?? 'BP'}${body.fiscalYear}${String(count + 1).padStart(3, '0')}`;
+    const code = body.code || `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
     const plan = await prisma.budgetPlan.create({
       data: {
@@ -85,6 +111,14 @@ export async function POST(request: Request) {
     });
 
     const allocations = body.allocations || [];
+    const selectedMonths = allocations
+      .filter((a: { month: number; allocation: number }) => Number(a?.allocation ?? 0) > 0)
+      .map((a: { month: number }) => a.month)
+      .sort((a: number, b: number) => a - b);
+    const totalAllocation = allocations.reduce(
+      (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
+      0
+    );
     for (let m = 1; m <= 12; m++) {
       const alloc = allocations.find((a: { month: number }) => a.month === m);
       await prisma.budgetPlanAllocation.create({
@@ -102,7 +136,20 @@ export async function POST(request: Request) {
       entityId: plan.id,
       entityCode: plan.code,
       action: 'create',
-      details: { subject: plan.subject },
+      details: {
+        subject: plan.subject,
+        description: plan.description,
+        status: plan.status,
+        fiscalYear: plan.fiscalYear,
+        originOffice: plan.originOffice,
+        departmentCode: dept?.code ?? null,
+        departmentId: plan.departmentId,
+        projectId: plan.projectId,
+        approvalSchemaId: plan.approvalSchemaId,
+        monthCount: selectedMonths.length,
+        selectedMonths,
+        totalAllocation,
+      },
     });
 
     return NextResponse.json(plan);
