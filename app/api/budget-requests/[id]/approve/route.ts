@@ -40,6 +40,7 @@ async function createApprovalNotifications(params: {
   status: string;
   requestCode: string;
   adjustmentNote?: string | null;
+  declineReason?: string | null;
 }) {
   const recipientIds = await resolveNotificationUserIds(params.requestId, params.actorUserId);
   if (!recipientIds.length) return;
@@ -47,17 +48,23 @@ async function createApprovalNotifications(params: {
   const titleByStatus: Record<string, string> = {
     Reviewed: 'Budget Request Reviewed',
     Approved: 'Budget Request Approved',
+    Revision: 'Budget Request Needs Revision',
+    Declined: 'Budget Request Declined',
   };
   const title = titleByStatus[params.status] || 'Budget Request Updated';
   const messageBase = `${params.requestCode} status changed to ${params.status}.`;
-  const message = params.adjustmentNote ? `${messageBase} ${params.adjustmentNote}` : messageBase;
+  const messageWithAdjustment = params.adjustmentNote ? `${messageBase} ${params.adjustmentNote}` : messageBase;
+  const message =
+    params.declineReason && (params.status === 'Revision' || params.status === 'Declined')
+      ? `${messageWithAdjustment} Reason: ${params.declineReason}`
+      : messageWithAdjustment;
 
   await prisma.notification.createMany({
     data: recipientIds.map((userId) => ({
       userId,
       title,
       message,
-      type: params.status === 'Approved' ? 'success' : 'info',
+      type: params.status === 'Approved' ? 'success' : params.status === 'Declined' ? 'error' : 'info',
     })),
   });
 }
@@ -83,20 +90,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       },
     });
     if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (before.status === 'Approved') {
+    if (before.status === 'Approved' && body?.action !== 'revision' && body?.action !== 'decline') {
       return NextResponse.json({ error: 'Already approved' }, { status: 400 });
     }
 
     const levels = before.approvalSchema?.approvalLevels ?? [];
     const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+    const action =
+      body?.action === 'revision' ? 'revision' : body?.action === 'decline' ? 'decline' : 'approve';
     let newStatus: string;
 
-    if (levels.length === 0) {
-      if (before.requestorId === session.user.id) {
-        return NextResponse.json({ error: 'Requestor cannot approve own request' }, { status: 403 });
-      }
-      newStatus = 'Approved';
-    } else {
+    if (action === 'revision' || action === 'decline') {
       const allowed = canUserActOnCurrentBudgetRequestStep({
         requestStatus: before.status,
         approvalLevels: levels,
@@ -105,16 +109,43 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         actorUserId: session.user.id,
       });
       if (!allowed) {
-        return NextResponse.json({ error: 'You are not allowed to approve at this stage' }, { status: 403 });
+        return NextResponse.json({ error: 'You are not allowed to request revision at this stage' }, { status: 403 });
       }
-      const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-      const next = getNextBudgetRequestApprovalStep(before.status, levels);
-      if (!next) {
-        return NextResponse.json({ error: 'No approval step available' }, { status: 400 });
+      if (before.status === 'Approved') {
+        return NextResponse.json(
+          { error: action === 'decline' ? 'Approved request cannot be declined' : 'Approved request cannot be revised' },
+          { status: 400 }
+        );
       }
-      const stepIndex = ordered.findIndex((l) => l.stepOrder === next.stepOrder);
-      const isLastStep = stepIndex >= 0 && stepIndex === ordered.length - 1;
-      newStatus = isLastStep ? 'Approved' : 'Reviewed';
+      newStatus = action === 'decline' ? 'Declined' : 'Revision';
+    } else
+
+    {
+      if (levels.length === 0) {
+        if (before.requestorId === session.user.id) {
+          return NextResponse.json({ error: 'Requestor cannot approve own request' }, { status: 403 });
+        }
+        newStatus = 'Approved';
+      } else {
+        const allowed = canUserActOnCurrentBudgetRequestStep({
+          requestStatus: before.status,
+          approvalLevels: levels,
+          userRoleIds,
+          requestorId: before.requestorId ?? null,
+          actorUserId: session.user.id,
+        });
+        if (!allowed) {
+          return NextResponse.json({ error: 'You are not allowed to approve at this stage' }, { status: 403 });
+        }
+        const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
+        const next = getNextBudgetRequestApprovalStep(before.status, levels);
+        if (!next) {
+          return NextResponse.json({ error: 'No approval step available' }, { status: 400 });
+        }
+        const stepIndex = ordered.findIndex((l) => l.stepOrder === next.stepOrder);
+        const isLastStep = stepIndex >= 0 && stepIndex === ordered.length - 1;
+        newStatus = isLastStep ? 'Approved' : 'Reviewed';
+      }
     }
 
     const lineItemsFromReview = Array.isArray(body?.lineItems) ? body.lineItems : [];
@@ -223,6 +254,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         type: body?.opexType ?? before?.type ?? null,
         opexAllocation: body?.opexAllocationId ?? before?.opexAllocation ?? null,
         qtyUnitPriceAdjustmentNote,
+        declineReason: action === 'revision' || action === 'decline' ? body?.declineReason ?? null : null,
       },
     });
     await createApprovalNotifications({
@@ -231,6 +263,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       status: updated.status,
       requestCode: before?.code ?? id,
       adjustmentNote: qtyUnitPriceAdjustmentNote,
+      declineReason: action === 'revision' || action === 'decline' ? body?.declineReason ?? null : null,
     });
     return NextResponse.json({ success: true });
   } catch {

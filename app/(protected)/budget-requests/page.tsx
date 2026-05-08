@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -14,12 +15,53 @@ interface BudgetRequest {
   code: string;
   subject: string;
   status: string;
+  requestorName?: string | null;
   canEdit?: boolean;
   canReview?: boolean;
   budgetPlan: { code: string; subject: string };
   department: { name: string };
   lineItems?: { total: unknown }[];
 }
+
+interface EditWarningModalProps {
+  isOpen: boolean;
+  requestSubject?: string;
+  onCancel: () => void;
+  onContinue: () => void;
+}
+
+const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget request?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          The status of the budget request
+          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''} will be
+          reverted to the initial status and needs to go through the approval process again.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const STATUS_FILTERS = ['All', 'Approved', 'Reviewed', 'Pending', 'Revision', 'Declined'] as const;
 const SORT_OPTIONS = [
@@ -34,6 +76,7 @@ const SORT_OPTIONS = [
 ] as const;
 
 export default function BudgetRequestsPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<BudgetRequest[]>([]);
   const [filtered, setFiltered] = useState<BudgetRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +84,7 @@ export default function BudgetRequestsPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
+  const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<BudgetRequest | null>(null);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -67,6 +111,7 @@ export default function BudgetRequestsPage() {
           !kw ||
           r.subject?.toLowerCase().includes(kw) ||
           r.code?.toLowerCase().includes(kw) ||
+          r.requestorName?.toLowerCase().includes(kw) ||
           r.department?.name?.toLowerCase().includes(kw) ||
           r.budgetPlan?.code?.toLowerCase().includes(kw) ||
           r.budgetPlan?.subject?.toLowerCase().includes(kw);
@@ -143,6 +188,7 @@ export default function BudgetRequestsPage() {
               <TableHead>#</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Subject</TableHead>
+              <TableHead>Requested By</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Budget Plan</TableHead>
@@ -151,7 +197,7 @@ export default function BudgetRequestsPage() {
           </thead>
           <tbody>
             {currentRequests.length === 0 ? (
-              <TableEmptyRow colSpan={7}>
+              <TableEmptyRow colSpan={8}>
                 No budget requests. <Link href="/budget-requests/new" className="text-blue-600 hover:underline">Create one</Link> from an approved budget plan.
               </TableEmptyRow>
             ) : (
@@ -160,6 +206,7 @@ export default function BudgetRequestsPage() {
                   <TableCell>{startIndex + i + 1}</TableCell>
                   <TableCell>{r.code}</TableCell>
                   <TableCell>{r.subject}</TableCell>
+                  <TableCell>{r.requestorName ?? '-'}</TableCell>
                   <TableCell>
                     <span
                       className={`rounded px-2 py-0.5 text-sm ${
@@ -180,9 +227,19 @@ export default function BudgetRequestsPage() {
                     {r.canEdit ? (
                       <>
                         {' | '}
-                        <Link href={`/budget-requests/${r.id}/edit`} className="text-blue-600 hover:underline">
-                          Edit
-                        </Link>
+                        {r.status === 'Approved' ? (
+                          <button
+                            type="button"
+                            onClick={() => setRequestToConfirmEdit(r)}
+                            className="cursor-pointer text-blue-600 hover:underline"
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <Link href={`/budget-requests/${r.id}/edit`} className="text-blue-600 hover:underline">
+                            Edit
+                          </Link>
+                        )}
                       </>
                     ) : null}
                     {r.canReview ? (
@@ -201,6 +258,17 @@ export default function BudgetRequestsPage() {
         </Table>
       </Card>
       <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <EditWarningModal
+        isOpen={Boolean(requestToConfirmEdit)}
+        requestSubject={requestToConfirmEdit?.subject}
+        onCancel={() => setRequestToConfirmEdit(null)}
+        onContinue={() => {
+          if (!requestToConfirmEdit) return;
+          const requestId = requestToConfirmEdit.id;
+          setRequestToConfirmEdit(null);
+          router.push(`/budget-requests/${requestId}/edit`);
+        }}
+      />
     </div>
   );
 }

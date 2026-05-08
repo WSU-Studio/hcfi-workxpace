@@ -111,6 +111,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
     });
     if (!plan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const requestor = plan.requestorId
+      ? await prisma.user.findUnique({
+          where: { id: plan.requestorId },
+          select: { name: true },
+        })
+      : null;
 
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
     const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
@@ -154,7 +160,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
 
     return NextResponse.json({
-      plan,
+      plan: {
+        ...plan,
+        requestorName: requestor?.name ?? null,
+      },
       fiscalYears,
       departments,
       projects,

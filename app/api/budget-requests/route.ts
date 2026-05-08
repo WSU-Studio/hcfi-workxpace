@@ -28,12 +28,23 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    const requestorIds = Array.from(
+      new Set(rows.map((row) => row.requestorId).filter((id): id is string => Boolean(id)))
+    );
+    const requestorUsers = requestorIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: requestorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
+
     const requests = rows.map(({ approvalSchema, ...r }) => ({
       ...r,
+      requestorName: r.requestorId ? requestorNameMap.get(r.requestorId) ?? null : null,
       canEdit:
         !!session?.user?.id &&
-        r.requestorId === session.user.id &&
-        r.status !== 'Approved',
+        r.requestorId === session.user.id,
       canReview:
         !!session?.user?.id &&
         canUserActOnCurrentBudgetRequestStep({
