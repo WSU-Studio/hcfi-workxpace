@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Pencil, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -21,6 +21,46 @@ type HistoryEntry = {
   user: { name: string | null } | null;
 };
 
+interface EditWarningModalProps {
+  isOpen: boolean;
+  requestSubject?: string;
+  onCancel: () => void;
+  onContinue: () => void;
+}
+
+const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget request?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          The status of the budget request
+          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''} will be
+          reverted to the initial status and needs to go through the approval process again.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function ReadonlyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -34,8 +74,10 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
 
 export default function BudgetRequestDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const { data: session } = useSession();
+  const [isEditWarningOpen, setIsEditWarningOpen] = useState(false);
   const [data, setData] = useState<{
     id: string;
     code: string;
@@ -104,8 +146,7 @@ export default function BudgetRequestDetailPage() {
 
   const canEditAsRequestor =
     !!session?.user?.id &&
-    data.requestorId === session.user.id &&
-    data.status !== 'Approved';
+    data.requestorId === session.user.id;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const completedSteps =
     data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
@@ -130,13 +171,24 @@ export default function BudgetRequestDetailPage() {
         <h1 className="text-2xl font-semibold">{data.subject}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {canEditAsRequestor ? (
-            <Link
-              href={`/budget-requests/${id}/edit`}
-              className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Link>
+            data.status === 'Approved' ? (
+              <button
+                type="button"
+                onClick={() => setIsEditWarningOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </button>
+            ) : (
+              <Link
+                href={`/budget-requests/${id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Link>
+            )
           ) : null}
         </div>
       </div>
@@ -321,13 +373,24 @@ export default function BudgetRequestDetailPage() {
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             {canEditAsRequestor ? (
-              <Link
-                href={`/budget-requests/${id}/edit`}
-                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-50"
-              >
-                <Pencil className="h-4 w-4" />
-                Edit
-              </Link>
+              data.status === 'Approved' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditWarningOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </button>
+              ) : (
+                <Link
+                  href={`/budget-requests/${id}/edit`}
+                  className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-50"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Link>
+              )
             ) : null}
             {data.canReview ? (
               <Link href={`/budget-requests/${id}/review`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
@@ -361,6 +424,15 @@ export default function BudgetRequestDetailPage() {
           <p className="text-sm text-gray-500">No history yet.</p>
         )}
       </Card>
+      <EditWarningModal
+        isOpen={isEditWarningOpen}
+        requestSubject={data.subject}
+        onCancel={() => setIsEditWarningOpen(false)}
+        onContinue={() => {
+          setIsEditWarningOpen(false);
+          router.push(`/budget-requests/${id}/edit`);
+        }}
+      />
     </div>
   );
 }
