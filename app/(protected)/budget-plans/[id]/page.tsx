@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { Pencil, ScanSearch } from 'lucide-react';
 
@@ -157,7 +158,7 @@ export default function BudgetPlanDetailPage() {
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
-            <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+            <RichTextContent value={plan.description} className="mt-1" />
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Supporting Documents:</span>
