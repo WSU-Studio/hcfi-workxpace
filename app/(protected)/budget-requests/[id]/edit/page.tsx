@@ -124,10 +124,6 @@ export default function EditBudgetRequestPage() {
           router.replace(`/budget-requests/${id}`);
           return;
         }
-        if (data.status === 'Approved') {
-          router.replace(`/budget-requests/${id}`);
-          return;
-        }
 
         setFormData({
           budgetPlanId: data.budgetPlanId,
