@@ -8,11 +8,12 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import Textarea from '@/components/ui/Textarea';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
 export default function NewBudgetPlanPage() {
   const router = useRouter();
@@ -103,6 +104,11 @@ export default function NewBudgetPlanPage() {
     }
     if (selectedMonthsSorted.length === 0) {
       setError('Select at least one month for allocation');
+      return;
+    }
+    const descriptionSize = new TextEncoder().encode(formData.description || '').length;
+    if (descriptionSize > DESCRIPTION_MAX_BYTES) {
+      setError('Description is too large. Maximum 200KB.');
       return;
     }
     setIsSubmitting(true);
@@ -243,10 +249,11 @@ export default function NewBudgetPlanPage() {
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <Textarea
+            <RichTextEditor
               value={formData.description}
-              onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              rows={4}
+              onChange={(description) => setFormData((p) => ({ ...p, description }))}
+              placeholder="Describe budget plan details..."
+              maxContentBytes={DESCRIPTION_MAX_BYTES}
             />
           </div>
           <div>
