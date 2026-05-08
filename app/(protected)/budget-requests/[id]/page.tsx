@@ -45,6 +45,7 @@ export default function BudgetRequestDetailPage() {
     notes: string | null;
     requestDate: string;
     requestorId?: string | null;
+    requestorName?: string | null;
     fiscalYear: number;
     totalAmount?: number;
     vatAmount?: number;
@@ -144,6 +145,7 @@ export default function BudgetRequestDetailPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div><span className="text-gray-500">ID:</span> {data.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
+          <div><span className="text-gray-500">Requestor:</span> {data.requestorName ?? '-'}</div>
           <div><span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}</div>
           <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
           <div><span className="text-gray-500">Project:</span> {data.budgetPlan?.project?.name ?? '-'}</div>

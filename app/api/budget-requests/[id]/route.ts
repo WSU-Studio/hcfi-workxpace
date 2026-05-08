@@ -61,6 +61,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
     });
     if (!br) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const requestor = br.requestorId
+      ? await prisma.user.findUnique({
+          where: { id: br.requestorId },
+          select: { name: true },
+        })
+      : null;
     const histories = await prisma.activityHistory.findMany({
       where: { entityType: 'BudgetRequest', entityId: id },
       include: { user: { select: { name: true } } },
@@ -92,6 +98,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({
       ...br,
+      requestorName: requestor?.name ?? null,
       histories,
       canReview,
       accountOptions,
@@ -128,9 +135,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (existing.requestorId !== session.user.id) {
       return NextResponse.json({ error: 'Only the requestor can edit this budget request' }, { status: 403 });
-    }
-    if (existing.status === 'Approved') {
-      return NextResponse.json({ error: 'Approved requests cannot be edited' }, { status: 403 });
     }
 
     const {
