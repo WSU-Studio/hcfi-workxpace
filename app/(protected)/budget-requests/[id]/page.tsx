@@ -8,6 +8,7 @@ import { Pencil, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -164,7 +165,7 @@ export default function BudgetRequestDetailPage() {
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Description:</span>
-            <p className="mt-1 text-gray-700 whitespace-pre-wrap">{data.description || '-'}</p>
+            <RichTextContent value={data.description} className="mt-1" />
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Notes:</span>

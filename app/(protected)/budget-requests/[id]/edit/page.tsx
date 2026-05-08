@@ -14,6 +14,9 @@ import BudgetRequestItemsEditor, {
   getItemTotal,
   getItemSubtotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+
+const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
 type BudgetRequestApi = {
   id: string;
@@ -188,6 +191,11 @@ export default function EditBudgetRequestPage() {
       setError('Invalid budget plan');
       return;
     }
+    const descriptionSize = new TextEncoder().encode(formData.description || '').length;
+    if (descriptionSize > DESCRIPTION_MAX_BYTES) {
+      setError('Description is too large. Maximum 200KB.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -277,11 +285,11 @@ export default function EditBudgetRequestPage() {
           </div>
           <div>
             <label className="mb-1.5 block font-medium">Description</label>
-            <textarea
+            <RichTextEditor
               value={formData.description}
-              onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              className="w-full rounded-lg border px-4 py-2"
-              rows={3}
+              onChange={(description) => setFormData((p) => ({ ...p, description }))}
+              placeholder="Describe budget request details..."
+              maxContentBytes={DESCRIPTION_MAX_BYTES}
             />
           </div>
           <div>

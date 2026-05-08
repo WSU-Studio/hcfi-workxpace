@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
+import RichTextContent from '@/components/ui/RichTextContent';
 
 type HistoryEntry = {
   id: string;
@@ -187,7 +188,7 @@ export default function ReviewBudgetRequestPage() {
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Description:</span>
-            <p className="mt-1 whitespace-pre-wrap text-gray-700">{data.description || '-'}</p>
+            <RichTextContent value={data.description} className="mt-1" />
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Notes:</span>
