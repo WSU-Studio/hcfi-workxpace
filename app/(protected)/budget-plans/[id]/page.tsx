@@ -16,6 +16,7 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 
 type PlanDetail = {
   requestorId?: string | null;
+  requestorName?: string | null;
   code: string;
   subject: string;
   description: string | null;
@@ -190,6 +191,7 @@ export default function BudgetPlanDetailPage() {
         <div className="grid grid-cols-2 gap-4">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
+          <div><span className="text-gray-500">Requestor:</span> {plan.requestorName ?? '-'}</div>
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
           <div><span className="text-gray-500">Project:</span> {plan.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
