@@ -60,6 +60,7 @@ model User {
   departmentHeadOf Department[] @relation("DepartmentHead")
   activityHistory  ActivityHistory[]
   notifications    Notification[]
+  reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
 
   @@index([roleId])
   @@index([departmentId])
@@ -104,6 +105,7 @@ model Department {
   budgetPlans BudgetPlan[]
   budgetRequests BudgetRequest[]
   approvalSchemas ApprovalSchema[]
+  reconciliationSavedPayments ReconciliationSavedPayment[]
 
   @@index([headId])
   @@map("departments")
@@ -386,11 +388,41 @@ model BudgetRequest {
   approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
   lineItems        BudgetRequestLineItem[]
   allocations      BudgetRequestAllocation[]
+  reconciliationSavedPayments ReconciliationSavedPayment[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+model ReconciliationSavedPayment {
+  id                   String   @id @default(cuid())
+  confinsPaymentDocId  String   @unique @map("confins_payment_doc_id")
+  budgetRequestId      String   @map("budget_request_id")
+  matchType            String
+  incomingReferenceId  String   @map("incoming_reference_id")
+  paidAmount           Decimal  @map("paid_amount") @db.Decimal(18, 2)
+  expectedAmount       Decimal  @map("expected_amount") @db.Decimal(18, 2)
+  fiscalYear           Int      @map("fiscal_year")
+  month                Int
+  departmentId         String?  @map("department_id")
+  voucherNumber        String?  @map("voucher_number")
+  paymentDescription   String?  @map("payment_description") @db.Text
+  paymentSource        String?  @map("payment_source")
+  glAccountCode        String?  @map("gl_account_code")
+  glAccountName        String?  @map("gl_account_name")
+  savedByUserId        String   @map("saved_by_user_id")
+  savedAt              DateTime @default(now()) @map("saved_at")
+
+  budgetRequest BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+  department    Department?   @relation(fields: [departmentId], references: [id])
+  savedBy       User          @relation("ReconciliationSavedBy", fields: [savedByUserId], references: [id])
+
+  @@index([fiscalYear, month])
+  @@index([budgetRequestId])
+  @@index([savedAt])
+  @@map("reconciliation_saved_payments")
 }
 
 model BudgetRequestAllocation {
