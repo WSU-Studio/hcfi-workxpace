@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import {
   IconBriefcaseFilled,
+  IconChartBar,
   IconCoins,
   IconId,
   IconLayoutDashboardFilled,
@@ -24,6 +25,7 @@ const restrictedMenuAccess: MenuAccess = {
   budgetPlans: false,
   budgetRequests: false,
   reconciliation: false,
+  reports: false,
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
@@ -49,6 +51,7 @@ const Sidebar = () => {
     { name: 'Budget Plans', href: '/budget-plans', icon: IconCoins, show: menuAccess.budgetPlans },
     { name: 'Budget Requests', href: '/budget-requests', icon: IconBriefcaseFilled, show: menuAccess.budgetRequests },
     { name: 'Reconciliation', href: '/reconciliation', icon: IconScale, show: menuAccess.reconciliation },
+    { name: 'Reports', href: '/reports/reconciliation', icon: IconChartBar, show: menuAccess.reports },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
   ].filter((i) => i.show);
@@ -57,7 +60,7 @@ const Sidebar = () => {
     return (
       <aside className={cn('relative left-0 top-0 h-screen bg-white border-r', isCollapsed ? 'w-16' : 'w-64')}>
         <div className="py-4 space-y-2">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
             <div key={i} className="h-11 mx-4 bg-gray-200 rounded animate-pulse" />
           ))}
         </div>

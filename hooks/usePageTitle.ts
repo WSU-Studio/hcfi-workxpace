@@ -11,6 +11,7 @@ const pageConfigs: Record<string, { title: string; breadcrumbs: string[] }> = {
   '/budget-requests': { title: 'Budget Requests', breadcrumbs: ['Home', 'Budget Requests'] },
   '/budget-requests/new': { title: 'Create Budget Request', breadcrumbs: ['Home', 'Budget Requests', 'New'] },
   '/reconciliation': { title: 'Reconciliation', breadcrumbs: ['Home', 'Reconciliation'] },
+  '/reports/reconciliation': { title: 'Reports — Reconciliation', breadcrumbs: ['Home', 'Reports', 'Reconciliation'] },
   '/budget-requests/[id]/edit': { title: 'Edit Budget Request', breadcrumbs: ['Home', 'Budget Requests', 'Edit'] },
   '/notifications': { title: 'Notifications', breadcrumbs: ['Home', 'Notifications'] },
   '/user-management': { title: 'User Management', breadcrumbs: ['Home', 'User Management'] },

@@ -12,6 +12,7 @@ const restrictedMenuAccess: MenuAccess = {
   budgetPlans: false,
   budgetRequests: false,
   reconciliation: false,
+  reports: false,
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
