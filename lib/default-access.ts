@@ -5,6 +5,7 @@ export const defaultMenuAccess: MenuAccess = {
   budgetPlans: true,
   budgetRequests: true,
   reconciliation: true,
+  reports: true,
   userManagement: true,
   workspaceManagement: true,
   viewDepartment: true,
@@ -54,6 +55,7 @@ export const defaultActivityAccess: ActivityAccess = {
   deleteUser: false,
   runReconciliationSync: false,
   editReconciliationMapping: false,
+  saveReconciliationResult: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -62,6 +64,7 @@ export const fullMenuAccess: MenuAccess = {
   budgetPlans: true,
   budgetRequests: true,
   reconciliation: true,
+  reports: true,
   userManagement: true,
   workspaceManagement: true,
   viewDepartment: true,
@@ -111,6 +114,7 @@ export const fullActivityAccess: ActivityAccess = {
   deleteUser: true,
   runReconciliationSync: true,
   editReconciliationMapping: true,
+  saveReconciliationResult: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */

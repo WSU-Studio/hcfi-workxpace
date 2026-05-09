@@ -3,6 +3,8 @@ export interface MenuAccess {
   budgetPlans: boolean;
   budgetRequests: boolean;
   reconciliation: boolean;
+  /** Laporan tersimpan (rekonsiliasi, dll.) */
+  reports: boolean;
   userManagement: boolean;
   workspaceManagement: boolean;
   viewDepartment: boolean;
@@ -54,4 +56,6 @@ export interface ActivityAccess {
   runReconciliationSync: boolean;
   /** Koreksi pencocokan manual antara pembayaran eksternal dan plan/request. */
   editReconciliationMapping: boolean;
+  /** Simpan hasil match ke database (menghilangkan baris dari daftar kerja). */
+  saveReconciliationResult: boolean;
 }

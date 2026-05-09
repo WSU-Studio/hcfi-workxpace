@@ -134,6 +134,12 @@ export default withAuth(
       }
     }
 
+    if (req.nextUrl.pathname.startsWith('/reports')) {
+      if (!menuAccess.reports) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+    }
+
     if (req.nextUrl.pathname.startsWith('/user-management')) {
       if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.match(/\/[^/]+\/edit/)) && !activityAccess.editUser) {
         return NextResponse.redirect(new URL('/forbidden', req.url));
