@@ -12,7 +12,8 @@ import type {
 import { formatDate } from '@/lib/utils';
 import type { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 import { useSession } from 'next-auth/react';
-import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type BudgetRequestApiItem = {
   id: string;
@@ -57,12 +58,17 @@ export default function ReconciliationPage() {
   const [departmentId, setDepartmentId] = useState('');
 
   const [syncing, setSyncing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveMessageType, setSaveMessageType] = useState<'success' | 'error' | 'info'>('info');
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
   const [payments, setPayments] = useState<ConfinsCashDisbursement[]>([]);
   const [requests, setRequests] = useState<ReconciliationRequestOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentApiItem[]>([]);
+
+  const [savedPaymentIds, setSavedPaymentIds] = useState<Set<string>>(new Set());
 
   const [manualMap, setManualMap] = useState<Record<string, string>>({});
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
@@ -70,6 +76,27 @@ export default function ReconciliationPage() {
 
   const canManualMatch = Boolean(session?.user?.access?.activityAccess?.editReconciliationMapping);
   const canSync = Boolean(session?.user?.access?.activityAccess?.runReconciliationSync);
+  const canSave = Boolean(session?.user?.access?.activityAccess?.saveReconciliationResult);
+
+  const loadSavedPaymentIds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/reconciliation/saved-ids');
+      if (!res.ok) return;
+      const data = (await res.json()) as { ids?: string[] };
+      setSavedPaymentIds(new Set(data.ids ?? []));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status === 'authenticated') loadSavedPaymentIds();
+  }, [status, loadSavedPaymentIds]);
+
+  const paymentsVisible = useMemo(
+    () => payments.filter((p) => !savedPaymentIds.has(p.id)),
+    [payments, savedPaymentIds]
+  );
 
   const runSync = async () => {
     if (!canSync) return;
@@ -138,7 +165,7 @@ export default function ReconciliationPage() {
 
   const rows = useMemo<ReconciliationRow[]>(() => {
     const byId = new Map(requests.map((req) => [req.id, req]));
-    return payments.map((payment) => {
+    return paymentsVisible.map((payment) => {
       const manualRequestId = manualMap[payment.id];
       const manualRequest = manualRequestId ? byId.get(manualRequestId) ?? null : null;
       const autoRequest =
@@ -156,7 +183,63 @@ export default function ReconciliationPage() {
         matchType: manualRequest ? 'manual' : autoRequest ? 'auto' : 'unmatched',
       };
     });
-  }, [manualMap, payments, requests]);
+  }, [manualMap, paymentsVisible, requests]);
+
+  const matchedRowsToSave = useMemo(
+    () => rows.filter((r) => r.matchType !== 'unmatched' && r.matchedRequest),
+    [rows]
+  );
+
+  const saveMatched = async () => {
+    if (!canSave || matchedRowsToSave.length === 0) return;
+    setSaving(true);
+    setSaveMessageType('info');
+    setSaveMessage('Menyimpan hasil rekonsiliasi...');
+    try {
+      const fy = Number(fiscalYear);
+      const mo = Number(month);
+      const payload = {
+        rows: matchedRowsToSave.map((r) => ({
+          confinsPaymentDocId: r.payment.id,
+          budgetRequestId: r.matchedRequest!.id,
+          matchType: r.matchType,
+          incomingReferenceId: r.payment.incomingReferenceId,
+          paidAmount: r.paidAmount,
+          expectedAmount: r.expectedAmount,
+          fiscalYear: fy,
+          month: mo,
+          departmentId: r.payment.departmentId,
+          voucherNumber: r.payment.voucherNumber,
+          paymentDescription: r.payment.description,
+          paymentSource: r.payment.source,
+          glAccountCode: r.payment.glAccountCode,
+          glAccountName: r.payment.glAccountName,
+        })),
+      };
+
+      const res = await fetch('/api/reconciliation/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Gagal menyimpan');
+
+      const newIds = matchedRowsToSave.map((r) => r.payment.id);
+      setSavedPaymentIds((prev) => new Set([...prev, ...newIds]));
+      const savedCount = data.savedCount ?? newIds.length;
+      setSaveMessageType('success');
+      setSaveMessage(`${savedCount} baris berhasil disimpan.`);
+      toast.success(`${savedCount} baris disimpan.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal menyimpan';
+      setSaveMessageType('error');
+      setSaveMessage(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const activeRow = useMemo(
     () => rows.find((row) => row.payment.id === activePaymentId) ?? null,
@@ -198,8 +281,7 @@ export default function ReconciliationPage() {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Reconciliation</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Rekonsiliasi dilakukan berbasis Budget Request. Auto-match hanya terjadi jika Incoming ID dari Confins
-          sama persis dengan Form ID budget request.
+          Reconciliation based on Budget Request. Auto-match if Incoming ID is the same as Form ID request. Save the matched results to complete the rows; saved rows will no longer appear in the work list and can be viewed in the Reports menu.
         </p>
       </div>
 
@@ -208,7 +290,7 @@ export default function ReconciliationPage() {
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Department</span>
             <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-              <option value="">All</option>
+              <option value="">All Departments</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.code} - {dept.name}
@@ -236,7 +318,7 @@ export default function ReconciliationPage() {
               ))}
             </Select>
           </label>
-          <div className="flex items-end">
+          <div className="flex flex-wrap items-end gap-2">
             <Button type="button" onClick={runSync} disabled={!canSync || syncing}>
               {syncing ? 'Running sync...' : 'Run Integration Process'}
             </Button>
@@ -256,17 +338,48 @@ export default function ReconciliationPage() {
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-base font-semibold text-gray-900">Reconciliation Result</h3>
-          <div className="text-sm text-gray-600">
-            Matched:{' '}
-            <span className="font-semibold text-emerald-700">
-              {rows.filter((row) => row.matchType !== 'unmatched').length}
-            </span>{' '}
-            | Unmatched:{' '}
-            <span className="font-semibold text-rose-700">
-              {rows.filter((row) => row.matchType === 'unmatched').length}
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-sm text-gray-600">
+              Matched:{' '}
+              <span className="font-semibold text-emerald-700">
+                {rows.filter((row) => row.matchType !== 'unmatched').length}
+              </span>{' '}
+              | Unmatched:{' '}
+              <span className="font-semibold text-rose-700">
+                {rows.filter((row) => row.matchType === 'unmatched').length}
+              </span>
+            </div>
+            <Button
+              type="button"
+              onClick={saveMatched}
+              disabled={!canSave || saving || matchedRowsToSave.length === 0}
+              className="disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Saving...' : 'Save reconciliation results'}
+            </Button>
           </div>
         </div>
+        {saving && (
+          <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Saving... please wait...
+          </p>
+        )}
+        {!saving && saveMessage && (
+          <p
+            className={`rounded-md border px-3 py-2 text-xs ${
+              saveMessageType === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : saveMessageType === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'border-gray-200 bg-gray-50 text-gray-700'
+            }`}
+          >
+            {saveMessage}
+          </p>
+        )}
+        {!canSave && (
+          <p className="text-xs text-gray-500">Allow &quot;Save Reconciliation Results&quot; in Access Control to save the results.</p>
+        )}
         <ReconciliationTable rows={rows} canEditManual={canManualMatch} onManualMatch={openManualMatch} />
       </Card>
 
