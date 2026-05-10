@@ -389,11 +389,70 @@ model BudgetRequest {
   lineItems        BudgetRequestLineItem[]
   allocations      BudgetRequestAllocation[]
   reconciliationSavedPayments ReconciliationSavedPayment[]
+  dataMartStagingRows        DataMartStagingRow[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+/// Baris staging untuk laporan Data Mart: kolom terindeks untuk query cepat + JSON fallback untuk field Confins yang berubah-ubah.
+model DataMartStagingRow {
+  id                           String   @id @default(cuid())
+  reconciliationSavedPaymentId String   @unique @map("reconciliation_saved_payment_id")
+
+  confinsPaymentDocId          String   @map("confins_payment_doc_id")
+  budgetRequestId              String   @map("budget_request_id")
+
+  fiscalYear                   Int      @map("fiscal_year")
+  month                        Int
+  period                       String
+  quarter                      Int
+
+  budgetRequestCode            String   @map("budget_request_code")
+  departmentId                 String?  @map("department_id")
+  departmentName               String?  @map("department_name")
+  originOffice                 String?  @map("origin_office")
+  divisionName                 String?  @map("division_name")
+
+  requestorName                String?  @map("requestor_name")
+
+  incomingReferenceId          String   @map("incoming_reference_id")
+  voucherNumber                String?  @map("voucher_number")
+  paymentDescription           String?  @map("payment_description") @db.Text
+  paymentSource                String?  @map("payment_source")
+  glAccountCode                String?  @map("gl_account_code")
+  glAccountName                String?  @map("gl_account_name")
+  paidAmount                   Decimal  @map("paid_amount") @db.Decimal(18, 2)
+  expectedAmount               Decimal  @map("expected_amount") @db.Decimal(18, 2)
+  currencyCode                 String?  @map("currency_code")
+
+  businessRole                 String?  @map("business_role")
+  activityCode                 String?  @map("activity_code")
+  subActivityCode              String?  @map("sub_activity_code")
+  activityLabel                String?  @map("activity_label") @db.Text
+  subActivityLabel             String?  @map("sub_activity_label") @db.Text
+  vendorName                   String?  @map("vendor_name")
+  interfaceId                  String?  @map("interface_id")
+  paymentRequestNo             String?  @map("payment_request_no")
+
+  confinsPayloadRaw            Json     @map("confins_payload_raw")
+  budgetRequestSnapshot        Json     @map("budget_request_snapshot")
+
+  matchType                    String   @map("match_type")
+  savedAt                      DateTime @map("saved_at")
+
+  reconciliationSavedPayment ReconciliationSavedPayment @relation(fields: [reconciliationSavedPaymentId], references: [id], onDelete: Cascade)
+  budgetRequest              BudgetRequest              @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+
+  @@index([fiscalYear, month])
+  @@index([budgetRequestId])
+  @@index([departmentId])
+  @@index([originOffice])
+  @@index([vendorName])
+  @@index([savedAt])
+  @@map("data_mart_staging")
 }
 
 model ReconciliationSavedPayment {
@@ -418,6 +477,7 @@ model ReconciliationSavedPayment {
   budgetRequest BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
   department    Department?   @relation(fields: [departmentId], references: [id])
   savedBy       User          @relation("ReconciliationSavedBy", fields: [savedByUserId], references: [id])
+  dataMartStaging DataMartStagingRow?
 
   @@index([fiscalYear, month])
   @@index([budgetRequestId])
