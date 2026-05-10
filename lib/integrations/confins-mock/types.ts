@@ -32,6 +32,19 @@ export type ConfinsCashDisbursement = {
   currency: string;
   departmentId: string | null;
   departmentCode: string | null;
+  interfaceId?: string | null;
+  paymentRequestNo?: string | null;
+  journalNo?: string | null;
+  requestDate?: string | null;
+  requestBy?: string | null;
+  invoiceDate?: string | null;
+  invoiceNo?: string | null;
+  businessRole?: string | null;
+  activity?: string | null;
+  subActivity?: string | null;
+  vendorName?: string | null;
+  /** Raw baris API Confins untuk simulasi model tertentu (mis. v1.03 ReturnObject). */
+  rawPayload?: Record<string, unknown> | null;
   updatedAt: string;
 };
 
@@ -40,4 +53,5 @@ export type ConfinsMockListMeta = {
   recordCount: number;
   /** true jika ada pembayaran yang dibentuk dari BudgetRequest Approved di DB lokal. */
   usedLocalApprovedRequests: boolean;
+  simulatedApiModel?: string;
 };

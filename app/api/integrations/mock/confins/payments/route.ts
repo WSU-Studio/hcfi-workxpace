@@ -4,6 +4,10 @@ import {
   type ConfinsMockFetchOptions,
 } from '@/lib/integrations/confins-mock/build-mock-payments';
 import type { ConfinsMockListMeta } from '@/lib/integrations/confins-mock/types';
+import {
+  buildV103EnvelopeFromPayments,
+  mapV103RowsToPayments,
+} from '@/lib/integrations/confins-mock/v103-payment-request';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +42,12 @@ export async function GET(request: Request) {
       opts.includeEdgeCases = false;
     }
 
-    const { payments, usedLocalApprovedRequests } = await fetchConfinsMockPayments(opts);
+    const apiModel = searchParams.get('apiModel') ?? 'v103';
+    const { payments: basePayments, usedLocalApprovedRequests } = await fetchConfinsMockPayments(opts);
+    const payments =
+      apiModel === 'v103'
+        ? mapV103RowsToPayments(buildV103EnvelopeFromPayments(basePayments).ReturnObject)
+        : basePayments;
 
     const meta: ConfinsMockListMeta = {
       lastSyncedAt: new Date().toISOString(),
@@ -46,7 +55,13 @@ export async function GET(request: Request) {
       usedLocalApprovedRequests,
     };
 
-    return NextResponse.json({ payments, meta });
+    return NextResponse.json({
+      payments,
+      meta: {
+        ...meta,
+        simulatedApiModel: apiModel === 'v103' ? 'API CONFINS For E-Budgeting 1.03' : 'internal-cash-disbursement',
+      },
+    });
   } catch (e) {
     console.error('mock confins payments:', e);
     return NextResponse.json({ error: 'Failed to load mock Confins payments' }, { status: 500 });

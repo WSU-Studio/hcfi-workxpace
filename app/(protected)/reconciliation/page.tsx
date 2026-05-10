@@ -127,6 +127,7 @@ export default function ReconciliationPage() {
 
       paymentsUrl.searchParams.set('fiscalYear', fiscalYear);
       paymentsUrl.searchParams.set('month', month);
+      paymentsUrl.searchParams.set('apiModel', 'v103');
       if (departmentId) paymentsUrl.searchParams.set('departmentId', departmentId);
       if (departmentId) planUrl.searchParams.set('departmentId', departmentId);
 
@@ -231,7 +232,9 @@ export default function ReconciliationPage() {
           paymentSource: r.payment.source,
           glAccountCode: r.payment.glAccountCode,
           glAccountName: r.payment.glAccountName,
-          confinsSnapshot: r.payment as unknown as Record<string, unknown>,
+          confinsSnapshot:
+            (r.payment.rawPayload as Record<string, unknown> | undefined) ??
+            (r.payment as unknown as Record<string, unknown>),
           currencyCode: r.payment.currency,
         })),
       };
