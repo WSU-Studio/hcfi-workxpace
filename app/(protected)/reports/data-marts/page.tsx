@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Select from '@/components/ui/Select';
 import DataMartStagingTable from '@/components/reports/DataMartStagingTable';
+import { buildStagingGuidelineCsv } from '@/lib/data-mart/staging-export-csv';
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
 import { IconDatabase } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
@@ -72,78 +73,7 @@ export default function DataMartsReportPage() {
   }, [status, canView, fiscalYear, month, departmentId]);
 
   const exportCsv = useCallback(() => {
-    const headers = [
-      'Period',
-      'FY',
-      'Month',
-      'Quarter',
-      'ConfinsPaymentDocId',
-      'Reference',
-      'BudgetRequestCode',
-      'BudgetPlanCode',
-      'BudgetRequestSubject',
-      'OriginOffice',
-      'DivisionName',
-      'DepartmentName',
-      'AccountNumberCoa',
-      'GlAccountCode',
-      'GlAccountName',
-      'CostCenter',
-      'ExpenseCategory',
-      'CategoryKeyIndex',
-      'OpexType',
-      'OpexAllocation',
-      'ProjectCode',
-      'BudgetRequestType',
-      'VendorName',
-      'BusinessRole',
-      'ActivityLabel',
-      'SubActivityLabel',
-      'PaidAmount',
-      'ExpectedAmount',
-      'MatchType',
-      'ConfinsPayloadRaw_JSON',
-      'BudgetRequestSnapshot_JSON',
-    ];
-    const lines = [
-      headers.join(','),
-      ...rows.map((r) =>
-        [
-          r.period,
-          r.fiscalYear,
-          r.month,
-          r.quarter,
-          csvEscape(r.confinsPaymentDocId),
-          csvEscape(r.incomingReferenceId),
-          csvEscape(r.budgetRequestCode),
-          csvEscape(r.budgetPlanCode ?? ''),
-          csvEscape(r.budgetRequestSubject ?? ''),
-          csvEscape(r.originOffice ?? ''),
-          csvEscape(r.divisionName ?? ''),
-          csvEscape(r.departmentName ?? ''),
-          csvEscape(r.accountNumberCoa ?? ''),
-          csvEscape(r.glAccountCode ?? ''),
-          csvEscape(r.glAccountName ?? ''),
-          csvEscape(r.costCenter ?? ''),
-          csvEscape(r.expenseCategory ?? ''),
-          csvEscape(r.categoryKeyIndex ?? ''),
-          csvEscape(r.opexType ?? ''),
-          csvEscape(r.opexAllocation ?? ''),
-          csvEscape(r.projectCode ?? ''),
-          csvEscape(r.budgetRequestType ?? ''),
-          csvEscape(r.vendorName ?? ''),
-          csvEscape(r.businessRole ?? ''),
-          csvEscape(r.activityLabel ?? r.activityCode ?? ''),
-          csvEscape(r.subActivityLabel ?? r.subActivityCode ?? ''),
-          r.paidAmount,
-          r.expectedAmount,
-          r.matchType,
-          csvEscape(JSON.stringify(r.confinsPayloadRaw ?? {})),
-          csvEscape(JSON.stringify(r.budgetRequestSnapshot ?? {})),
-        ].join(',')
-      ),
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([buildStagingGuidelineCsv(rows)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `data-mart-staging-${fiscalYear}.csv`;
@@ -258,9 +188,4 @@ export default function DataMartsReportPage() {
       <DataMartStagingTable rows={rows} />
     </div>
   );
-}
-
-function csvEscape(s: string): string {
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
 }

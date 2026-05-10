@@ -1,4 +1,9 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import {
+  deriveDataInterfaceSource,
+  pickFirstDate,
+  pickFirstString,
+} from '@/lib/data-mart/confins-json-pickers';
 import { buildBudgetRequestSnapshot, computePeriodParts } from '@/lib/data-mart/staging';
 
 export type SaveRowWithStaging = {
@@ -33,7 +38,11 @@ export type SaveRowWithStaging = {
 type Tx = Prisma.TransactionClient;
 
 type BudgetInclude = Prisma.BudgetRequestGetPayload<{
-  include: { department: true; budgetPlan: { include: { project: true } } };
+  include: {
+    department: true;
+    budgetPlan: { include: { project: true } };
+    lineItems: true;
+  };
 }>;
 
 function pickCurrencyFromSnapshot(snapshot: Record<string, unknown> | null | undefined): string | null {
@@ -73,13 +82,15 @@ export async function upsertDataMartStaging(
   requestorName: string | null
 ) {
   const { period, quarter } = computePeriodParts(saved.fiscalYear, saved.month);
-  const snap = row.confinsSnapshot ?? {};
+  const snapRaw = row.confinsSnapshot ?? {};
+  const snap = snapRaw as Record<string, unknown>;
   const budgetRequestSnapshot = buildBudgetRequestSnapshot(br, requestorName);
 
   const currencyCode =
     row.currencyCode ?? pickCurrencyFromSnapshot(snap) ?? pickString(snap, 'CurrencyCode');
 
-  const businessRole = row.businessRole ?? pickString(snap, 'businessRole') ?? pickString(snap, 'BusinessRole');
+  const businessRole =
+    row.businessRole ?? pickString(snap, 'businessRole') ?? pickString(snap, 'BusinessRole');
   const activityCode = row.activityCode ?? pickString(snap, 'activityCode') ?? pickString(snap, 'ActivityCode');
   const subActivityCode =
     row.subActivityCode ?? pickString(snap, 'subActivityCode') ?? pickString(snap, 'SubActivityCode');
@@ -89,10 +100,67 @@ export async function upsertDataMartStaging(
   const vendorName = row.vendorName ?? pickString(snap, 'vendorName') ?? pickString(snap, 'VendorName');
   const interfaceId = row.interfaceId ?? pickString(snap, 'interfaceId') ?? pickString(snap, 'InterfaceID');
   const paymentRequestNo =
-    row.paymentRequestNo ?? pickString(snap, 'paymentRequestNo') ?? pickString(snap, 'PaymentRequestNo');
-  const divisionName = row.divisionName ?? pickString(snap, 'divisionName') ?? pickString(snap, 'DivisionName');
+    row.paymentRequestNo ??
+    pickString(snap, 'paymentRequestNo') ??
+    pickString(snap, 'PaymentRequestNo');
+  const divisionName =
+    row.divisionName ??
+    pickFirstString(snap, ['DivisionName', 'divisionName']) ??
+    pickString(snap, 'Division');
 
-  const confinsPayloadRaw = snap as Prisma.InputJsonValue;
+  const journalNo = pickFirstString(snap, ['JournalNo', 'journalNo', 'JournalNumber', 'journalNumber']);
+  const voucherEgl = pickFirstString(snap, ['VoucherEgl', 'voucherEgl', 'VoucherEGL', 'VoucherNo']);
+  const invoiceNo = pickFirstString(snap, ['InvoiceNo', 'invoiceNo']);
+  const invoiceDate = pickFirstDate(snap, ['InvoiceDate', 'invoiceDate']);
+
+  const paymentRequestDate =
+    pickFirstDate(snap, [
+      'RequestDate',
+      'requestDate',
+      'PaymentRequestDate',
+      'paymentRequestDate',
+      'postDate',
+    ]) ??
+    pickFirstDate(snap, ['postDate', 'PostDate']);
+
+  const requestedByEmail = pickFirstString(snap, [
+    'RequestBy',
+    'requestBy',
+    'RequestedBy',
+    'requestedBy',
+    'RequestByEmail',
+    'requestByEmail',
+    'RequestedByEmail',
+  ]);
+
+  const originOfficeMerged =
+    pickFirstString(snap, ['OriginOffice', 'originOffice']) ?? br.budgetPlan?.originOffice ?? null;
+  const departmentNameMerged =
+    pickFirstString(snap, ['DepartmentName', 'departmentName']) ?? br.department?.name ?? null;
+
+  const dataInterfaceSource = deriveDataInterfaceSource(saved.paymentSource, snap);
+
+  const planAllocation = await tx.budgetPlanAllocation.findUnique({
+    where: {
+      budgetPlanId_month: { budgetPlanId: br.budgetPlanId, month: saved.month },
+    },
+    select: { allocation: true },
+  });
+  const planAmount = planAllocation?.allocation ?? null;
+
+  const lines = br.lineItems ?? [];
+  const sumQty = lines.reduce((a, li) => a + li.qty, 0);
+  let costDriverMetric: Prisma.Decimal | null = null;
+  let costPerUnit: Prisma.Decimal | null = null;
+  if (sumQty > 0) {
+    costDriverMetric = new Prisma.Decimal(sumQty);
+    const paidN = saved.paidAmount.toNumber();
+    costPerUnit = new Prisma.Decimal(paidN / sumQty);
+  }
+
+  const budgetRequestApprovedAt = br.status === 'Approved' ? br.updatedAt : null;
+
+  const confinsPayloadRaw = snapRaw as Prisma.InputJsonValue;
 
   const common = {
     confinsPaymentDocId: saved.confinsPaymentDocId,
@@ -111,16 +179,19 @@ export async function upsertDataMartStaging(
     opexType: br.opexType,
     opexAllocation: br.opexAllocation,
     budgetRequestType: br.type,
+    expenseTypeFp: br.type,
     projectCode: br.budgetPlan?.project?.code ?? null,
+    projectName: br.budgetPlan?.project?.name ?? null,
     departmentId: saved.departmentId ?? br.departmentId,
-    departmentName: br.department?.name ?? null,
-    originOffice: br.budgetPlan?.originOffice ?? null,
+    departmentName: departmentNameMerged,
+    originOffice: originOfficeMerged,
     divisionName,
     requestorName,
     incomingReferenceId: saved.incomingReferenceId,
     voucherNumber: saved.voucherNumber,
     paymentDescription: saved.paymentDescription,
     paymentSource: saved.paymentSource,
+    dataInterfaceSource,
     glAccountCode: saved.glAccountCode,
     glAccountName: saved.glAccountName,
     paidAmount: saved.paidAmount,
@@ -134,6 +205,16 @@ export async function upsertDataMartStaging(
     vendorName,
     interfaceId,
     paymentRequestNo,
+    journalNo,
+    voucherEgl,
+    invoiceNo,
+    invoiceDate,
+    paymentRequestDate,
+    requestedByEmail,
+    budgetRequestApprovedAt,
+    planAmount,
+    costDriverMetric,
+    costPerUnit,
     confinsPayloadRaw,
     budgetRequestSnapshot,
     matchType: saved.matchType,

@@ -30,7 +30,7 @@ type BudgetForSnapshot = {
     code: string;
     subject: string;
     originOffice: string | null;
-    project: { code: string } | null;
+    project: { code: string; name: string } | null;
   } | null;
 };
 
@@ -48,6 +48,7 @@ export function buildBudgetRequestSnapshot(
     budgetPlanCode: br.budgetPlan?.code ?? null,
     budgetPlanSubject: br.budgetPlan?.subject ?? null,
     projectCode: br.budgetPlan?.project?.code ?? null,
+    projectName: br.budgetPlan?.project?.name ?? null,
     originOffice: br.budgetPlan?.originOffice ?? null,
     category: br.category,
     categoryKeyIndex: br.categoryKeyIndex,

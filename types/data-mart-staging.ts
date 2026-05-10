@@ -1,11 +1,13 @@
-/** Response row dari GET /api/reports/data-mart */
+/** Response row dari GET /api/reports/data-mart (selaras guideline FP&A / Data Mart). */
 export type DataMartStagingApiRow = {
   id: string;
   confinsPaymentDocId: string;
+  dataInterfaceSource: string | null;
   budgetRequestCode: string;
   budgetPlanCode: string | null;
   budgetRequestSubject: string | null;
   expenseCategory: string | null;
+  expenseTypeFp: string | null;
   categoryKeyIndex: string | null;
   costCenter: string | null;
   accountNumberCoa: string | null;
@@ -13,6 +15,7 @@ export type DataMartStagingApiRow = {
   opexAllocation: string | null;
   budgetRequestType: string | null;
   projectCode: string | null;
+  projectName: string | null;
   fiscalYear: number;
   month: number;
   period: string;
@@ -38,6 +41,16 @@ export type DataMartStagingApiRow = {
   vendorName: string | null;
   interfaceId: string | null;
   paymentRequestNo: string | null;
+  journalNo: string | null;
+  voucherEgl: string | null;
+  invoiceNo: string | null;
+  invoiceDate: string | null;
+  paymentRequestDate: string | null;
+  requestedByEmail: string | null;
+  budgetRequestApprovedAt: string | null;
+  planAmount: string | null;
+  costDriverMetric: string | null;
+  costPerUnit: string | null;
   matchType: string;
   savedAt: string;
   confinsPayloadRaw: unknown;

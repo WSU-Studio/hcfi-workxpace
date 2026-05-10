@@ -8,7 +8,7 @@ import {
   TableHead,
   TableHeaderRow,
 } from '@/components/ui/Table';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatISODate } from '@/lib/utils';
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -22,7 +22,17 @@ function d(v: string | null | undefined): string {
   return v && String(v).trim() !== '' ? v : '—';
 }
 
-const COL_COUNT = 29;
+function dateCell(iso: string | null): string {
+  if (!iso) return '—';
+  try {
+    return formatDate(iso);
+  } catch {
+    return formatISODate(iso);
+  }
+}
+
+/** Kolom utama + blok FP&A (invoice/PR/driver/plan) selaras guideline ekspor. */
+const COL_COUNT = 44;
 
 export type DataMartStagingTableProps = {
   rows: DataMartStagingApiRow[];
@@ -31,7 +41,7 @@ export type DataMartStagingTableProps = {
 export default function DataMartStagingTable({ rows }: DataMartStagingTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-      <Table className="min-w-[3400px] text-sm">
+      <Table className="min-w-[4300px] text-sm">
         <thead className="bg-sky-50">
           <TableHeaderRow>
             <TableHead className="sticky left-0 z-10 min-w-[100px] bg-sky-50 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
@@ -41,6 +51,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Month</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Quarter</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Doc ID</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Interface ID</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
               Reference (BR)
             </TableHead>
@@ -58,8 +69,10 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Cat. key index</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX type</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX alloc.</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project code</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project name</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR type</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Expense type</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Vendor</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Bus. role</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Activity</TableHead>
@@ -67,6 +80,18 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Paid (IDR)</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Expected</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Match</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Iface</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR No.</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Journal</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Vchr E-GL</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Invoice</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Inv. date</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR date</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Request by</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">BR approved</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Plan mo.</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Σ driver</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Actual ÷ drv</TableHead>
           </TableHeaderRow>
         </thead>
         <tbody>
@@ -82,6 +107,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="whitespace-nowrap text-sm">{monthLabel(r.month)}</TableCell>
                 <TableCell className="whitespace-nowrap text-sm text-gray-600">Q{r.quarter}</TableCell>
                 <TableCell className="max-w-[120px] truncate font-mono text-xs text-gray-700">{r.confinsPaymentDocId}</TableCell>
+                <TableCell className="max-w-[88px] truncate font-mono text-xs">{d(r.interfaceId)}</TableCell>
                 <TableCell className="max-w-[130px] truncate text-sm font-medium">{r.incomingReferenceId}</TableCell>
                 <TableCell className="max-w-[120px] truncate text-sm">{r.budgetRequestCode}</TableCell>
                 <TableCell className="max-w-[100px] truncate text-sm">{d(r.budgetPlanCode)}</TableCell>
@@ -100,7 +126,9 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="max-w-[90px] truncate text-sm">{d(r.opexType)}</TableCell>
                 <TableCell className="max-w-[100px] truncate text-sm">{d(r.opexAllocation)}</TableCell>
                 <TableCell className="max-w-[90px] truncate text-sm">{d(r.projectCode)}</TableCell>
+                <TableCell className="max-w-[140px] truncate text-sm">{d(r.projectName)}</TableCell>
                 <TableCell className="max-w-[80px] truncate text-sm">{d(r.budgetRequestType)}</TableCell>
+                <TableCell className="max-w-[90px] truncate text-sm">{d(r.expenseTypeFp)}</TableCell>
                 <TableCell className="max-w-[120px] truncate text-sm">{d(r.vendorName)}</TableCell>
                 <TableCell className="max-w-[100px] truncate text-sm">{d(r.businessRole)}</TableCell>
                 <TableCell className="max-w-[130px] truncate text-sm">{r.activityLabel ?? r.activityCode ?? '—'}</TableCell>
@@ -108,6 +136,22 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.paidAmount))}</TableCell>
                 <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.expectedAmount))}</TableCell>
                 <TableCell className="whitespace-nowrap text-sm capitalize">{r.matchType}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-xs">{d(r.dataInterfaceSource)}</TableCell>
+                <TableCell className="max-w-[110px] truncate font-mono text-xs">{d(r.paymentRequestNo)}</TableCell>
+                <TableCell className="max-w-[100px] truncate font-mono text-xs">{d(r.journalNo)}</TableCell>
+                <TableCell className="max-w-[90px] truncate font-mono text-xs">{d(r.voucherEgl)}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-xs">{d(r.invoiceNo)}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.invoiceDate)}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.paymentRequestDate)}</TableCell>
+                <TableCell className="max-w-[120px] truncate text-xs">{d(r.requestedByEmail)}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.budgetRequestApprovedAt)}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">
+                  {r.planAmount ? formatCurrency(Number(r.planAmount)) : '—'}
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">{d(r.costDriverMetric)}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">
+                  {r.costPerUnit ? Number(r.costPerUnit).toLocaleString('id-ID', { maximumFractionDigits: 4 }) : '—'}
+                </TableCell>
               </TableBodyRow>
             ))
           )}
