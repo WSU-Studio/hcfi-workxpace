@@ -1,0 +1,35 @@
+/** Response row dari GET /api/reports/data-mart */
+export type DataMartStagingApiRow = {
+  id: string;
+  confinsPaymentDocId: string;
+  budgetRequestCode: string;
+  fiscalYear: number;
+  month: number;
+  period: string;
+  quarter: number;
+  originOffice: string | null;
+  divisionName: string | null;
+  departmentName: string | null;
+  requestorName: string | null;
+  incomingReferenceId: string;
+  voucherNumber: string | null;
+  paymentDescription: string | null;
+  paymentSource: string | null;
+  glAccountCode: string | null;
+  glAccountName: string | null;
+  paidAmount: string;
+  expectedAmount: string;
+  currencyCode: string | null;
+  businessRole: string | null;
+  activityCode: string | null;
+  subActivityCode: string | null;
+  activityLabel: string | null;
+  subActivityLabel: string | null;
+  vendorName: string | null;
+  interfaceId: string | null;
+  paymentRequestNo: string | null;
+  matchType: string;
+  savedAt: string;
+  confinsPayloadRaw: unknown;
+  budgetRequestSnapshot: unknown;
+};
