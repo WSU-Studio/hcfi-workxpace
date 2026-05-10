@@ -74,6 +74,9 @@ export default function ReconciliationPage() {
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
   const [selectedManualRequestId, setSelectedManualRequestId] = useState('');
 
+  const [resetEligible, setResetEligible] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
   const canManualMatch = Boolean(session?.user?.access?.activityAccess?.editReconciliationMapping);
   const canSync = Boolean(session?.user?.access?.activityAccess?.runReconciliationSync);
   const canSave = Boolean(session?.user?.access?.activityAccess?.saveReconciliationResult);
@@ -92,6 +95,20 @@ export default function ReconciliationPage() {
   useEffect(() => {
     if (status === 'authenticated') loadSavedPaymentIds();
   }, [status, loadSavedPaymentIds]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    (async () => {
+      try {
+        const res = await fetch('/api/reconciliation/reset-eligibility');
+        if (!res.ok) return;
+        const data = (await res.json()) as { enabled?: boolean };
+        setResetEligible(Boolean(data.enabled));
+      } catch {
+        setResetEligible(false);
+      }
+    })();
+  }, [status]);
 
   const paymentsVisible = useMemo(
     () => payments.filter((p) => !savedPaymentIds.has(p.id)),
@@ -214,6 +231,8 @@ export default function ReconciliationPage() {
           paymentSource: r.payment.source,
           glAccountCode: r.payment.glAccountCode,
           glAccountName: r.payment.glAccountName,
+          confinsSnapshot: r.payment as unknown as Record<string, unknown>,
+          currencyCode: r.payment.currency,
         })),
       };
 
@@ -238,6 +257,29 @@ export default function ReconciliationPage() {
       toast.error(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const resetSavedForTesting = async () => {
+    if (!canSave || !resetEligible || resetLoading) return;
+    const ok = window.confirm(
+      'Hapus semua simpanan rekonsiliasi yang sudah disimpan? Baris akan muncul lagi di daftar kerja; staging Data Mart untuk simpanan tersebut ikut terhapus.'
+    );
+    if (!ok) return;
+    setResetLoading(true);
+    try {
+      const res = await fetch('/api/reconciliation/reset-saved', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? data.hint ?? 'Reset gagal');
+      const n = data.deletedCount ?? 0;
+      toast.success(`Reset ok: ${n} simpanan dihapus.`);
+      await loadSavedPaymentIds();
+      if (canSync) await runSync();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Reset gagal';
+      toast.error(msg);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -382,6 +424,39 @@ export default function ReconciliationPage() {
         )}
         <ReconciliationTable rows={rows} canEditManual={canManualMatch} onManualMatch={openManualMatch} />
       </Card>
+
+      {canSave && (
+        <Card className="space-y-3 border-dashed border-amber-200 bg-amber-50/40 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">Pengujian ulang (development / QA)</h3>
+          <p className="text-xs leading-relaxed text-amber-950/90">
+            Transaksi yang sudah disimpan disembunyikan dari daftar ini. Untuk menguji lagi dari awal, kosongkan simpanan
+            DB: tombol di bawah (aktif di <code className="rounded bg-white/80 px-1">NODE_ENV=development</code> atau jika{' '}
+            <code className="rounded bg-white/80 px-1">RECONCILIATION_ALLOW_RESET=true</code>
+            ). Setelah reset, klik <strong>Run Integration Process</strong> untuk memuat ulang mock payment.
+          </p>
+          <p className="text-xs text-amber-950/85">
+            Contoh mock bawaan: pembayaran dari <strong>Budget Request Approved</strong> (ID{' '}
+            <code className="rounded bg-white/80 px-1">CFN-REQ-…</code>), plus edge case{' '}
+            <code className="rounded bg-white/80 px-1">BR/IT/00X</code> (typo → manual match) dan{' '}
+            <code className="rounded bg-white/80 px-1">CFN-EDGE-VARIANCE</code> (nominal beda).
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="danger"
+              disabled={!resetEligible || resetLoading}
+              onClick={resetSavedForTesting}
+            >
+              {resetLoading ? 'Memproses…' : 'Reset simpanan rekonsiliasi (testing)'}
+            </Button>
+            {!resetEligible && (
+              <span className="text-xs text-amber-900/80">
+                Tombol nonaktif di build ini — gunakan development atau set env di atas.
+              </span>
+            )}
+          </div>
+        </Card>
+      )}
 
       <ManualMatchModal
         open={Boolean(activePaymentId)}

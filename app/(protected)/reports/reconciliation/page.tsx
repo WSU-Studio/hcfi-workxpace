@@ -152,9 +152,9 @@ export default function ReconciliationReportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Reporting — Reconciliation</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Reconciliation Recap</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Data hasil simpan rekonsiliasi (matched) untuk audit dan review manajemen.
+          Matched records from Reconciliation. Saved records for audit and management review.
         </p>
       </div>
 
