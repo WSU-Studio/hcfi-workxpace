@@ -448,6 +448,20 @@ model DataMartStagingRow {
   interfaceId                  String?  @map("interface_id")
   paymentRequestNo             String?  @map("payment_request_no")
 
+  dataInterfaceSource          String?  @map("data_interface_source")
+  expenseTypeFp                String?  @map("expense_type_fp")
+  journalNo                    String?  @map("journal_no")
+  voucherEgl                   String?  @map("voucher_egl")
+  invoiceNo                    String?  @map("invoice_no")
+  invoiceDate                  DateTime? @map("invoice_date")
+  paymentRequestDate           DateTime? @map("payment_request_date")
+  requestedByEmail             String?  @map("requested_by_email")
+  projectName                  String?  @map("project_name")
+  budgetRequestApprovedAt      DateTime? @map("budget_request_approved_at")
+  planAmount                   Decimal? @map("plan_amount") @db.Decimal(18, 2)
+  costDriverMetric             Decimal? @map("cost_driver_metric") @db.Decimal(18, 4)
+  costPerUnit                  Decimal? @map("cost_per_unit") @db.Decimal(18, 6)
+
   confinsPayloadRaw            Json     @map("confins_payload_raw")
   budgetRequestSnapshot        Json     @map("budget_request_snapshot")
 
@@ -466,6 +480,7 @@ model DataMartStagingRow {
   @@index([expenseCategory])
   @@index([categoryKeyIndex])
   @@index([projectCode])
+  @@index([invoiceNo])
   @@map("data_mart_staging")
 }
 
