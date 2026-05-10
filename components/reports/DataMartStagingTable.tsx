@@ -96,7 +96,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <TableEmptyRow colSpan={COL_COUNT}>No staging rows for these filters.</TableEmptyRow>
+            <TableEmptyRow colSpan={COL_COUNT} className="pl-4 text-left text-gray-500">No staging rows for these filters.</TableEmptyRow>
           ) : (
             rows.map((r) => (
               <TableBodyRow key={r.id}>

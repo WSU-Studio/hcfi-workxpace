@@ -8,11 +8,13 @@ import { buildStagingGuidelineCsv } from '@/lib/data-mart/staging-export-csv';
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Input, { inputFieldClassName } from '@/components/ui/Input';
 
 type DepartmentOption = { id: string; code: string; name: string };
 type MasterCategory = { id: string; name: string; isActive?: boolean };
 type MasterCki = { id: string; name: string; isActive?: boolean };
 type MasterOriginOffice = { id: string; code: string; name: string; isActive?: boolean };
+type MasterProject = { id: string; code: string; name: string };
 
 export default function DataMartsReportPage() {
   const { data: session, status } = useSession();
@@ -26,11 +28,13 @@ export default function DataMartsReportPage() {
   const [vendorName, setVendorName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [categoryKeyIndexId, setCategoryKeyIndexId] = useState('');
+  const [projectId, setProjectId] = useState('');
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [categories, setCategories] = useState<MasterCategory[]>([]);
   const [categoryKeyIndexes, setCategoryKeyIndexes] = useState<MasterCki[]>([]);
   const [originOffices, setOriginOffices] = useState<MasterOriginOffice[]>([]);
+  const [projects, setProjects] = useState<MasterProject[]>([]);
 
   const [rows, setRows] = useState<DataMartStagingApiRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -38,11 +42,12 @@ export default function DataMartsReportPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadFilterOptions = useCallback(async () => {
-    const [planRes, catRes, ckiRes, ooRes] = await Promise.all([
+    const [planRes, catRes, ckiRes, ooRes, projRes] = await Promise.all([
       fetch('/api/budget-plans'),
       fetch('/api/workspace-management/category'),
       fetch('/api/workspace-management/category-key-index'),
       fetch('/api/workspace-management/origin-office'),
+      fetch('/api/workspace-management/project'),
     ]);
 
     if (planRes.ok) {
@@ -64,6 +69,11 @@ export default function DataMartsReportPage() {
       const list = (data.originOffices ?? []).filter((o) => o.isActive !== false);
       setOriginOffices(list.sort((a, b) => a.code.localeCompare(b.code)));
     }
+    if (projRes.ok) {
+      const data = (await projRes.json()) as { projects?: MasterProject[] };
+      const list = data.projects ?? [];
+      setProjects(list.sort((a, b) => a.code.localeCompare(b.code)));
+    }
   }, []);
 
   const loadStaging = useCallback(async () => {
@@ -79,6 +89,7 @@ export default function DataMartsReportPage() {
       if (vendorName.trim()) url.searchParams.set('vendorName', vendorName.trim());
       if (categoryId) url.searchParams.set('categoryId', categoryId);
       if (categoryKeyIndexId) url.searchParams.set('categoryKeyIndexId', categoryKeyIndexId);
+      if (projectId) url.searchParams.set('projectId', projectId);
       const res = await fetch(url.toString());
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to load');
@@ -100,6 +111,7 @@ export default function DataMartsReportPage() {
     vendorName,
     categoryId,
     categoryKeyIndexId,
+    projectId,
   ]);
 
   useEffect(() => {
@@ -153,93 +165,105 @@ export default function DataMartsReportPage() {
       </div>
 
       <Card className="space-y-4 p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Fiscal year</span>
-            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}>
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
-                <option key={y} value={String(y)}>
-                  {y}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Month</span>
-            <Select value={month} onChange={(e) => setMonth(e.target.value)}>
-              <option value="">All</option>
-              {Array.from({ length: 12 }, (_, idx) => idx + 1).map((m) => (
-                <option key={m} value={String(m)}>
-                  {new Date(2026, m - 1, 1).toLocaleString('en-US', { month: 'long' })}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Department</span>
-            <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-              <option value="">All</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.code} — {d.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Origin office</span>
-            <Select value={originOfficeId} onChange={(e) => setOriginOfficeId(e.target.value)}>
-              <option value="">All</option>
-              {originOffices.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.code} — {o.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Expense category</span>
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">All</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Category key index</span>
-            <Select value={categoryKeyIndexId} onChange={(e) => setCategoryKeyIndexId(e.target.value)}>
-              <option value="">All</option>
-              {categoryKeyIndexes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Vendor contains</span>
-            <input
-              type="text"
-              value={vendorName}
-              onChange={(e) => setVendorName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </label>
+        <div className="flex w-full gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Fiscal year</span>
+              <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}>
+                {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Month</span>
+              <Select value={month} onChange={(e) => setMonth(e.target.value)}>
+                <option value="">All</option>
+                {Array.from({ length: 12 }, (_, idx) => idx + 1).map((m) => (
+                  <option key={m} value={String(m)}>
+                    {new Date(2026, m - 1, 1).toLocaleString('en-US', { month: 'long' })}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Department</span>
+              <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                <option value="">All</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.code} — {d.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Origin office</span>
+              <Select value={originOfficeId} onChange={(e) => setOriginOfficeId(e.target.value)}>
+                <option value="">All</option>
+                {originOffices.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.code} — {o.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Expense category</span>
+              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                <option value="">All</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Category key index</span>
+              <Select value={categoryKeyIndexId} onChange={(e) => setCategoryKeyIndexId(e.target.value)}>
+                <option value="">All</option>
+                {categoryKeyIndexes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Vendor contains</span>
+              <Input
+                value={vendorName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVendorName(e.target.value)}
+                className={inputFieldClassName}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-gray-700">Project code</span>
+              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                <option value="">All</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code} — {p.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
 
-          <div className="flex flex-wrap items-end gap-2">
-            <Button type="button" variant="outline" onClick={loadStaging} disabled={loading}>
-              {loading ? 'Loading…' : 'Apply filters'}
-            </Button>
-            <Button type="button" onClick={exportCsv} disabled={rows.length === 0}>
+          <div className="flex flex-col items-end justify-end gap-2">
+            <Button className="whitespace-nowrap" type="button" onClick={exportCsv} disabled={rows.length === 0}>
               Export CSV
+            </Button>
+            <Button className="whitespace-nowrap" type="button" variant="outline" onClick={loadStaging} disabled={loading}>
+              {loading ? 'Loading…' : 'Apply filters'}
             </Button>
           </div>
         </div>
         <p className="text-xs text-gray-500">
-          {subtitle} Origin office, category, and key index use workspace master data (exact match to saved staging text).
+          {subtitle} Origin office, category, key index, and project use workspace master data (exact match to staging).
           Click Apply after changing those filters.
         </p>
         {error && <p className="text-sm text-red-600">{error}</p>}

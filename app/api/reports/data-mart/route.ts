@@ -28,10 +28,12 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get('categoryId') ?? '';
     const categoryKeyIndexId = searchParams.get('categoryKeyIndexId') ?? '';
     const originOfficeId = searchParams.get('originOfficeId') ?? '';
+    const projectId = searchParams.get('projectId') ?? '';
     /** Legacy substring filters (optional). Prefer master IDs when available. */
     const originOfficeContains = searchParams.get('originOffice') ?? '';
     const expenseCategoryContains = searchParams.get('expenseCategory') ?? '';
     const categoryKeyIndexContains = searchParams.get('categoryKeyIndex') ?? '';
+    const projectCodeContains = searchParams.get('projectCode') ?? '';
 
     const limitRaw = searchParams.get('limit');
     const offsetRaw = searchParams.get('offset');
@@ -81,6 +83,15 @@ export async function GET(request: Request) {
       }
     } else if (originOfficeContains) {
       where.originOffice = { contains: originOfficeContains, mode: 'insensitive' };
+    }
+
+    if (projectId) {
+      const proj = await prisma.project.findUnique({ where: { id: projectId } });
+      if (proj) {
+        where.projectCode = { equals: proj.code, mode: 'insensitive' };
+      }
+    } else if (projectCodeContains) {
+      where.projectCode = { contains: projectCodeContains, mode: 'insensitive' };
     }
 
     const [total, rows] = await prisma.$transaction([
