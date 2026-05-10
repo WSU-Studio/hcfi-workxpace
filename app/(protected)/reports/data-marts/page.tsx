@@ -76,34 +76,61 @@ export default function DataMartsReportPage() {
     }
   }, []);
 
-  const loadStaging = useCallback(async () => {
-    if (!canView) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const url = new URL('/api/reports/data-mart', window.location.origin);
-      url.searchParams.set('fiscalYear', fiscalYear);
-      if (month) url.searchParams.set('month', month);
-      if (departmentId) url.searchParams.set('departmentId', departmentId);
-      if (originOfficeId) url.searchParams.set('originOfficeId', originOfficeId);
-      if (vendorName.trim()) url.searchParams.set('vendorName', vendorName.trim());
-      if (categoryId) url.searchParams.set('categoryId', categoryId);
-      if (categoryKeyIndexId) url.searchParams.set('categoryKeyIndexId', categoryKeyIndexId);
-      if (projectId) url.searchParams.set('projectId', projectId);
-      const res = await fetch(url.toString());
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load');
-      setRows(data.rows ?? []);
-      setTotal(typeof data.total === 'number' ? data.total : 0);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed');
-      setRows([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+  type StagingQuery = {
+    fiscalYear: string;
+    month: string;
+    departmentId: string;
+    originOfficeId: string;
+    vendorName: string;
+    categoryId: string;
+    categoryKeyIndexId: string;
+    projectId: string;
+  };
+
+  const fetchStaging = useCallback(
+    async (q: StagingQuery) => {
+      if (!canView) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const url = new URL('/api/reports/data-mart', window.location.origin);
+        url.searchParams.set('fiscalYear', q.fiscalYear);
+        if (q.month) url.searchParams.set('month', q.month);
+        if (q.departmentId) url.searchParams.set('departmentId', q.departmentId);
+        if (q.originOfficeId) url.searchParams.set('originOfficeId', q.originOfficeId);
+        if (q.vendorName.trim()) url.searchParams.set('vendorName', q.vendorName.trim());
+        if (q.categoryId) url.searchParams.set('categoryId', q.categoryId);
+        if (q.categoryKeyIndexId) url.searchParams.set('categoryKeyIndexId', q.categoryKeyIndexId);
+        if (q.projectId) url.searchParams.set('projectId', q.projectId);
+        const res = await fetch(url.toString());
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Failed to load');
+        setRows(data.rows ?? []);
+        setTotal(typeof data.total === 'number' ? data.total : 0);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed');
+        setRows([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canView]
+  );
+
+  const loadStaging = useCallback(() => {
+    void fetchStaging({
+      fiscalYear,
+      month,
+      departmentId,
+      originOfficeId,
+      vendorName,
+      categoryId,
+      categoryKeyIndexId,
+      projectId,
+    });
   }, [
-    canView,
+    fetchStaging,
     fiscalYear,
     month,
     departmentId,
@@ -114,6 +141,28 @@ export default function DataMartsReportPage() {
     projectId,
   ]);
 
+  const resetFilters = useCallback(() => {
+    const fy = String(new Date().getFullYear());
+    setFiscalYear(fy);
+    setMonth('');
+    setDepartmentId('');
+    setOriginOfficeId('');
+    setVendorName('');
+    setCategoryId('');
+    setCategoryKeyIndexId('');
+    setProjectId('');
+    void fetchStaging({
+      fiscalYear: fy,
+      month: '',
+      departmentId: '',
+      originOfficeId: '',
+      vendorName: '',
+      categoryId: '',
+      categoryKeyIndexId: '',
+      projectId: '',
+    });
+  }, [fetchStaging]);
+
   useEffect(() => {
     if (status !== 'authenticated' || !canView) return;
     void loadFilterOptions();
@@ -121,7 +170,16 @@ export default function DataMartsReportPage() {
 
   useEffect(() => {
     if (status !== 'authenticated' || !canView) return;
-    void loadStaging();
+    void fetchStaging({
+      fiscalYear,
+      month,
+      departmentId,
+      originOfficeId,
+      vendorName,
+      categoryId,
+      categoryKeyIndexId,
+      projectId,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, canView, fiscalYear, month, departmentId]);
 
@@ -256,6 +314,9 @@ export default function DataMartsReportPage() {
           <div className="flex flex-col items-end justify-end gap-2">
             <Button className="whitespace-nowrap" type="button" onClick={exportCsv} disabled={rows.length === 0}>
               Export CSV
+            </Button>
+            <Button className="whitespace-nowrap" type="button" variant="outline" onClick={resetFilters} disabled={loading}>
+              Reset filters
             </Button>
             <Button className="whitespace-nowrap" type="button" variant="outline" onClick={loadStaging} disabled={loading}>
               {loading ? 'Loading…' : 'Apply filters'}
