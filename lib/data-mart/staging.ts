@@ -26,7 +26,12 @@ type BudgetForSnapshot = {
   opexType: string | null;
   grandTotal: Prisma.Decimal;
   department: { code: string; name: string } | null;
-  budgetPlan: { code: string; subject: string; originOffice: string | null } | null;
+  budgetPlan: {
+    code: string;
+    subject: string;
+    originOffice: string | null;
+    project: { code: string } | null;
+  } | null;
 };
 
 export function buildBudgetRequestSnapshot(
@@ -42,6 +47,7 @@ export function buildBudgetRequestSnapshot(
     departmentName: br.department?.name ?? null,
     budgetPlanCode: br.budgetPlan?.code ?? null,
     budgetPlanSubject: br.budgetPlan?.subject ?? null,
+    projectCode: br.budgetPlan?.project?.code ?? null,
     originOffice: br.budgetPlan?.originOffice ?? null,
     category: br.category,
     categoryKeyIndex: br.categoryKeyIndex,

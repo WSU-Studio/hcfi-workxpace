@@ -3,6 +3,16 @@ export type DataMartStagingApiRow = {
   id: string;
   confinsPaymentDocId: string;
   budgetRequestCode: string;
+  budgetPlanCode: string | null;
+  budgetRequestSubject: string | null;
+  expenseCategory: string | null;
+  categoryKeyIndex: string | null;
+  costCenter: string | null;
+  accountNumberCoa: string | null;
+  opexType: string | null;
+  opexAllocation: string | null;
+  budgetRequestType: string | null;
+  projectCode: string | null;
   fiscalYear: number;
   month: number;
   period: string;

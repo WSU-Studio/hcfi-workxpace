@@ -18,6 +18,12 @@ function monthLabel(month: number): string {
   return MONTH_SHORT[i] ?? String(month);
 }
 
+function d(v: string | null | undefined): string {
+  return v && String(v).trim() !== '' ? v : '—';
+}
+
+const COL_COUNT = 29;
+
 export type DataMartStagingTableProps = {
   rows: DataMartStagingApiRow[];
 };
@@ -25,82 +31,82 @@ export type DataMartStagingTableProps = {
 export default function DataMartStagingTable({ rows }: DataMartStagingTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-      <Table>
+      <Table className="min-w-[3400px] text-sm">
         <thead className="bg-sky-50">
           <TableHeaderRow>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
+            <TableHead className="sticky left-0 z-10 min-w-[100px] bg-sky-50 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
               Period
             </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              FY
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Month
-            </TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">FY</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Month</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Quarter</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Doc ID</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
               Reference (BR)
             </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Budget request
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Origin office
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Department
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Vendor
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Business role
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Activity
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Sub activity
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Paid (IDR)
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Expected
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Match
-            </TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR code</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Plan code</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Transaction</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Origin office</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Division</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Department</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Account (COA)</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">GL code</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">GL name</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Cost center</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Category</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Cat. key index</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX type</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX alloc.</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR type</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Vendor</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Bus. role</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Activity</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Sub activity</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Paid (IDR)</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Expected</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Match</TableHead>
           </TableHeaderRow>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <TableEmptyRow colSpan={14}>No staging rows for these filters.</TableEmptyRow>
+            <TableEmptyRow colSpan={COL_COUNT}>No staging rows for these filters.</TableEmptyRow>
           ) : (
             rows.map((r) => (
               <TableBodyRow key={r.id}>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums">{r.period}</TableCell>
+                <TableCell className="sticky left-0 z-[1] min-w-[100px] bg-white whitespace-nowrap text-sm tabular-nums shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
+                  {r.period}
+                </TableCell>
                 <TableCell className="whitespace-nowrap text-sm tabular-nums">{r.fiscalYear}</TableCell>
-                <TableCell className="whitespace-nowrap text-sm">
-                  {monthLabel(r.month)} <span className="text-gray-400">(Q{r.quarter})</span>
+                <TableCell className="whitespace-nowrap text-sm">{monthLabel(r.month)}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-gray-600">Q{r.quarter}</TableCell>
+                <TableCell className="max-w-[120px] truncate font-mono text-xs text-gray-700">{r.confinsPaymentDocId}</TableCell>
+                <TableCell className="max-w-[130px] truncate text-sm font-medium">{r.incomingReferenceId}</TableCell>
+                <TableCell className="max-w-[120px] truncate text-sm">{r.budgetRequestCode}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.budgetPlanCode)}</TableCell>
+                <TableCell className="max-w-[180px] truncate text-sm" title={r.budgetRequestSubject ?? undefined}>
+                  {d(r.budgetRequestSubject)}
                 </TableCell>
-                <TableCell className="max-w-[140px] truncate text-sm font-medium">{r.incomingReferenceId}</TableCell>
-                <TableCell className="max-w-[160px] truncate text-sm">{r.budgetRequestCode}</TableCell>
-                <TableCell className="max-w-[120px] truncate text-sm text-gray-700">{r.originOffice ?? '—'}</TableCell>
-                <TableCell className="max-w-[160px] truncate text-sm">{r.departmentName ?? '—'}</TableCell>
-                <TableCell className="max-w-[140px] truncate text-sm">{r.vendorName ?? '—'}</TableCell>
-                <TableCell className="max-w-[120px] truncate text-sm">{r.businessRole ?? '—'}</TableCell>
-                <TableCell className="max-w-[140px] truncate text-sm">
-                  {r.activityLabel ?? r.activityCode ?? '—'}
-                </TableCell>
-                <TableCell className="max-w-[140px] truncate text-sm">
-                  {r.subActivityLabel ?? r.subActivityCode ?? '—'}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums">
-                  {formatCurrency(Number(r.paidAmount))}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums">
-                  {formatCurrency(Number(r.expectedAmount))}
-                </TableCell>
+                <TableCell className="max-w-[110px] truncate text-sm">{d(r.originOffice)}</TableCell>
+                <TableCell className="max-w-[110px] truncate text-sm">{d(r.divisionName)}</TableCell>
+                <TableCell className="max-w-[140px] truncate text-sm">{d(r.departmentName)}</TableCell>
+                <TableCell className="max-w-[100px] truncate font-mono text-xs">{d(r.accountNumberCoa)}</TableCell>
+                <TableCell className="max-w-[90px] truncate font-mono text-xs">{d(r.glAccountCode)}</TableCell>
+                <TableCell className="max-w-[140px] truncate text-sm">{d(r.glAccountName)}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.costCenter)}</TableCell>
+                <TableCell className="max-w-[120px] truncate text-sm">{d(r.expenseCategory)}</TableCell>
+                <TableCell className="max-w-[110px] truncate text-sm">{d(r.categoryKeyIndex)}</TableCell>
+                <TableCell className="max-w-[90px] truncate text-sm">{d(r.opexType)}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.opexAllocation)}</TableCell>
+                <TableCell className="max-w-[90px] truncate text-sm">{d(r.projectCode)}</TableCell>
+                <TableCell className="max-w-[80px] truncate text-sm">{d(r.budgetRequestType)}</TableCell>
+                <TableCell className="max-w-[120px] truncate text-sm">{d(r.vendorName)}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.businessRole)}</TableCell>
+                <TableCell className="max-w-[130px] truncate text-sm">{r.activityLabel ?? r.activityCode ?? '—'}</TableCell>
+                <TableCell className="max-w-[130px] truncate text-sm">{r.subActivityLabel ?? r.subActivityCode ?? '—'}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.paidAmount))}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.expectedAmount))}</TableCell>
                 <TableCell className="whitespace-nowrap text-sm capitalize">{r.matchType}</TableCell>
               </TableBodyRow>
             ))

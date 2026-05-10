@@ -33,7 +33,7 @@ export type SaveRowWithStaging = {
 type Tx = Prisma.TransactionClient;
 
 type BudgetInclude = Prisma.BudgetRequestGetPayload<{
-  include: { department: true; budgetPlan: true };
+  include: { department: true; budgetPlan: { include: { project: true } } };
 }>;
 
 function pickCurrencyFromSnapshot(snapshot: Record<string, unknown> | null | undefined): string | null {
@@ -102,6 +102,16 @@ export async function upsertDataMartStaging(
     period,
     quarter,
     budgetRequestCode: br.code,
+    budgetPlanCode: br.budgetPlan?.code ?? null,
+    budgetRequestSubject: br.subject,
+    expenseCategory: br.category,
+    categoryKeyIndex: br.categoryKeyIndex,
+    costCenter: br.costCenter,
+    accountNumberCoa: br.coa,
+    opexType: br.opexType,
+    opexAllocation: br.opexAllocation,
+    budgetRequestType: br.type,
+    projectCode: br.budgetPlan?.project?.code ?? null,
     departmentId: saved.departmentId ?? br.departmentId,
     departmentName: br.department?.name ?? null,
     originOffice: br.budgetPlan?.originOffice ?? null,

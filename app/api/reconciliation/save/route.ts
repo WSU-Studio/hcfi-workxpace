@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const budgetIds = [...new Set(rows.map((r) => r.budgetRequestId))];
     const budgetRows = await prisma.budgetRequest.findMany({
       where: { id: { in: budgetIds } },
-      include: { department: true, budgetPlan: true },
+      include: { department: true, budgetPlan: { include: { project: true } } },
     });
     const budgetById = new Map(budgetRows.map((b) => [b.id, b]));
     const requestorIds = [

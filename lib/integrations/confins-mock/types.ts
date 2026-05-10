@@ -14,6 +14,7 @@ export type ConfinsCashDisbursement = {
   /** Referensi ke Form ID budget request (harus sama persis dengan `code`, mis. BR/IT/001). */
   incomingReferenceId: string;
   voucherNumber: string;
+  /** Tanggal posting di sisi Confins/E-GL (ISO). Mock: diisi per dokumen; integrasi nyata: dari field tanggal response API. */
   postDate: string;
   fiscalYear: number;
   /** Bulan kalender 1–12 (derivasi dari postDate untuk filter). */

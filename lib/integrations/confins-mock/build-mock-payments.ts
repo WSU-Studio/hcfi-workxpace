@@ -9,8 +9,18 @@ export type ConfinsMockFetchOptions = {
   includeEdgeCases?: boolean;
 };
 
-function midMonthIso(year: number, month1to12: number): string {
-  const d = new Date(year, month1to12 - 1, 15, 12, 0, 0);
+/**
+ * Mock: tanggal posting unik per baris dalam bulan (deterministik dari id dokumen).
+ * Integrasi Confins nyata: set field ini dari tanggal posting/voucher di response API per payment line.
+ */
+function mockPostingDateIso(year: number, month1to12: number, confinsDocumentKey: string): string {
+  const dim = new Date(year, month1to12, 0).getDate();
+  let h = 0;
+  for (let i = 0; i < confinsDocumentKey.length; i++) {
+    h = (h * 33 + confinsDocumentKey.charCodeAt(i)) >>> 0;
+  }
+  const day = 1 + (h % dim);
+  const d = new Date(year, month1to12 - 1, day, 12, 0, 0);
   return d.toISOString();
 }
 
@@ -60,13 +70,14 @@ async function paymentsFromApprovedRequests(
   for (const req of requests) {
     const month = pickActiveMonth(req.allocations, options.month);
     const fy = options.fiscalYear ?? req.fiscalYear;
-    const postDate = midMonthIso(fy, month);
+    const idA = `CFN-REQ-${req.id.slice(-8)}-A`;
+    const postDate = mockPostingDateIso(fy, month, idA);
     const total = Number(req.grandTotal ?? 0);
     const paymentAmount = total > 0 ? total : 2_500_000;
 
     seq += 1;
     out.push({
-      id: `CFN-REQ-${req.id.slice(-8)}-A`,
+      id: idA,
       incomingReferenceId: req.code,
       voucherNumber: `VCH-${req.code}-A`,
       postDate,
@@ -92,11 +103,12 @@ async function paymentsFromApprovedRequests(
       const splitAmount = Math.round(paymentAmount * 0.35 * 100) / 100;
       if (splitAmount > 0) {
         seq += 1;
+        const idB = `CFN-REQ-${req.id.slice(-8)}-B`;
         out.push({
-          id: `CFN-REQ-${req.id.slice(-8)}-B`,
+          id: idB,
           incomingReferenceId: req.code,
           voucherNumber: `VCH-${req.code}-B`,
-          postDate,
+          postDate: mockPostingDateIso(fy, month, idB),
           fiscalYear: fy,
           month,
           source: pickSource(seq),
@@ -135,7 +147,7 @@ function staticEdgeCasePayments(
       id: 'CFN-EDGE-UNKNOWN-REQUEST',
       incomingReferenceId: 'BR/IT/00X',
       voucherNumber: 'VCH-EDGE-001',
-      postDate: midMonthIso(y, m),
+      postDate: mockPostingDateIso(y, m, 'CFN-EDGE-UNKNOWN-REQUEST'),
       fiscalYear: y,
       month: m,
       source: 'Core',
@@ -156,7 +168,7 @@ function staticEdgeCasePayments(
       id: 'CFN-EDGE-VARIANCE',
       incomingReferenceId: base?.incomingReferenceId ?? 'BR/IT/001',
       voucherNumber: 'VCH-EDGE-002',
-      postDate: midMonthIso(y, m),
+      postDate: mockPostingDateIso(y, m, 'CFN-EDGE-VARIANCE'),
       fiscalYear: y,
       month: m,
       source: 'E-GL',
