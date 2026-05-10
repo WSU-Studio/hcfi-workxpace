@@ -31,7 +31,7 @@ export default function SettingToggleCard({
             disabled={disabled}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           />
-          <span className="text-sm font-medium text-gray-700">{enabled ? 'Active' : 'Inactive'}</span>
+          {/* <span className="text-sm font-medium text-gray-700">{enabled ? 'Active' : 'Inactive'}</span> */}
         </label>
       </div>
     </section>
