@@ -5,25 +5,14 @@ import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import type { ActivityAccess } from '@/types/access-control';
 import { Prisma } from '@prisma/client';
+import {
+  upsertDataMartStaging,
+  type SaveRowWithStaging,
+} from '@/lib/data-mart/upsert-staging-for-save';
 
 export const dynamic = 'force-dynamic';
 
-type SaveRow = {
-  confinsPaymentDocId: string;
-  budgetRequestId: string;
-  matchType: string;
-  incomingReferenceId: string;
-  paidAmount: number;
-  expectedAmount: number;
-  fiscalYear: number;
-  month: number;
-  departmentId?: string | null;
-  voucherNumber?: string | null;
-  paymentDescription?: string | null;
-  paymentSource?: string | null;
-  glAccountCode?: string | null;
-  glAccountName?: string | null;
-};
+type SaveRow = SaveRowWithStaging;
 
 export async function POST(request: Request) {
   try {
@@ -43,9 +32,24 @@ export async function POST(request: Request) {
 
     const userId = session.user.id;
 
-    await prisma.$transaction(
-      rows.map((row) =>
-        prisma.reconciliationSavedPayment.upsert({
+    const budgetIds = [...new Set(rows.map((r) => r.budgetRequestId))];
+    const budgetRows = await prisma.budgetRequest.findMany({
+      where: { id: { in: budgetIds } },
+      include: { department: true, budgetPlan: true },
+    });
+    const budgetById = new Map(budgetRows.map((b) => [b.id, b]));
+    const requestorIds = [
+      ...new Set(budgetRows.map((b) => b.requestorId).filter((id): id is string => Boolean(id))),
+    ];
+    const users = await prisma.user.findMany({
+      where: { id: { in: requestorIds } },
+      select: { id: true, name: true },
+    });
+    const userNameById = new Map(users.map((u) => [u.id, u.name]));
+
+    await prisma.$transaction(async (tx) => {
+      for (const row of rows) {
+        const saved = await tx.reconciliationSavedPayment.upsert({
           where: { confinsPaymentDocId: row.confinsPaymentDocId },
           create: {
             confinsPaymentDocId: row.confinsPaymentDocId,
@@ -81,9 +85,19 @@ export async function POST(request: Request) {
             savedByUserId: userId,
             savedAt: new Date(),
           },
-        })
-      )
-    );
+        });
+
+        const br = budgetById.get(row.budgetRequestId);
+        if (!br) {
+          throw new Error(`Budget request not found: ${row.budgetRequestId}`);
+        }
+
+        const requestorId = br.requestorId;
+        const requestorName = requestorId ? userNameById.get(requestorId) ?? null : null;
+
+        await upsertDataMartStaging(tx, saved, row, br, requestorName);
+      }
+    });
 
     await logActivity({
       userId,
