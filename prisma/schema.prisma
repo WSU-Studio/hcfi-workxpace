@@ -411,6 +411,17 @@ model DataMartStagingRow {
   quarter                      Int
 
   budgetRequestCode            String   @map("budget_request_code")
+  budgetPlanCode               String?  @map("budget_plan_code")
+  budgetRequestSubject         String?  @map("budget_request_subject") @db.Text
+  expenseCategory              String?  @map("expense_category")
+  categoryKeyIndex             String?  @map("category_key_index")
+  costCenter                   String?  @map("cost_center")
+  accountNumberCoa             String?  @map("account_number_coa")
+  opexType                     String?  @map("opex_type")
+  opexAllocation               String?  @map("opex_allocation")
+  budgetRequestType            String?  @map("budget_request_type")
+  projectCode                  String?  @map("project_code")
+
   departmentId                 String?  @map("department_id")
   departmentName               String?  @map("department_name")
   originOffice                 String?  @map("origin_office")
@@ -452,6 +463,9 @@ model DataMartStagingRow {
   @@index([originOffice])
   @@index([vendorName])
   @@index([savedAt])
+  @@index([expenseCategory])
+  @@index([categoryKeyIndex])
+  @@index([projectCode])
   @@map("data_mart_staging")
 }
 
