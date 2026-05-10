@@ -7,6 +7,7 @@ export interface MenuAccess {
   reports: boolean;
   userManagement: boolean;
   workspaceManagement: boolean;
+  settings?: boolean;
   viewDepartment: boolean;
   viewOriginOffice: boolean;
   viewProject: boolean;

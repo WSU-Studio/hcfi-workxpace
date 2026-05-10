@@ -16,7 +16,7 @@ const LOCAL_DEV = process.env.NODE_ENV !== 'production';
 const resolveConfinsBaseUrl = (): string =>
   process.env.CONFINS_BASE_URL || process.env.CREDIT_SIMULATION_API_URL || '';
 
-const isMockEnabled = (): boolean =>
+const isMockEnabledFromEnv = (): boolean =>
   process.env.CONFINS_USE_MOCK === 'true' || (LOCAL_DEV && process.env.CONFINS_USE_MOCK !== 'false');
 
 const isMockFallbackEnabled = (): boolean =>
@@ -29,15 +29,17 @@ export class ConfinsClient {
   constructor() {
     this.baseUrl = resolveConfinsBaseUrl();
     this.adInsKey = process.env.ADINSKEY || null;
-    if (!isMockEnabled() && !this.baseUrl) {
-      throw new Error('Missing required env: CONFINS_BASE_URL (or set CONFINS_USE_MOCK=true)');
-    }
   }
 
   async post<T>(options: ConfinsRequestOptions): Promise<T[]> {
-    if (isMockEnabled()) {
+    const mockEnabled = await this.isMockEnabled();
+    if (mockEnabled) {
       const { getConfinsMockData } = await import('./mock-data');
       return getConfinsMockData(options.path) as T[];
+    }
+
+    if (!this.baseUrl) {
+      throw new Error('Missing required env: CONFINS_BASE_URL (or activate mock API in Application Settings)');
     }
 
     if (!this.adInsKey) {
@@ -81,6 +83,20 @@ export class ConfinsClient {
       throw error;
     } finally {
       clearTimeout(timeoutId);
+    }
+  }
+
+  private async isMockEnabled(): Promise<boolean> {
+    if (process.env.NODE_ENV === 'production' && process.env.CONFINS_USE_MOCK !== 'true') {
+      return false;
+    }
+
+    try {
+      const { getApplicationSettings } = await import('@/lib/app-settings');
+      const settings = await getApplicationSettings();
+      return settings.confinsUseMock;
+    } catch {
+      return isMockEnabledFromEnv();
     }
   }
 }

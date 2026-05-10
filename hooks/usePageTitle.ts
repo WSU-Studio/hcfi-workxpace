@@ -16,6 +16,7 @@ const pageConfigs: Record<string, { title: string; breadcrumbs: string[] }> = {
   '/reports/data-marts': { title: 'Reports — Data Marts', breadcrumbs: ['Home', 'Reports', 'Data Marts'] },
   '/budget-requests/[id]/edit': { title: 'Edit Budget Request', breadcrumbs: ['Home', 'Budget Requests', 'Edit'] },
   '/notifications': { title: 'Notifications', breadcrumbs: ['Home', 'Notifications'] },
+  '/settings': { title: 'Application Settings', breadcrumbs: ['Home', 'Application Settings'] },
   '/user-management': { title: 'User Management', breadcrumbs: ['Home', 'User Management'] },
   '/workspace-management': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management'] },
   '/workspace-management/department': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management', 'Department'] },
