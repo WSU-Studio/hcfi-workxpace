@@ -51,7 +51,7 @@ const Sidebar = () => {
     { name: 'Budget Plans', href: '/budget-plans', icon: IconCoins, show: menuAccess.budgetPlans },
     { name: 'Budget Requests', href: '/budget-requests', icon: IconBriefcaseFilled, show: menuAccess.budgetRequests },
     { name: 'Reconciliation', href: '/reconciliation', icon: IconScale, show: menuAccess.reconciliation },
-    { name: 'Reports', href: '/reports/reconciliation', icon: IconChartBar, show: menuAccess.reports },
+    { name: 'Reports', href: '/reports', icon: IconChartBar, show: menuAccess.reports },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
   ].filter((i) => i.show);
