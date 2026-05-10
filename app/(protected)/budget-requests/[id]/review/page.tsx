@@ -9,6 +9,8 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
+import RichTextContent from '@/components/ui/RichTextContent';
+import { PenSquare } from 'lucide-react';
 
 type HistoryEntry = {
   id: string;
@@ -70,6 +72,8 @@ export default function ReviewBudgetRequestPage() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
   const [classification, setClassification] = useState({
     costCenterId: '',
     categoryId: '',
@@ -136,6 +140,41 @@ export default function ReviewBudgetRequestPage() {
     }
   };
 
+  const handleDecline = async (mode: 'revision' | 'decline') => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/budget-requests/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: mode,
+          declineReason: declineReason.trim() || null,
+          costCenterId: classification.costCenterId || null,
+          categoryId: classification.categoryId || null,
+          categoryKeyIndexId: classification.categoryKeyIndexId || null,
+          coaId: classification.coaId || null,
+          opexType: classification.opexType || null,
+          opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
+          lineItems: reviewLineItems.map((lineItem) => ({
+            item: lineItem.item,
+            qty: lineItem.qty,
+            unitPrice: lineItem.unitPrice,
+            deduction: lineItem.deduction,
+          })),
+        }),
+      });
+      if (res.ok) {
+        setIsDeclineModalOpen(false);
+        setDeclineReason('');
+        router.push(`/budget-requests/${id}`);
+      } else {
+        alert('Failed');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) return <LoadingSpin />;
   if (!data) return <div className="text-gray-600">Not found</div>;
 
@@ -187,7 +226,7 @@ export default function ReviewBudgetRequestPage() {
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Description:</span>
-            <p className="mt-1 whitespace-pre-wrap text-gray-700">{data.description || '-'}</p>
+            <RichTextContent value={data.description} className="mt-1" />
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Notes:</span>
@@ -438,6 +477,15 @@ export default function ReviewBudgetRequestPage() {
                 </Link>
                 <button
                   type="button"
+                  onClick={() => setIsDeclineModalOpen(true)}
+                  disabled={isSubmitting || !data.canReview}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
                   onClick={handleApprove}
                   disabled={isSubmitting || !data.canReview}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -473,6 +521,52 @@ export default function ReviewBudgetRequestPage() {
           <p className="text-sm text-gray-500">No history yet.</p>
         )}
       </Card>
+      {isDeclineModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
+          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">Decline Confirmation</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Do you want to decline this budget request? You may ask for revision.
+            </p>
+            <textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Write reason..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeclineModalOpen(false);
+                  setDeclineReason('');
+                }}
+                className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecline('revision')}
+                className="flex items-center gap-2 rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                <PenSquare className="h-4 w-4 text-gray-500" />
+                Ask For Revision
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecline('decline')}
+                className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                Yes, I Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

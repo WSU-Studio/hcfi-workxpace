@@ -15,7 +15,9 @@ import BudgetRequestItemsEditor, {
   getItemTotal,
   getItemSubtotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
-import Textarea from '@/components/ui/Textarea';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+
+const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
 const buildEmptyLineItem = (): BudgetRequestLineItemInput => ({
   id: crypto.randomUUID(),
@@ -204,6 +206,11 @@ export default function NewBudgetRequestPage() {
       setError('Add item details with a total amount greater than 0');
       return;
     }
+    const descriptionSize = new TextEncoder().encode(formData.description || '').length;
+    if (descriptionSize > DESCRIPTION_MAX_BYTES) {
+      setError('Description is too large. Maximum 200KB.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/budget-requests', {
@@ -360,10 +367,11 @@ export default function NewBudgetRequestPage() {
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Description</label>
-            <Textarea
+            <RichTextEditor
               value={formData.description}
-              onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              rows={3}
+              onChange={(description) => setFormData((p) => ({ ...p, description }))}
+              placeholder="Describe budget request details..."
+              maxContentBytes={DESCRIPTION_MAX_BYTES}
             />
           </div>
           

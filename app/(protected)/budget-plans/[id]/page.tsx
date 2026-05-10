@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { Pencil, ScanSearch } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 
 type PlanDetail = {
   requestorId?: string | null;
+  requestorName?: string | null;
   code: string;
   subject: string;
   description: string | null;
@@ -42,6 +44,46 @@ type OriginOfficeOption = {
   isActive: boolean;
 };
 
+interface EditWarningModalProps {
+  isOpen: boolean;
+  planSubject?: string;
+  onCancel: () => void;
+  onContinue: () => void;
+}
+
+const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          The status of the budget plan
+          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
+          the initial status and needs to go through the approval process again.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function normalizeSupportingDocs(input: unknown) {
   if (!Array.isArray(input)) return [];
 
@@ -67,8 +109,10 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
 
 export default function BudgetPlanDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const { data: session } = useSession();
+  const [isEditWarningOpen, setIsEditWarningOpen] = useState(false);
   const [plan, setPlan] = useState<PlanDetail | null>(null);
   const [originOffices, setOriginOffices] = useState<OriginOfficeOption[]>([]);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
@@ -147,6 +191,7 @@ export default function BudgetPlanDetailPage() {
         <div className="grid grid-cols-2 gap-4">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
+          <div><span className="text-gray-500">Requestor:</span> {plan.requestorName ?? '-'}</div>
           <div><span className="text-gray-500">Department:</span> {plan.department?.name}</div>
           <div><span className="text-gray-500">Project:</span> {plan.project?.name ?? '-'}</div>
           <div><span className="text-gray-500">Fiscal Year:</span> {plan.fiscalYear}</div>
@@ -157,7 +202,7 @@ export default function BudgetPlanDetailPage() {
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
-            <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+            <RichTextContent value={plan.description} className="mt-1" />
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Supporting Documents:</span>
@@ -280,9 +325,20 @@ export default function BudgetPlanDetailPage() {
             {canEdit || reviewMeta?.canReview ? (
               <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
                 {canEdit ? (
-                  <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                    <Pencil className="w-5 h-5" />Edit
-                  </Link>
+                  plan.status === 'Approved' ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditWarningOpen(true)}
+                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 cursor-pointer"
+                    >
+                      <Pencil className="w-5 h-5" />
+                      Edit
+                    </button>
+                  ) : (
+                    <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                      <Pencil className="w-5 h-5" />Edit
+                    </Link>
+                  )
                 ) : null}
                 {reviewMeta?.canReview ? (
                   <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
@@ -323,6 +379,15 @@ export default function BudgetPlanDetailPage() {
           </div>
         )}
       </Card>
+      <EditWarningModal
+        isOpen={isEditWarningOpen}
+        planSubject={plan.subject}
+        onCancel={() => setIsEditWarningOpen(false)}
+        onContinue={() => {
+          setIsEditWarningOpen(false);
+          router.push(`/budget-plans/${id}/edit`);
+        }}
+      />
     </div>
   );
 }

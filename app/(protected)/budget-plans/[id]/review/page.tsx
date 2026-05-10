@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
+import RichTextContent from '@/components/ui/RichTextContent';
 import { PenSquare } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
@@ -257,7 +258,7 @@ export default function ReviewBudgetPlanPage() {
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
-            <p className="mt-1 text-gray-700">{plan.description || '-'}</p>
+            <RichTextContent value={plan.description} className="mt-1" />
           </div>
         </div>
       </Card>
