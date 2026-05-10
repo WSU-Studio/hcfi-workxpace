@@ -24,8 +24,14 @@ export async function GET(request: Request) {
     const fy = searchParams.get('fiscalYear');
     const mo = searchParams.get('month');
     const departmentId = searchParams.get('departmentId') ?? '';
-    const originOffice = searchParams.get('originOffice') ?? '';
     const vendorName = searchParams.get('vendorName') ?? '';
+    const categoryId = searchParams.get('categoryId') ?? '';
+    const categoryKeyIndexId = searchParams.get('categoryKeyIndexId') ?? '';
+    const originOfficeId = searchParams.get('originOfficeId') ?? '';
+    /** Legacy substring filters (optional). Prefer master IDs when available. */
+    const originOfficeContains = searchParams.get('originOffice') ?? '';
+    const expenseCategoryContains = searchParams.get('expenseCategory') ?? '';
+    const categoryKeyIndexContains = searchParams.get('categoryKeyIndex') ?? '';
 
     const limitRaw = searchParams.get('limit');
     const offsetRaw = searchParams.get('offset');
@@ -45,8 +51,37 @@ export async function GET(request: Request) {
       if (!Number.isNaN(n) && n >= 1 && n <= 12) where.month = n;
     }
     if (departmentId) where.departmentId = departmentId;
-    if (originOffice) where.originOffice = { contains: originOffice, mode: 'insensitive' };
     if (vendorName) where.vendorName = { contains: vendorName, mode: 'insensitive' };
+
+    if (categoryId) {
+      const cat = await prisma.categoryMaster.findUnique({ where: { id: categoryId } });
+      if (cat) {
+        where.expenseCategory = { equals: cat.name, mode: 'insensitive' };
+      }
+    } else if (expenseCategoryContains) {
+      where.expenseCategory = { contains: expenseCategoryContains, mode: 'insensitive' };
+    }
+
+    if (categoryKeyIndexId) {
+      const cki = await prisma.categoryKeyIndexMaster.findUnique({ where: { id: categoryKeyIndexId } });
+      if (cki) {
+        where.categoryKeyIndex = { equals: cki.name, mode: 'insensitive' };
+      }
+    } else if (categoryKeyIndexContains) {
+      where.categoryKeyIndex = { contains: categoryKeyIndexContains, mode: 'insensitive' };
+    }
+
+    if (originOfficeId) {
+      const oo = await prisma.originOfficeMaster.findUnique({ where: { id: originOfficeId } });
+      if (oo) {
+        where.OR = [
+          { originOffice: { equals: oo.name, mode: 'insensitive' } },
+          { originOffice: { equals: oo.code, mode: 'insensitive' } },
+        ];
+      }
+    } else if (originOfficeContains) {
+      where.originOffice = { contains: originOfficeContains, mode: 'insensitive' };
+    }
 
     const [total, rows] = await prisma.$transaction([
       prisma.dataMartStagingRow.count({ where }),

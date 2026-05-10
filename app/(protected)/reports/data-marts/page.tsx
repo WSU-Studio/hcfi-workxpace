@@ -6,11 +6,13 @@ import Select from '@/components/ui/Select';
 import DataMartStagingTable from '@/components/reports/DataMartStagingTable';
 import { buildStagingGuidelineCsv } from '@/lib/data-mart/staging-export-csv';
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
-import { IconDatabase } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type DepartmentOption = { id: string; code: string; name: string };
+type MasterCategory = { id: string; name: string; isActive?: boolean };
+type MasterCki = { id: string; name: string; isActive?: boolean };
+type MasterOriginOffice = { id: string; code: string; name: string; isActive?: boolean };
 
 export default function DataMartsReportPage() {
   const { data: session, status } = useSession();
@@ -20,19 +22,48 @@ export default function DataMartsReportPage() {
   const [fiscalYear, setFiscalYear] = useState(String(now.getFullYear()));
   const [month, setMonth] = useState('');
   const [departmentId, setDepartmentId] = useState('');
-  const [originOffice, setOriginOffice] = useState('');
+  const [originOfficeId, setOriginOfficeId] = useState('');
   const [vendorName, setVendorName] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [categoryKeyIndexId, setCategoryKeyIndexId] = useState('');
+
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [categories, setCategories] = useState<MasterCategory[]>([]);
+  const [categoryKeyIndexes, setCategoryKeyIndexes] = useState<MasterCki[]>([]);
+  const [originOffices, setOriginOffices] = useState<MasterOriginOffice[]>([]);
+
   const [rows, setRows] = useState<DataMartStagingApiRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDepartments = useCallback(async () => {
-    const res = await fetch('/api/budget-plans');
-    if (!res.ok) return;
-    const data = (await res.json()) as { departments?: DepartmentOption[] };
-    setDepartments(data.departments ?? []);
+  const loadFilterOptions = useCallback(async () => {
+    const [planRes, catRes, ckiRes, ooRes] = await Promise.all([
+      fetch('/api/budget-plans'),
+      fetch('/api/workspace-management/category'),
+      fetch('/api/workspace-management/category-key-index'),
+      fetch('/api/workspace-management/origin-office'),
+    ]);
+
+    if (planRes.ok) {
+      const data = (await planRes.json()) as { departments?: DepartmentOption[] };
+      setDepartments(data.departments ?? []);
+    }
+    if (catRes.ok) {
+      const data = (await catRes.json()) as { categories?: MasterCategory[] };
+      const list = (data.categories ?? []).filter((c) => c.isActive !== false);
+      setCategories(list.sort((a, b) => a.name.localeCompare(b.name)));
+    }
+    if (ckiRes.ok) {
+      const data = (await ckiRes.json()) as { categoryKeyIndexes?: MasterCki[] };
+      const list = (data.categoryKeyIndexes ?? []).filter((c) => c.isActive !== false);
+      setCategoryKeyIndexes(list.sort((a, b) => a.name.localeCompare(b.name)));
+    }
+    if (ooRes.ok) {
+      const data = (await ooRes.json()) as { originOffices?: MasterOriginOffice[] };
+      const list = (data.originOffices ?? []).filter((o) => o.isActive !== false);
+      setOriginOffices(list.sort((a, b) => a.code.localeCompare(b.code)));
+    }
   }, []);
 
   const loadStaging = useCallback(async () => {
@@ -44,8 +75,10 @@ export default function DataMartsReportPage() {
       url.searchParams.set('fiscalYear', fiscalYear);
       if (month) url.searchParams.set('month', month);
       if (departmentId) url.searchParams.set('departmentId', departmentId);
-      if (originOffice.trim()) url.searchParams.set('originOffice', originOffice.trim());
+      if (originOfficeId) url.searchParams.set('originOfficeId', originOfficeId);
       if (vendorName.trim()) url.searchParams.set('vendorName', vendorName.trim());
+      if (categoryId) url.searchParams.set('categoryId', categoryId);
+      if (categoryKeyIndexId) url.searchParams.set('categoryKeyIndexId', categoryKeyIndexId);
       const res = await fetch(url.toString());
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to load');
@@ -58,17 +91,25 @@ export default function DataMartsReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [canView, fiscalYear, month, departmentId, originOffice, vendorName]);
+  }, [
+    canView,
+    fiscalYear,
+    month,
+    departmentId,
+    originOfficeId,
+    vendorName,
+    categoryId,
+    categoryKeyIndexId,
+  ]);
 
   useEffect(() => {
     if (status !== 'authenticated' || !canView) return;
-    loadDepartments();
-  }, [status, canView, loadDepartments]);
+    void loadFilterOptions();
+  }, [status, canView, loadFilterOptions]);
 
   useEffect(() => {
     if (status !== 'authenticated' || !canView) return;
     void loadStaging();
-    // fiscal selects reload automatically; origin/vendor require "Apply filters"
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, canView, fiscalYear, month, departmentId]);
 
@@ -109,17 +150,9 @@ export default function DataMartsReportPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Data Marts</h2>
-        {/* <p className="mt-1 text-sm text-gray-600">
-          Staging dataset from saved reconciliation: indexed columns for fast filtering; Confins and budget snapshots are
-          kept in JSON for schema drift and extra fields.
-        </p> */}
       </div>
 
       <Card className="space-y-4 p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <IconDatabase className="h-5 w-5 text-blue-600" aria-hidden />
-          <span className="text-sm font-medium text-gray-800">Filters</span>
-        </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Fiscal year</span>
@@ -154,14 +187,37 @@ export default function DataMartsReportPage() {
             </Select>
           </label>
           <label className="space-y-1 text-sm">
-            <span className="font-medium text-gray-700">Origin office contains</span>
-            <input
-              type="text"
-              value={originOffice}
-              onChange={(e) => setOriginOffice(e.target.value)}
-              placeholder="e.g. HEAD OFFICE"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <span className="font-medium text-gray-700">Origin office</span>
+            <Select value={originOfficeId} onChange={(e) => setOriginOfficeId(e.target.value)}>
+              <option value="">All</option>
+              {originOffices.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.code} — {o.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="font-medium text-gray-700">Expense category</span>
+            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">All</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="font-medium text-gray-700">Category key index</span>
+            <Select value={categoryKeyIndexId} onChange={(e) => setCategoryKeyIndexId(e.target.value)}>
+              <option value="">All</option>
+              {categoryKeyIndexes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Vendor contains</span>
@@ -172,6 +228,7 @@ export default function DataMartsReportPage() {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </label>
+
           <div className="flex flex-wrap items-end gap-2">
             <Button type="button" variant="outline" onClick={loadStaging} disabled={loading}>
               {loading ? 'Loading…' : 'Apply filters'}
@@ -181,7 +238,10 @@ export default function DataMartsReportPage() {
             </Button>
           </div>
         </div>
-        <p className="text-xs text-gray-500">{subtitle}</p>
+        <p className="text-xs text-gray-500">
+          {subtitle} Origin office, category, and key index use workspace master data (exact match to saved staging text).
+          Click Apply after changing those filters.
+        </p>
         {error && <p className="text-sm text-red-600">{error}</p>}
       </Card>
 
