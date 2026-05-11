@@ -25,6 +25,13 @@ const buildEmptyLineItem = (): BudgetRequestLineItemInput => ({
   deduction: 0,
 });
 
+type BrLineItemApi = {
+  item: string;
+  qty: number;
+  unitPrice: number;
+  deduction: number;
+};
+
 type ApprovedBrOption = {
   id: string;
   code: string;
@@ -33,7 +40,23 @@ type ApprovedBrOption = {
   departmentId: string;
   grandTotal: number;
   fiscalYear: number;
+  vatPercent: number;
+  whtPercent: number;
+  lineItems: BrLineItemApi[];
   budgetPlan: { originOffice: string | null; projectId: string | null } | null;
+};
+
+const mapBrLineItemsToEditor = (rows: BrLineItemApi[] | undefined): BudgetRequestLineItemInput[] => {
+  const mapped = (rows ?? [])
+    .filter((li) => String(li.item ?? '').trim().length > 0)
+    .map((li) => ({
+      id: crypto.randomUUID(),
+      item: String(li.item).trim(),
+      qty: Math.max(0, Math.round(Number(li.qty)) || 0),
+      unitPrice: Number.isFinite(Number(li.unitPrice)) ? Number(li.unitPrice) : 0,
+      deduction: Math.max(0, Number.isFinite(Number(li.deduction)) ? Number(li.deduction) : 0),
+    }));
+  return mapped.length > 0 ? mapped : [buildEmptyLineItem()];
 };
 
 export default function NewPaymentRequestPage() {
@@ -163,6 +186,11 @@ export default function NewPaymentRequestPage() {
       originOffice: br.budgetPlan?.originOffice ?? prev.originOffice,
       projectId: br.budgetPlan?.projectId ?? '',
     }));
+    setLineItems(mapBrLineItemsToEditor(br.lineItems));
+    setTaxConfig({
+      vatPercent: Number.isFinite(br.vatPercent) ? br.vatPercent : 11,
+      whtPercent: Number.isFinite(br.whtPercent) ? br.whtPercent : 2,
+    });
   };
 
   const isBudgetRequestSelected = formData.budgetRequestId !== '';

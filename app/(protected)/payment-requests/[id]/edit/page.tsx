@@ -52,6 +52,9 @@ type ApprovedBrOption = {
   departmentId: string;
   grandTotal: number;
   fiscalYear: number;
+  vatPercent?: number;
+  whtPercent?: number;
+  lineItems?: { item: string; qty: number; unitPrice: number; deduction: number }[];
   budgetPlan: { originOffice: string | null; projectId: string | null } | null;
 };
 

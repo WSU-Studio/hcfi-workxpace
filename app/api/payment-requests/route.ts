@@ -52,7 +52,13 @@ export async function GET() {
           departmentId: true,
           grandTotal: true,
           fiscalYear: true,
+          vatPercent: true,
+          whtPercent: true,
           budgetPlan: { select: { originOffice: true, projectId: true } },
+          lineItems: {
+            orderBy: { id: 'asc' },
+            select: { item: true, qty: true, unitPrice: true, deduction: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         take: 200,
@@ -72,6 +78,14 @@ export async function GET() {
         ? brSettled.value.map((br) => ({
             ...br,
             grandTotal: Number(br.grandTotal),
+            vatPercent: Number(br.vatPercent),
+            whtPercent: Number(br.whtPercent),
+            lineItems: br.lineItems.map((li) => ({
+              item: li.item,
+              qty: li.qty,
+              unitPrice: Number(li.unitPrice),
+              deduction: Number(li.deduction),
+            })),
           }))
         : [];
     if (brSettled.status === 'rejected') {
