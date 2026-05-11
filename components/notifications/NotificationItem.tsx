@@ -11,19 +11,31 @@ interface NotificationItemProps {
     isRead: boolean;
     createdAt: string;
     targetUrl?: string | null;
+    linkLabel?: string | null;
   };
   onMarkAsRead: (id: string) => void;
   onDismiss: (id: string) => void;
 }
 
+function linkLabelFor(notification: NotificationItemProps['notification']): string | null {
+  if (notification.linkLabel) return notification.linkLabel;
+  const url = notification.targetUrl;
+  if (!url) return null;
+  if (url.includes('/payment-requests/')) return 'View payment request';
+  if (url.includes('/budget-requests/')) return 'View budget request';
+  if (url.includes('/budget-plans/')) return 'View budget plan';
+  return null;
+}
+
 export default function NotificationItem({ notification, onMarkAsRead, onDismiss }: NotificationItemProps) {
+  const linkLabel = linkLabelFor(notification);
   const body = (
     <div>
       <p className="text-sm font-semibold">{notification.title}</p>
       <p className="text-sm text-gray-700 mt-1">{notification.message}</p>
       <p className="text-xs text-gray-500 mt-1">{formatDate(notification.createdAt)}</p>
-      {notification.targetUrl ? (
-        <p className="mt-2 text-xs font-medium text-blue-600">View budget plan</p>
+      {notification.targetUrl && linkLabel ? (
+        <p className="mt-2 text-xs font-medium text-blue-600">{linkLabel}</p>
       ) : null}
     </div>
   );
