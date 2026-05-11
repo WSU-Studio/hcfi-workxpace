@@ -125,8 +125,7 @@ export default function ReviewPaymentRequestPage() {
       <h1 className="text-2xl font-semibold">Review Payment Request</h1>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        Approval here only records status in Workxpace. Finance team executes payment and journal in Confins according to their procedures.
-        prosedur mereka.
+        Approval here only records status in Workxpace. Finance executes payment and journal in Confins according to their procedures.
       </div>
 
       <Card className="space-y-4">
@@ -269,52 +268,84 @@ export default function ReviewPaymentRequestPage() {
         </Card>
       ) : null}
 
-      <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>
+      <div>
         {orderedLevels.length ? (
-          <Table>
-            <thead>
-              <TableHeaderRow>
-                <TableHead>#</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-              </TableHeaderRow>
-            </thead>
-            <tbody>
-              {orderedLevels.map((level, index) => {
-                const isCompleted = index < completedSteps;
-                const stepStatusLabel = !isCompleted
-                  ? 'Pending'
-                  : level.levelType === 'Reviewer'
-                    ? 'Reviewed'
-                    : 'Approved';
-                return (
-                  <TableBodyRow key={level.stepOrder}>
-                    <TableCell>{level.stepOrder}</TableCell>
-                    <TableCell>{level.role?.roleName ?? '-'}</TableCell>
-                    <TableCell>{level.levelType}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
-                          stepStatusLabel === 'Pending'
-                            ? 'bg-gray-100 text-gray-700'
-                            : stepStatusLabel === 'Reviewed'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {stepStatusLabel}
-                      </span>
-                    </TableCell>
-                  </TableBodyRow>
-                );
-              })}
-            </tbody>
-          </Table>
-        ) : (
-          <p className="text-sm text-gray-500">No approval schema — implicit one-level approval.</p>
-        )}
-      </Card>
+          <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>
+            <Table>
+              <thead>
+                <TableHeaderRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Updated at</TableHead>
+                </TableHeaderRow>
+              </thead>
+              <tbody>
+                {orderedLevels.map((level, index) => {
+                  const isCompleted = index < completedSteps;
+                  const updatedAt = isCompleted ? approveHistories[index]?.timestamp : null;
+                  const stepStatusLabel = !isCompleted
+                    ? 'Pending'
+                    : level.levelType === 'Reviewer'
+                      ? 'Reviewed'
+                      : 'Approved';
+                  return (
+                    <TableBodyRow key={level.stepOrder}>
+                      <TableCell>{level.stepOrder}</TableCell>
+                      <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                      <TableCell>{level.levelType}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            stepStatusLabel === 'Pending'
+                              ? 'bg-gray-100 text-gray-700'
+                              : stepStatusLabel === 'Reviewed'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                          }`}
+                        >
+                          {stepStatusLabel}
+                        </span>
+                      </TableCell>
+                      <TableCell>{updatedAt ? formatDateTime(updatedAt) : '-'}</TableCell>
+                    </TableBodyRow>
+                  );
+                })}
+              </tbody>
+            </Table>
+
+            {data.status !== 'Approved' ? (
+              <div className="flex justify-end gap-3 pt-4">
+                <Link
+                  href={`/payment-requests/${id}`}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsDeclineModalOpen(true)}
+                  disabled={isSubmitting || !data.canReview}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  title={!data.canReview ? 'You are not in the current review step for this approval schema' : undefined}
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={isSubmitting || !data.canReview}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  title={!data.canReview ? 'You are not in the current review step for this approval schema' : undefined}
+                >
+                  {isSubmitting ? 'Processing…' : data.status === 'Reviewed' ? 'Final approve' : 'Approve'}
+                </button>
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
+      </div>
 
       {approveHistories.length > 0 ? (
         <Card collapsible header={<h3 className="font-medium">Approval history</h3>}>
@@ -328,37 +359,6 @@ export default function ReviewPaymentRequestPage() {
           </ul>
         </Card>
       ) : null}
-
-      <Card className="flex flex-wrap gap-3 border-t border-gray-100 pt-4">
-        {data.canReview ? (
-          <>
-            <button
-              type="button"
-              onClick={handleApprove}
-              disabled={isSubmitting}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-            >
-              {isSubmitting ? 'Processing…' : 'Approve / Next step'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsDeclineModalOpen(true)}
-              disabled={isSubmitting}
-              className="rounded-lg border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-60"
-            >
-              Revision / Decline
-            </button>
-          </>
-        ) : (
-          <p className="text-sm text-gray-600">You are not eligible to review at this step.</p>
-        )}
-        <Link
-          href={`/payment-requests/${id}`}
-          className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
-        >
-          Cancel
-        </Link>
-      </Card>
 
       {isDeclineModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
