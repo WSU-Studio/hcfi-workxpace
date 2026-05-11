@@ -11,6 +11,7 @@ import {
 } from '@/lib/budget-plan-review-eligibility';
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
+import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -312,6 +313,13 @@ export async function POST(req: Request) {
         budgetRequestCode: pr.budgetRequest?.code ?? null,
         approvalSchemaId: pr.approvalSchemaId,
       },
+    });
+
+    await notifyPaymentRequestAwaitingReview({
+      requestId: pr.id,
+      actorUserId: session.user.id,
+      requestCode: pr.code,
+      event: 'created',
     });
 
     return NextResponse.json({

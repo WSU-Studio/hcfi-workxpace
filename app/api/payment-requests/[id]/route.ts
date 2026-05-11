@@ -9,6 +9,7 @@ import {
   canUserActOnCurrentBudgetRequestStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -297,6 +298,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         totalAmount,
         lineItemCount: updated.lineItems.length,
       },
+    });
+
+    await notifyPaymentRequestAwaitingReview({
+      requestId: id,
+      actorUserId: session.user.id,
+      requestCode: updated.code,
+      event: 'updated',
     });
 
     const histories = await prisma.activityHistory.findMany({
