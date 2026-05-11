@@ -104,6 +104,7 @@ model Department {
   users       User[]
   budgetPlans BudgetPlan[]
   budgetRequests BudgetRequest[]
+  paymentRequests PaymentRequest[]
   approvalSchemas ApprovalSchema[]
   reconciliationSavedPayments ReconciliationSavedPayment[]
 
@@ -172,13 +173,14 @@ model FiscalYear {
 }
 
 model Project {
-  id           String      @id @default(cuid())
-  code         String      @unique
-  name         String
-  description  String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  budgetPlans  BudgetPlan[]
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  budgetPlans     BudgetPlan[]
+  paymentRequests PaymentRequest[]
 
   @@map("projects")
 }
@@ -186,7 +188,7 @@ model Project {
 model ApprovalSchema {
   id              String         @id @default(cuid())
   name            String
-  type            String         // BudgetPlan | BudgetRequest
+  type            String         // BudgetPlan | BudgetRequest | PaymentRequest
   period          String         @default("Unlimited") // Unlimited | Custom
   departmentId    String
   createdAt       DateTime       @default(now())
@@ -195,6 +197,7 @@ model ApprovalSchema {
   approvalLevels  ApprovalLevel[]
   budgetPlans     BudgetPlan[]
   budgetRequests  BudgetRequest[]
+  paymentRequests PaymentRequest[]
 
   @@index([departmentId])
   @@map("approval_schemas")
@@ -399,11 +402,70 @@ model BudgetRequest {
   allocations      BudgetRequestAllocation[]
   reconciliationSavedPayments ReconciliationSavedPayment[]
   dataMartStagingRows        DataMartStagingRow[]
+  paymentRequests            PaymentRequest[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+/// Permohonan pembayaran — alur approval internal Workxpace (eksekusi/pembukuan di Confins tetap terpisah).
+model PaymentRequest {
+  id               String           @id @default(cuid())
+  code             String           @unique
+  subject          String
+  description      String?          @db.Text
+  fiscalYear       Int
+  originOffice     String?
+  departmentId     String
+  projectId        String?
+  budgetRequestId  String?
+  requestorId      String?
+  requestDate      DateTime
+  status           String           @default("Draft") // Draft | Pending | Reviewed | Approved | Revision | Declined
+  /** Grand total to pay (invoice − WHT); mirrors budget request semantics. */
+  amount           Decimal          @db.Decimal(18, 2)
+  totalAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  vatPercent       Decimal          @default(11) @db.Decimal(5, 2)
+  vatAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  whtPercent       Decimal          @default(2) @db.Decimal(5, 2)
+  whtAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  invoiceAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  currency         String           @default("IDR")
+  payeeName        String
+  paymentPurpose   String?          @db.Text
+  notes            String?          @db.Text
+  supportingDocs   Json?
+  approvalSchemaId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  department       Department       @relation(fields: [departmentId], references: [id])
+  project          Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  budgetRequest    BudgetRequest?   @relation(fields: [budgetRequestId], references: [id], onDelete: SetNull)
+  approvalSchema   ApprovalSchema?  @relation(fields: [approvalSchemaId], references: [id])
+  lineItems        PaymentRequestLineItem[]
+
+  @@index([departmentId])
+  @@index([projectId])
+  @@index([budgetRequestId])
+  @@index([status])
+  @@map("payment_requests")
+}
+
+model PaymentRequestLineItem {
+  id               String         @id @default(cuid())
+  paymentRequestId String
+  item             String
+  qty              Int
+  unitPrice        Decimal        @db.Decimal(18, 2)
+  subtotal         Decimal        @db.Decimal(18, 2)
+  deduction        Decimal        @default(0) @db.Decimal(18, 2)
+  total            Decimal        @db.Decimal(18, 2)
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+
+  @@index([paymentRequestId])
+  @@map("payment_request_line_items")
 }
 
 /// Baris staging untuk laporan Data Mart: kolom terindeks untuk query cepat + JSON fallback untuk field Confins yang berubah-ubah.
