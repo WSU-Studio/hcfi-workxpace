@@ -48,6 +48,7 @@ export async function GET() {
           id: true,
           code: true,
           subject: true,
+          description: true,
           departmentId: true,
           grandTotal: true,
           fiscalYear: true,

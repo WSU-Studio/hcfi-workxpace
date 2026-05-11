@@ -48,6 +48,7 @@ type ApprovedBrOption = {
   id: string;
   code: string;
   subject: string;
+  description?: string | null;
   departmentId: string;
   grandTotal: number;
   fiscalYear: number;
