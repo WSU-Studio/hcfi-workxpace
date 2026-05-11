@@ -149,11 +149,6 @@ export default function PaymentRequestDetailPage() {
         ← Back
       </Link>
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-        Skema approval ini berjalan di Workxpace. Eksekusi pembayaran dan pembukuan dilakukan terpisah di Confins oleh tim
-        finance.
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{data.subject}</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -292,19 +287,19 @@ export default function PaymentRequestDetailPage() {
           </div>
         ) : null}
 
-        <ReadonlyField label="Penerima pembayaran" value={data.payeeName} />
-        {data.paymentPurpose ? <ReadonlyField label="Tujuan pembayaran" value={data.paymentPurpose} /> : null}
+        <ReadonlyField label="Payee" value={data.payeeName} />
+        {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
         {data.description ? (
           <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Deskripsi</p>
+            <p className="mb-1.5 text-sm font-medium text-gray-700">Description</p>
             <RichTextContent value={data.description} className="mt-1" />
           </div>
         ) : null}
-        {data.notes ? <ReadonlyField label="Catatan" value={data.notes} /> : null}
+        {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null}
 
         {data.budgetRequest ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-medium text-slate-900">Budget request terkait</p>
+            <p className="text-sm font-medium text-slate-900">Related budget request</p>
             <p className="mt-1 text-sm text-slate-700">
               {data.budgetRequest.code} — {data.budgetRequest.subject}
             </p>
@@ -313,7 +308,7 @@ export default function PaymentRequestDetailPage() {
             </p>
           </div>
         ) : (
-          <p className="text-sm text-gray-500">Tidak ada budget request yang dipilih.</p>
+          <p className="text-sm text-gray-500">No related budget request selected.</p>
         )}
       </Card>
 
@@ -361,7 +356,7 @@ export default function PaymentRequestDetailPage() {
               </tbody>
             </Table>
           ) : (
-            <p className="text-sm text-gray-500">Tidak ada skema approval — persetujuan oleh selain pemohon.</p>
+            <p className="text-sm text-gray-500">No approval schema — approval by non-requestor.</p>
           )}
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
