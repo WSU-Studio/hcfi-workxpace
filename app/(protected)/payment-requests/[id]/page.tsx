@@ -221,6 +221,27 @@ export default function PaymentRequestDetailPage() {
           </div>
         </div>
 
+        {data.budgetRequest ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-900">Related budget request</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {data.budgetRequest.code} — {data.budgetRequest.subject}
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              BR total (grand): {formatCurrency(data.budgetRequest.grandTotal)} · Status BR: {data.budgetRequest.status}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No related budget request selected.</p>
+        )}
+
+        {data.description ? (
+          <div>
+            <span className="text-gray-500">Description:</span>{' '}
+            <RichTextContent value={data.description} className="mt-1" />
+          </div>
+        ) : null}
+
         {data.lineItems && data.lineItems.length > 0 ? (
           <div className="space-y-2 border-t border-gray-100 pt-4">
             <h3 className="font-medium">Items</h3>
@@ -289,27 +310,8 @@ export default function PaymentRequestDetailPage() {
 
         <ReadonlyField label="Payee" value={data.payeeName} />
         {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
-        {data.description ? (
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Description</p>
-            <RichTextContent value={data.description} className="mt-1" />
-          </div>
-        ) : null}
+        
         {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null}
-
-        {data.budgetRequest ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-medium text-slate-900">Related budget request</p>
-            <p className="mt-1 text-sm text-slate-700">
-              {data.budgetRequest.code} — {data.budgetRequest.subject}
-            </p>
-            <p className="mt-1 text-xs text-slate-600">
-              BR total (grand): {formatCurrency(data.budgetRequest.grandTotal)} · Status BR: {data.budgetRequest.status}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">No related budget request selected.</p>
-        )}
       </Card>
 
       <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>
