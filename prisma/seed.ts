@@ -94,6 +94,20 @@ async function main() {
     });
   }
 
+  let approvalSchemaPR = await prisma.approvalSchema.findFirst({
+    where: { name: 'Primary Schema for Payment Request', departmentId: dept.id },
+  });
+  if (!approvalSchemaPR) {
+    approvalSchemaPR = await prisma.approvalSchema.create({
+      data: {
+        name: 'Primary Schema for Payment Request',
+        type: 'PaymentRequest',
+        period: 'Unlimited',
+        departmentId: dept.id,
+      },
+    });
+  }
+
   const fmRole = await prisma.role.upsert({
     where: { roleCode: 'FM' },
     update: {},
@@ -209,8 +223,20 @@ async function main() {
         { schemaId: approvalSchemaBP.id, stepOrder: 2, levelType: 'Approver', roleId: ceoRole.id },
         { schemaId: approvalSchemaBR.id, stepOrder: 1, levelType: 'Reviewer', roleId: fmRole.id },
         { schemaId: approvalSchemaBR.id, stepOrder: 2, levelType: 'Approver', roleId: ceoRole.id },
+        { schemaId: approvalSchemaPR.id, stepOrder: 1, levelType: 'Reviewer', roleId: fmRole.id },
+        { schemaId: approvalSchemaPR.id, stepOrder: 2, levelType: 'Approver', roleId: ceoRole.id },
       ],
     });
+  } else {
+    const prLevelCount = await prisma.approvalLevel.count({ where: { schemaId: approvalSchemaPR.id } });
+    if (prLevelCount === 0) {
+      await prisma.approvalLevel.createMany({
+        data: [
+          { schemaId: approvalSchemaPR.id, stepOrder: 1, levelType: 'Reviewer', roleId: fmRole.id },
+          { schemaId: approvalSchemaPR.id, stepOrder: 2, levelType: 'Approver', roleId: ceoRole.id },
+        ],
+      });
+    }
   }
 
   const opexNames = ['ALL', 'Fixed', 'Variable'];
@@ -295,6 +321,7 @@ async function main() {
   console.log('Reviewer (FM): reviewer.fm@workxpace.com / password123');
   console.log('Approver (CEO): approver.ceo@workxpace.com / password123');
   console.log('Project:', project.code);
+  console.log('Approval schema PR (IT):', approvalSchemaPR.name, `(${approvalSchemaPR.id})`);
 }
 
 main()
