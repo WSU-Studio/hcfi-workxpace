@@ -128,6 +128,18 @@ export default withAuth(
       }
     }
 
+    if (req.nextUrl.pathname.startsWith('/payment-requests')) {
+      if (!menuAccess.paymentRequests) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+      if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.match(/\/[^/]+\/edit/)) && !activityAccess.editPaymentRequest) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+      if (req.nextUrl.pathname.includes('/new') && !activityAccess.createPaymentRequest) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+    }
+
     if (req.nextUrl.pathname.startsWith('/reconciliation')) {
       if (!menuAccess.reconciliation) {
         return NextResponse.redirect(new URL('/forbidden', req.url));
