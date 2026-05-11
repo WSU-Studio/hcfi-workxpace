@@ -2,6 +2,8 @@ export interface MenuAccess {
   dashboard: boolean;
   budgetPlans: boolean;
   budgetRequests: boolean;
+  /** Permohonan pembayaran — approval internal Workxpace (terpisah dari eksekusi Confins). */
+  paymentRequests: boolean;
   reconciliation: boolean;
   /** Laporan tersimpan (rekonsiliasi, dll.) */
   reports: boolean;
@@ -26,6 +28,9 @@ export interface ActivityAccess {
   createBudgetRequest: boolean;
   editBudgetRequest: boolean;
   deleteBudgetRequest: boolean;
+  createPaymentRequest: boolean;
+  editPaymentRequest: boolean;
+  deletePaymentRequest: boolean;
   createDepartment: boolean;
   editDepartment: boolean;
   deleteDepartment: boolean;
