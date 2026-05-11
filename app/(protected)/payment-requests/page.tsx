@@ -85,6 +85,7 @@ export default function PaymentRequestsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
   const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<PaymentRequestRow | null>(null);
+  const [listFetchWarning, setListFetchWarning] = useState('');
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -97,6 +98,9 @@ export default function PaymentRequestsPage() {
         const list = data.requests || [];
         setRequests(list);
         setFiltered(list);
+        setListFetchWarning(
+          typeof data.listError === 'string' && data.listError.trim() !== '' ? data.listError : ''
+        );
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -143,6 +147,12 @@ export default function PaymentRequestsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Payment Requests</h1>
+      {listFetchWarning ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          {listFetchWarning} The table below may be incomplete. Check server logs and that payment request migrations are
+          applied.
+        </div>
+      ) : null}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <SearchInput

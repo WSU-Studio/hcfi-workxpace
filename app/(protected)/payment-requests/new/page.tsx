@@ -60,6 +60,7 @@ export default function NewPaymentRequestPage() {
     paymentPurpose: '',
   });
   const [error, setError] = useState('');
+  const [prListFetchWarning, setPrListFetchWarning] = useState('');
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
   const [taxConfig, setTaxConfig] = useState({ vatPercent: 11, whtPercent: 2 });
 
@@ -86,6 +87,9 @@ export default function NewPaymentRequestPage() {
     ])
       .then(([prData, approvalSchemaData, optionsData]) => {
         setApprovedBudgetRequests(prData.approvedBudgetRequests || []);
+        setPrListFetchWarning(
+          typeof prData.listError === 'string' && prData.listError.trim() !== '' ? prData.listError : ''
+        );
         setApprovalSchemas(
           approvalSchemaData.schemas?.filter((s: { type: string }) => s.type === 'PaymentRequest') || []
         );
@@ -227,6 +231,12 @@ export default function NewPaymentRequestPage() {
         </div>
       )}
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">{error}</div> : null}
+      {prListFetchWarning ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
+          {prListFetchWarning} Budget request linking below should still work. If the problem persists, check the server log
+          and database migrations for payment requests.
+        </div>
+      ) : null}
 
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">

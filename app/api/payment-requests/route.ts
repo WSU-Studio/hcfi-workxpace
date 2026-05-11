@@ -1,4 +1,6 @@
 import { getServerSession } from 'next-auth';
+import type { Session } from 'next-auth';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
@@ -12,80 +14,114 @@ import { toNumber } from '@/lib/budget-request-normalize';
 
 export const dynamic = 'force-dynamic';
 
+const paymentRequestListInclude = Prisma.validator<Prisma.PaymentRequestInclude>()({
+  budgetRequest: { select: { code: true, subject: true } },
+  department: { select: { name: true } },
+  lineItems: { select: { id: true } },
+  approvalSchema: {
+    include: {
+      approvalLevels: { orderBy: { stepOrder: 'asc' } },
+    },
+  },
+});
+
+type PaymentRequestListRow = Prisma.PaymentRequestGetPayload<{
+  include: typeof paymentRequestListInclude;
+}>;
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
-    const rows = await prisma.paymentRequest.findMany({
-      include: {
-        budgetRequest: { select: { code: true, subject: true } },
-        department: { select: { name: true } },
-        lineItems: { select: { id: true } },
-        approvalSchema: {
-          include: {
-            approvalLevels: { orderBy: { stepOrder: 'asc' } },
-          },
+
+    // Load approved BRs independently so the PR "link BR" dropdown still works if the payment list query fails
+    // (e.g. schema drift on payment_requests / line_items) — previously a thrown findMany hid all BR options.
+    const [prSettled, brSettled] = await Promise.allSettled([
+      prisma.paymentRequest.findMany({
+        include: paymentRequestListInclude,
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      prisma.budgetRequest.findMany({
+        where: { status: { equals: 'Approved', mode: 'insensitive' } },
+        select: {
+          id: true,
+          code: true,
+          subject: true,
+          departmentId: true,
+          grandTotal: true,
+          fiscalYear: true,
+          budgetPlan: { select: { originOffice: true, projectId: true } },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-    const requestorIds = Array.from(
-      new Set(rows.map((row) => row.requestorId).filter((id): id is string => Boolean(id)))
-    );
-    const requestorUsers = requestorIds.length
-      ? await prisma.user.findMany({
-          where: { id: { in: requestorIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+    ]);
 
-    const requests = rows.map(({ approvalSchema, lineItems, ...r }) => ({
-      ...r,
-      amount: Number(r.amount),
-      totalAmount: Number(r.totalAmount),
-      vatAmount: Number(r.vatAmount),
-      whtAmount: Number(r.whtAmount),
-      invoiceAmount: Number(r.invoiceAmount),
-      lineItemCount: lineItems?.length ?? 0,
-      requestorName: r.requestorId ? requestorNameMap.get(r.requestorId) ?? null : null,
-      canEdit: !!session?.user?.id && r.requestorId === session.user.id,
-      canReview:
-        !!session?.user?.id &&
-        canUserActOnCurrentBudgetRequestStep({
-          requestStatus: r.status,
-          approvalLevels: approvalSchema?.approvalLevels ?? [],
-          userRoleIds,
-          requestorId: r.requestorId ?? null,
-          actorUserId: session.user.id,
-        }),
-    }));
+    const requests =
+      prSettled.status === 'fulfilled'
+        ? await serializePaymentRequestList(prSettled.value, session, userRoleIds)
+        : [];
+    if (prSettled.status === 'rejected') {
+      console.error('[GET /api/payment-requests] paymentRequest.findMany failed', prSettled.reason);
+    }
 
-    const approvedBudgetRequests = await prisma.budgetRequest.findMany({
-      where: { status: 'Approved' },
-      select: {
-        id: true,
-        code: true,
-        subject: true,
-        departmentId: true,
-        grandTotal: true,
-        fiscalYear: true,
-        budgetPlan: { select: { originOffice: true, projectId: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+    const approvedBudgetRequests =
+      brSettled.status === 'fulfilled'
+        ? brSettled.value.map((br) => ({
+            ...br,
+            grandTotal: Number(br.grandTotal),
+          }))
+        : [];
+    if (brSettled.status === 'rejected') {
+      console.error('[GET /api/payment-requests] approved budgetRequest.findMany failed', brSettled.reason);
+    }
 
-    const linkedForLookup = approvedBudgetRequests.map((br) => ({
-      ...br,
-      grandTotal: Number(br.grandTotal),
-    }));
+    const listError = prSettled.status === 'rejected' ? 'Payment request list could not be loaded.' : undefined;
 
-    return NextResponse.json({ requests, approvedBudgetRequests: linkedForLookup });
-  } catch {
+    return NextResponse.json({ requests, approvedBudgetRequests, listError });
+  } catch (e) {
+    console.error('[GET /api/payment-requests]', e);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
+}
+
+async function serializePaymentRequestList(
+  rows: PaymentRequestListRow[],
+  session: Session | null,
+  userRoleIds: string[]
+) {
+  const requestorIds = Array.from(
+    new Set(rows.map((row) => row.requestorId).filter((id): id is string => Boolean(id)))
+  );
+  const requestorUsers = requestorIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: requestorIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
+
+  return rows.map(({ approvalSchema, lineItems, ...r }) => ({
+    ...r,
+    amount: Number(r.amount),
+    totalAmount: Number(r.totalAmount),
+    vatAmount: Number(r.vatAmount),
+    whtAmount: Number(r.whtAmount),
+    invoiceAmount: Number(r.invoiceAmount),
+    lineItemCount: lineItems?.length ?? 0,
+    requestorName: r.requestorId ? requestorNameMap.get(r.requestorId) ?? null : null,
+    canEdit: !!session?.user?.id && r.requestorId === session.user.id,
+    canReview:
+      !!session?.user?.id &&
+      canUserActOnCurrentBudgetRequestStep({
+        requestStatus: r.status,
+        approvalLevels: approvalSchema?.approvalLevels ?? [],
+        userRoleIds,
+        requestorId: r.requestorId ?? null,
+        actorUserId: session.user.id,
+      }),
+  }));
 }
 
 export async function POST(req: Request) {
