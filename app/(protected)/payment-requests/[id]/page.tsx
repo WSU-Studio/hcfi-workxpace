@@ -15,7 +15,14 @@ type HistoryEntry = {
   id: string;
   action: string;
   timestamp: string;
-  details: { status?: string; declineReason?: string | null } | null;
+  details: {
+    status?: string;
+    fromStatus?: string;
+    previousStatus?: string;
+    declineReason?: string | null;
+    note?: string | null;
+    qtyUnitPriceAdjustmentNote?: string | null;
+  } | null;
   user: { name: string | null } | null;
 };
 
@@ -375,24 +382,42 @@ export default function PaymentRequestDetailPage() {
         </div>
       </Card>
 
-      {data.histories && data.histories.length > 0 ? (
-        <Card collapsible header={<h3 className="font-medium">Activity history</h3>}>
-          <ul className="space-y-3 text-sm">
-            {data.histories.map((h) => (
-              <li key={h.id} className="border-b border-gray-100 pb-3 last:border-0">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <span className="font-medium text-gray-900">{h.action}</span>
-                  <span className="text-gray-500">{formatDateTime(h.timestamp)}</span>
-                </div>
-                <p className="text-gray-600">{h.user?.name ?? 'System'}</p>
-                {h.details?.declineReason ? (
-                  <p className="mt-1 text-red-700">Reason: {String(h.details.declineReason)}</p>
+      <Card collapsible collapsed header={<h3 className="font-medium">Activity History</h3>}>
+        {data.histories?.length ? (
+          <div className="space-y-2">
+            {data.histories.map((history) => (
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+                <p>
+                  <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
+                  <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
+                  <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
+                </p>
+                {history.details?.fromStatus &&
+                history.details?.status &&
+                history.details.fromStatus !== history.details.status ? (
+                  <p className="text-gray-600">
+                    Status: {history.details.fromStatus} → {history.details.status}
+                  </p>
+                ) : history.details?.status ? (
+                  <p className="text-gray-600">Status: {history.details.status}</p>
                 ) : null}
-              </li>
+                {history.details?.previousStatus ? (
+                  <p className="text-gray-600">Previous status: {history.details.previousStatus}</p>
+                ) : null}
+                {history.details?.declineReason ? (
+                  <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {history.details?.note ? <p className="text-gray-600">{String(history.details.note)}</p> : null}
+                {history.details?.qtyUnitPriceAdjustmentNote ? (
+                  <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
+                ) : null}
+              </div>
             ))}
-          </ul>
-        </Card>
-      ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No history yet.</p>
+        )}
+      </Card>
 
       <EditWarningModal
         isOpen={isEditWarningOpen}
