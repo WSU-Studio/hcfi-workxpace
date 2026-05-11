@@ -125,12 +125,12 @@ export default function ReviewPaymentRequestPage() {
       <h1 className="text-2xl font-semibold">Review Payment Request</h1>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        Persetujuan di sini mencatat status di Workxpace saja. Tim finance menjalankan pembayaran dan jurnal di Confins sesuai
+        Approval here only records status in Workxpace. Finance team executes payment and journal in Confins according to their procedures.
         prosedur mereka.
       </div>
 
       <Card className="space-y-4">
-        <h3 className="font-medium">Informasi permohonan</h3>
+        <h3 className="font-medium">Request information</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <span className="text-gray-500">ID:</span> {data.code}
@@ -180,14 +180,28 @@ export default function ReviewPaymentRequestPage() {
           </div>
           {data.paymentPurpose ? (
             <div className="md:col-span-2">
-              <span className="text-gray-500">Tujuan pembayaran:</span>
+              <span className="text-gray-500">Payment purpose:</span>
               <p className="mt-1 whitespace-pre-wrap text-gray-700">{data.paymentPurpose}</p>
             </div>
           ) : null}
+
+          {data.budgetRequest ? (
+            <div className="space-y-1 text-sm text-gray-700 p-2 rounded-lg border border-slate-200 bg-slate-50 md:col-span-2">
+              <span className="text-gray-500">Related budget request:</span>
+              <p className="font-medium">
+                {data.budgetRequest.code} — {data.budgetRequest.subject}
+              </p>
+              <p className="text-sm text-gray-600">
+                Grand total BR: {formatCurrency(data.budgetRequest.grandTotal)} · Status: {data.budgetRequest.status}
+              </p>
+            </div>
+          ) : null}
+
           <div className="md:col-span-2">
             <span className="text-gray-500">Description:</span>
             {data.description ? <RichTextContent value={data.description} className="mt-1" /> : <p className="mt-1">-</p>}
           </div>
+          
           <div className="md:col-span-2">
             <span className="text-gray-500">Notes:</span>
             <p className="mt-1 whitespace-pre-wrap text-gray-700">{data.notes || '-'}</p>
@@ -255,18 +269,6 @@ export default function ReviewPaymentRequestPage() {
         </Card>
       ) : null}
 
-      {data.budgetRequest ? (
-        <Card className="space-y-2">
-          <h3 className="font-medium">Budget request terpilih</h3>
-          <p className="text-sm text-gray-800">
-            {data.budgetRequest.code} — {data.budgetRequest.subject}
-          </p>
-          <p className="text-xs text-gray-600">
-            Grand total BR: {formatCurrency(data.budgetRequest.grandTotal)} · Status: {data.budgetRequest.status}
-          </p>
-        </Card>
-      ) : null}
-
       <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>
         {orderedLevels.length ? (
           <Table>
@@ -310,7 +312,7 @@ export default function ReviewPaymentRequestPage() {
             </tbody>
           </Table>
         ) : (
-          <p className="text-sm text-gray-500">Tanpa skema — satu tingkat persetujuan implisit.</p>
+          <p className="text-sm text-gray-500">No approval schema — implicit one-level approval.</p>
         )}
       </Card>
 
@@ -361,12 +363,12 @@ export default function ReviewPaymentRequestPage() {
       {isDeclineModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">Revision atau Decline</h2>
-            <p className="mt-2 text-sm text-slate-600">Berikan alasan (opsional namun disarankan).</p>
+            <h2 className="text-lg font-semibold text-slate-900">Revision or Decline</h2>
+            <p className="mt-2 text-sm text-slate-600">Provide a reason (optional but recommended).</p>
             <Input
               value={declineReason}
               onChange={(e) => setDeclineReason(e.target.value)}
-              placeholder="Alasan"
+              placeholder="Reason"
               className="mt-4"
             />
             <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -375,7 +377,7 @@ export default function ReviewPaymentRequestPage() {
                 onClick={() => setIsDeclineModalOpen(false)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="button"
@@ -383,7 +385,7 @@ export default function ReviewPaymentRequestPage() {
                 disabled={isSubmitting}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700 disabled:opacity-60"
               >
-                Minta revisi
+                Request revision
               </button>
               <button
                 type="button"
@@ -391,7 +393,7 @@ export default function ReviewPaymentRequestPage() {
                 disabled={isSubmitting}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-60"
               >
-                Tolak
+                Decline
               </button>
             </div>
           </div>
