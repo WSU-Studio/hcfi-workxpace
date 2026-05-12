@@ -437,6 +437,13 @@ model PaymentRequest {
   paymentPurpose   String?          @db.Text
   notes            String?          @db.Text
   supportingDocs   Json?
+  category         String?
+  categoryKeyIndex String?
+  costCenter       String?
+  coa              String?
+  type             String?
+  opexAllocation   String?
+  opexType         String?
   approvalSchemaId String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
