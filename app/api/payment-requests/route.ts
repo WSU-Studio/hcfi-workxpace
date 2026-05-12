@@ -12,6 +12,12 @@ import {
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
+import {
+  classificationToStored,
+  mergeStoredClassification,
+  parseClassificationBody,
+  type StoredRequestClassification,
+} from '@/lib/request-classification';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +61,13 @@ export async function GET() {
           fiscalYear: true,
           vatPercent: true,
           whtPercent: true,
+          category: true,
+          categoryKeyIndex: true,
+          costCenter: true,
+          coa: true,
+          type: true,
+          opexAllocation: true,
+          opexType: true,
           budgetPlan: { select: { originOffice: true, projectId: true } },
           lineItems: {
             orderBy: { id: 'asc' },
@@ -201,6 +214,7 @@ export async function POST(req: Request) {
     let resolvedFiscalYear: number;
     let resolvedOriginOffice: string | null;
     let resolvedProjectId: string | null;
+    let linkedBudgetRequestClassification: StoredRequestClassification | null = null;
 
     if (resolvedBudgetRequestId) {
       const br = await prisma.budgetRequest.findUnique({
@@ -210,6 +224,13 @@ export async function POST(req: Request) {
           status: true,
           departmentId: true,
           fiscalYear: true,
+          category: true,
+          categoryKeyIndex: true,
+          costCenter: true,
+          coa: true,
+          type: true,
+          opexAllocation: true,
+          opexType: true,
           budgetPlan: { select: { originOffice: true, projectId: true } },
         },
       });
@@ -223,6 +244,15 @@ export async function POST(req: Request) {
       resolvedFiscalYear = br.fiscalYear;
       resolvedOriginOffice = br.budgetPlan?.originOffice?.trim() || null;
       resolvedProjectId = br.budgetPlan?.projectId ?? null;
+      linkedBudgetRequestClassification = {
+        category: br.category,
+        categoryKeyIndex: br.categoryKeyIndex,
+        costCenter: br.costCenter,
+        coa: br.coa,
+        type: br.type,
+        opexAllocation: br.opexAllocation,
+        opexType: br.opexType,
+      };
     } else {
       if (!resolvedDepartmentId) {
         return NextResponse.json({ error: 'Department is required' }, { status: 400 });
@@ -259,6 +289,11 @@ export async function POST(req: Request) {
     });
     const code = `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
+    const classification = mergeStoredClassification(
+      classificationToStored(parseClassificationBody(body as Record<string, unknown>)),
+      linkedBudgetRequestClassification
+    );
+
     const pr = await prisma.paymentRequest.create({
       data: {
         code,
@@ -283,6 +318,13 @@ export async function POST(req: Request) {
         paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
         notes: typeof notes === 'string' ? notes : null,
         approvalSchemaId: approvalSchemaId || null,
+        category: classification.category,
+        categoryKeyIndex: classification.categoryKeyIndex,
+        costCenter: classification.costCenter,
+        coa: classification.coa,
+        type: classification.type,
+        opexAllocation: classification.opexAllocation,
+        opexType: classification.opexType,
         lineItems: {
           create: lineItemsCreate,
         },

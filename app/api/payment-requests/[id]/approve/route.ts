@@ -95,7 +95,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const updated = await prisma.paymentRequest.update({
       where: { id },
-      data: { status: newStatus },
+      data: {
+        status: newStatus,
+        categoryKeyIndex: body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null,
+        costCenter: body?.costCenterId ?? before.costCenter ?? null,
+        category: body?.categoryId ?? before.category ?? null,
+        coa: body?.coaId ?? before.coa ?? null,
+        type: body?.opexType ?? before.type ?? null,
+        opexAllocation: body?.opexAllocationId ?? before.opexAllocation ?? null,
+        opexType: body?.opexType ?? before.opexType ?? null,
+      },
       select: { status: true },
     });
 

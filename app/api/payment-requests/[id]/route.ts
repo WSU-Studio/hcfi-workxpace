@@ -10,6 +10,13 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
+import { loadClassificationOptions } from '@/lib/classification-options';
+import {
+  classificationToStored,
+  mergeStoredClassification,
+  parseClassificationBody,
+  type StoredRequestClassification,
+} from '@/lib/request-classification';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +100,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       });
 
     const serialized = serializePaymentRequest(row as Record<string, unknown> & { lineItems?: Array<Record<string, unknown>> });
+    const classificationOptions = await loadClassificationOptions();
 
     return NextResponse.json({
       ...serialized,
@@ -105,6 +113,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       requestorName: requestor?.name ?? null,
       histories,
       canReview,
+      ...classificationOptions,
     });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
@@ -126,6 +135,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         code: true,
         requestorId: true,
         status: true,
+        category: true,
+        categoryKeyIndex: true,
+        costCenter: true,
+        coa: true,
+        type: true,
+        opexAllocation: true,
+        opexType: true,
       },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -188,6 +204,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     let resolvedFiscalYear: number;
     let resolvedOriginOffice: string | null;
     let resolvedProjectId: string | null;
+    let linkedBudgetRequestClassification: StoredRequestClassification | null = null;
 
     if (resolvedBudgetRequestId) {
       const br = await prisma.budgetRequest.findUnique({
@@ -197,6 +214,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           status: true,
           departmentId: true,
           fiscalYear: true,
+          category: true,
+          categoryKeyIndex: true,
+          costCenter: true,
+          coa: true,
+          type: true,
+          opexAllocation: true,
+          opexType: true,
           budgetPlan: { select: { originOffice: true, projectId: true } },
         },
       });
@@ -210,6 +234,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       resolvedFiscalYear = br.fiscalYear;
       resolvedOriginOffice = br.budgetPlan?.originOffice?.trim() || null;
       resolvedProjectId = br.budgetPlan?.projectId ?? null;
+      linkedBudgetRequestClassification = {
+        category: br.category,
+        categoryKeyIndex: br.categoryKeyIndex,
+        costCenter: br.costCenter,
+        coa: br.coa,
+        type: br.type,
+        opexAllocation: br.opexAllocation,
+        opexType: br.opexType,
+      };
     } else {
       if (!resolvedDepartmentId) {
         return NextResponse.json({ error: 'Department is required' }, { status: 400 });
@@ -235,6 +268,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!dept) {
       return NextResponse.json({ error: 'Department not found' }, { status: 400 });
     }
+
+    const classification = mergeStoredClassification(
+      mergeStoredClassification(
+        classificationToStored(parseClassificationBody(body as Record<string, unknown>)),
+        linkedBudgetRequestClassification
+      ),
+      {
+        category: existing.category,
+        categoryKeyIndex: existing.categoryKeyIndex,
+        costCenter: existing.costCenter,
+        coa: existing.coa,
+        type: existing.type,
+        opexAllocation: existing.opexAllocation,
+        opexType: existing.opexType,
+      }
+    );
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.paymentRequestLineItem.deleteMany({ where: { paymentRequestId: id } });
@@ -262,6 +311,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'IDR',
           payeeName: payeeName.trim(),
           paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
+          category: classification.category,
+          categoryKeyIndex: classification.categoryKeyIndex,
+          costCenter: classification.costCenter,
+          coa: classification.coa,
+          type: classification.type,
+          opexAllocation: classification.opexAllocation,
+          opexType: classification.opexType,
           lineItems: {
             create: lineItemsCreate,
           },
