@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { prisma } from '@/lib/prisma';
 
 const MONTH_FIELDS = [
@@ -16,8 +18,10 @@ const MONTH_FIELDS = [
   'dec',
 ] as const;
 
-const generateBudgetPlanCode = async () => {
-  const lastPlan = await prisma.budgetPlan.findFirst({
+const getInitialBudgetPlanCodeSequence = async (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+) => {
+  const lastPlan = await tx.budgetPlan.findFirst({
     orderBy: {
       createdAt: 'desc',
     },
@@ -27,9 +31,7 @@ const generateBudgetPlanCode = async () => {
   });
 
   const lastNumber = lastPlan?.code?.match(/\d+$/)?.[0];
-  const nextNumber = lastNumber ? Number(lastNumber) + 1 : 1;
-
-  return `BP-${String(nextNumber).padStart(5, '0')}`;
+  return lastNumber ? Number(lastNumber) : 0;
 };
 
 const toNumber = (value: unknown) => {
@@ -51,6 +53,11 @@ const toText = (value: unknown) => {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const rows = body.rows || [];
 
@@ -62,6 +69,8 @@ export async function POST(req: NextRequest) {
     }
 
     await prisma.$transaction(async (tx) => {
+      let codeSequence = await getInitialBudgetPlanCodeSequence(tx);
+
       for (const row of rows) {
         const fiscalYear = toNumber(row.fiscalYear);
         const originOffice = toText(row.originOffice) || 'HQ';
@@ -126,7 +135,8 @@ export async function POST(req: NextRequest) {
           throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
         }
 
-        const code = await generateBudgetPlanCode();
+        codeSequence += 1;
+        const code = `BP-${String(codeSequence).padStart(5, '0')}`;
 
         const budgetPlan = await tx.budgetPlan.create({
           data: {
@@ -138,6 +148,8 @@ export async function POST(req: NextRequest) {
             departmentId: department.id,
             projectId: project?.id || null,
             approvalSchemaId: approvalSchema?.id || null,
+            requestorId: session.user.id,
+            importedViaBulk: true,
             status: 'Draft',
             requestDate: new Date(),
             supportingDocs: [],
