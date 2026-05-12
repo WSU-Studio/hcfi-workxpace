@@ -15,7 +15,6 @@ import BudgetRequestItemsEditor, {
   getItemSubtotal,
   getItemTotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
-
 const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
 const buildEmptyLineItem = (): BudgetRequestLineItemInput => ({

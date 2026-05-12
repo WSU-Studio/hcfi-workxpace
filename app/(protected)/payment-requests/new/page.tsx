@@ -14,6 +14,13 @@ import BudgetRequestItemsEditor, {
   getItemSubtotal,
   getItemTotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
+import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
+import type { AccountOption, ClassificationOption } from '@/lib/classification-options';
+import {
+  classificationFromStored,
+  emptyRequestClassification,
+  type RequestClassificationValue,
+} from '@/lib/request-classification';
 
 const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
@@ -43,6 +50,13 @@ type ApprovedBrOption = {
   vatPercent: number;
   whtPercent: number;
   lineItems: BrLineItemApi[];
+  category?: string | null;
+  categoryKeyIndex?: string | null;
+  costCenter?: string | null;
+  coa?: string | null;
+  type?: string | null;
+  opexAllocation?: string | null;
+  opexType?: string | null;
   budgetPlan: { originOffice: string | null; projectId: string | null } | null;
 };
 
@@ -87,6 +101,12 @@ export default function NewPaymentRequestPage() {
   const [prListFetchWarning, setPrListFetchWarning] = useState('');
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
   const [taxConfig, setTaxConfig] = useState({ vatPercent: 11, whtPercent: 2 });
+  const [classification, setClassification] = useState<RequestClassificationValue>(emptyRequestClassification());
+  const [categoryOptions, setCategoryOptions] = useState<ClassificationOption[]>([]);
+  const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<ClassificationOption[]>([]);
+  const [costCenterOptions, setCostCenterOptions] = useState<ClassificationOption[]>([]);
+  const [opexAllocationOptions, setOpexAllocationOptions] = useState<ClassificationOption[]>([]);
+  const [accountOptions, setAccountOptions] = useState<AccountOption[]>([]);
 
   const totalAmount = useMemo(
     () => lineItems.reduce((sum, item) => sum + getItemTotal(item), 0),
@@ -126,6 +146,11 @@ export default function NewPaymentRequestPage() {
         setDepartments(nextDepartments);
         setProjects(nextProjects);
         setOriginOffices(nextOriginOffices);
+        setCategoryOptions(optionsData.categoryOptions || []);
+        setCategoryKeyIndexOptions(optionsData.categoryKeyIndexOptions || []);
+        setCostCenterOptions(optionsData.costCenterOptions || []);
+        setOpexAllocationOptions(optionsData.opexAllocationOptions || []);
+        setAccountOptions(optionsData.accountOptions || []);
 
         setFormData((previous) => ({
           ...previous,
@@ -167,6 +192,7 @@ export default function NewPaymentRequestPage() {
       }));
       setLineItems([buildEmptyLineItem()]);
       setTaxConfig({ vatPercent: 11, whtPercent: 2 });
+      setClassification(emptyRequestClassification());
       return;
     }
 
@@ -191,6 +217,7 @@ export default function NewPaymentRequestPage() {
       vatPercent: Number.isFinite(br.vatPercent) ? br.vatPercent : 11,
       whtPercent: Number.isFinite(br.whtPercent) ? br.whtPercent : 2,
     });
+    setClassification(classificationFromStored(br));
   };
 
   const isBudgetRequestSelected = formData.budgetRequestId !== '';
@@ -258,6 +285,13 @@ export default function NewPaymentRequestPage() {
           currency: formData.currency,
           payeeName: formData.payeeName.trim(),
           paymentPurpose: formData.paymentPurpose || null,
+          costCenterId: classification.costCenterId || null,
+          categoryId: classification.categoryId || null,
+          categoryKeyIndexId: classification.categoryKeyIndexId || null,
+          coaId: classification.coaId || null,
+          opexType: classification.opexType || null,
+          opexAllocationId:
+            classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -412,7 +446,7 @@ export default function NewPaymentRequestPage() {
           </div>
 
           <div className="space-y-3">
-            <h2 className="text-base font-semibold text-gray-900">Items</h2>
+            <h2 className="text-base font-semibold text-gray-900">Request Allocation</h2>
             <BudgetRequestItemsEditor
               items={lineItems}
               onChange={setLineItems}
@@ -425,6 +459,20 @@ export default function NewPaymentRequestPage() {
                 invoiceAmount,
                 grandTotal,
               }}
+            />
+
+          </div>
+
+          <div className="space-y-3 hidden">
+            <h2 className="text-base font-semibold text-gray-900">Classification</h2>
+            <RequestClassificationFields
+              value={classification}
+              onChange={setClassification}
+              categoryOptions={categoryOptions}
+              categoryKeyIndexOptions={categoryKeyIndexOptions}
+              costCenterOptions={costCenterOptions}
+              opexAllocationOptions={opexAllocationOptions}
+              accountOptions={accountOptions}
             />
           </div>
 

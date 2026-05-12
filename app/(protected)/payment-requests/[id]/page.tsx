@@ -123,6 +123,18 @@ export default function PaymentRequestDetailPage() {
     } | null;
     histories?: HistoryEntry[];
     canReview?: boolean;
+    category?: string | null;
+    categoryKeyIndex?: string | null;
+    costCenter?: string | null;
+    coa?: string | null;
+    type?: string | null;
+    opexAllocation?: string | null;
+    opexType?: string | null;
+    categoryOptions?: { id: string; name: string }[];
+    categoryKeyIndexOptions?: { id: string; name: string }[];
+    costCenterOptions?: { id: string; name: string }[];
+    opexAllocationOptions?: { id: string; name: string }[];
+    accountOptions?: { id: string; accountCode: string; accountName: string }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -149,6 +161,26 @@ export default function PaymentRequestDetailPage() {
       hour: '2-digit',
       minute: '2-digit',
     });
+
+  const accountLabel = (() => {
+    const coaId = data.coa;
+    if (!coaId) return '-';
+    const account = data.accountOptions?.find((item) => item.id === coaId);
+    return account ? `${account.accountCode} - ${account.accountName}` : coaId;
+  })();
+  const opexType = data.opexType || data.type || '-';
+  const costCenterLabel =
+    data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
+  const categoryLabel =
+    data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
+  const categoryKeyIndexLabel =
+    data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
+    data.categoryKeyIndex ??
+    '-';
+  const opexAllocationLabel =
+    data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
+    data.opexAllocation ??
+    '-';
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -249,76 +281,95 @@ export default function PaymentRequestDetailPage() {
           </div>
         ) : null}
 
+      </Card>
+
+      <Card collapsible header={<h3 className="font-medium">Request Allocation</h3>}>
         {data.lineItems && data.lineItems.length > 0 ? (
-          <div className="space-y-2 border-t border-gray-100 pt-4">
-            <h3 className="font-medium">Items</h3>
-            <Table>
-              <thead>
-                <TableHeaderRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
-                  <TableHead className="text-right">Deduction</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableHeaderRow>
-              </thead>
-              <tbody>
-                {data.lineItems.map((li, index) => (
-                  <TableBodyRow key={`${li.item}-${index}`}>
-                    <TableCell>{li.item}</TableCell>
-                    <TableCell className="text-right">{li.qty}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0))}</TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(Number(li.subtotal ?? li.qty * Number(li.unitPrice ?? 0)))}
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.total ?? 0))}</TableCell>
-                  </TableBodyRow>
-                ))}
-                <TableBodyRow className="bg-gray-50 font-medium">
-                  <TableCell colSpan={5} className="text-right">
-                    Transaction amount
-                  </TableCell>
+          <Table>
+            <thead>
+              <TableHeaderRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right">Unit Price</TableHead>
+                <TableHead className="text-right">Subtotal</TableHead>
+                <TableHead className="text-right">Deduction</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+              </TableHeaderRow>
+            </thead>
+            <tbody>
+              {data.lineItems.map((li, index) => (
+                <TableBodyRow key={`${li.item}-${index}`}>
+                  <TableCell>{li.item}</TableCell>
+                  <TableCell className="text-right">{li.qty}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0))}</TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(
-                      Number(data.totalAmount ?? data.lineItems.reduce((s, l) => s + Number(l.total ?? 0), 0))
-                    )}
+                    {formatCurrency(Number(li.subtotal ?? li.qty * Number(li.unitPrice ?? 0)))}
                   </TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(li.total ?? 0))}</TableCell>
                 </TableBodyRow>
-                <TableBodyRow>
-                  <TableCell colSpan={5} className="text-right">
-                    VAT / PPN
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(data.vatAmount ?? 0))}</TableCell>
-                </TableBodyRow>
-                <TableBodyRow>
-                  <TableCell colSpan={5} className="text-right">
-                    Invoice amount
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(data.invoiceAmount ?? 0))}</TableCell>
-                </TableBodyRow>
-                <TableBodyRow>
-                  <TableCell colSpan={5} className="text-right">
-                    WHT / PPh
-                  </TableCell>
-                  <TableCell className="text-right">({formatCurrency(Number(data.whtAmount ?? 0))})</TableCell>
-                </TableBodyRow>
-                <TableBodyRow className="bg-green-200/60 font-semibold">
-                  <TableCell colSpan={5} className="text-right">
-                    Grand total
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(data.amount)}</TableCell>
-                </TableBodyRow>
-              </tbody>
-            </Table>
-          </div>
+              ))}
+              <TableBodyRow className="bg-gray-50 font-medium">
+                <TableCell colSpan={5} className="text-right">
+                  Transaction amount
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatCurrency(
+                    Number(data.totalAmount ?? data.lineItems.reduce((s, l) => s + Number(l.total ?? 0), 0))
+                  )}
+                </TableCell>
+              </TableBodyRow>
+              <TableBodyRow>
+                <TableCell colSpan={5} className="text-right">
+                  VAT / PPN
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(data.vatAmount ?? 0))}</TableCell>
+              </TableBodyRow>
+              <TableBodyRow>
+                <TableCell colSpan={5} className="text-right">
+                  Invoice amount
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(data.invoiceAmount ?? 0))}</TableCell>
+              </TableBodyRow>
+              <TableBodyRow>
+                <TableCell colSpan={5} className="text-right">
+                  WHT / PPh
+                </TableCell>
+                <TableCell className="text-right">({formatCurrency(Number(data.whtAmount ?? 0))})</TableCell>
+              </TableBodyRow>
+              <TableBodyRow className="bg-green-200/60 font-semibold">
+                <TableCell colSpan={5} className="text-right">
+                  Grand total
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(data.amount)}</TableCell>
+              </TableBodyRow>
+            </tbody>
+          </Table>
         ) : null}
 
-        <ReadonlyField label="Payee" value={data.payeeName} />
-        {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
-        
-        {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null}
+        <div className="space-y-3 border-t border-gray-100 mt-6">
+          <h3 className="font-medium">Classification</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ReadonlyField label="Cost Center" value={costCenterLabel} />
+            <ReadonlyField label="Category" value={categoryLabel} />
+            <ReadonlyField label="Category Key Index" value={categoryKeyIndexLabel} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="md:col-span-2">
+              <ReadonlyField label="Kode Akun" value={accountLabel} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ReadonlyField label="Type" value={opexType} />
+            {opexType === 'OPEX' ? <ReadonlyField label="Opex Allocation" value={opexAllocationLabel} /> : null}
+          </div>
+          
+          <ReadonlyField label="Payee" value={data.payeeName} />
+          {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
+          
+          {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null}
+        </div>
+
       </Card>
 
       <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>

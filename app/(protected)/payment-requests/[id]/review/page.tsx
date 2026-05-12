@@ -9,6 +9,13 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import RichTextContent from '@/components/ui/RichTextContent';
 import Input from '@/components/ui/Input';
+import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
+import type { AccountOption, ClassificationOption } from '@/lib/classification-options';
+import {
+  classificationFromStored,
+  emptyRequestClassification,
+  type RequestClassificationValue,
+} from '@/lib/request-classification';
 
 export default function ReviewPaymentRequestPage() {
   const params = useParams();
@@ -58,13 +65,37 @@ export default function ReviewPaymentRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [classification, setClassification] = useState<RequestClassificationValue>(emptyRequestClassification());
+  const [categoryOptions, setCategoryOptions] = useState<ClassificationOption[]>([]);
+  const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<ClassificationOption[]>([]);
+  const [costCenterOptions, setCostCenterOptions] = useState<ClassificationOption[]>([]);
+  const [opexAllocationOptions, setOpexAllocationOptions] = useState<ClassificationOption[]>([]);
+  const [accountOptions, setAccountOptions] = useState<AccountOption[]>([]);
 
   useEffect(() => {
     fetch(`/api/payment-requests/${id}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
-      .then(setData)
+      .then((payload) => {
+        setData(payload);
+        if (!payload) return;
+        setClassification(classificationFromStored(payload));
+        setCategoryOptions(payload.categoryOptions || []);
+        setCategoryKeyIndexOptions(payload.categoryKeyIndexOptions || []);
+        setCostCenterOptions(payload.costCenterOptions || []);
+        setOpexAllocationOptions(payload.opexAllocationOptions || []);
+        setAccountOptions(payload.accountOptions || []);
+      })
       .finally(() => setIsLoading(false));
   }, [id]);
+
+  const classificationPayload = {
+    costCenterId: classification.costCenterId || null,
+    categoryId: classification.categoryId || null,
+    categoryKeyIndexId: classification.categoryKeyIndexId || null,
+    coaId: classification.coaId || null,
+    opexType: classification.opexType || null,
+    opexAllocationId: classification.opexType === 'OPEX' ? classification.opexAllocationId || null : null,
+  };
 
   const handleApprove = async () => {
     setIsSubmitting(true);
@@ -72,7 +103,7 @@ export default function ReviewPaymentRequestPage() {
       const res = await fetch(`/api/payment-requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(classificationPayload),
       });
       if (res.ok) router.push(`/payment-requests/${id}`);
       else alert('Failed');
@@ -90,6 +121,7 @@ export default function ReviewPaymentRequestPage() {
         body: JSON.stringify({
           action: mode,
           declineReason: declineReason.trim() || undefined,
+          ...classificationPayload,
         }),
       });
       if (res.ok) {
@@ -108,6 +140,7 @@ export default function ReviewPaymentRequestPage() {
   const completedSteps =
     data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
   const approveHistories = (data.histories || []).filter((h) => h.action === 'approve');
+  const canEditClassification = Boolean(data.canReview);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -208,9 +241,9 @@ export default function ReviewPaymentRequestPage() {
         </div>
       </Card>
 
-      {data.lineItems && data.lineItems.length > 0 ? (
-        <Card className="space-y-3">
-          <h3 className="font-medium">Items</h3>
+      <Card className="space-y-3">
+        <h3 className="font-medium">Request Allocation</h3>
+        {data.lineItems && data.lineItems.length > 0 ? (
           <Table>
             <thead>
               <TableHeaderRow>
@@ -265,8 +298,21 @@ export default function ReviewPaymentRequestPage() {
               </TableBodyRow>
             </tbody>
           </Table>
-        </Card>
-      ) : null}
+        ) : null}
+      </Card>
+
+      <Card collapsible header={<h3 className="font-medium">Classification</h3>}>
+        <RequestClassificationFields
+          value={classification}
+          onChange={setClassification}
+          categoryOptions={categoryOptions}
+          categoryKeyIndexOptions={categoryKeyIndexOptions}
+          costCenterOptions={costCenterOptions}
+          opexAllocationOptions={opexAllocationOptions}
+          accountOptions={accountOptions}
+          readOnly={!canEditClassification}
+        />
+      </Card>
 
       <div>
         {orderedLevels.length ? (
