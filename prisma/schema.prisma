@@ -60,6 +60,7 @@ model User {
   departmentHeadOf Department[] @relation("DepartmentHead")
   activityHistory  ActivityHistory[]
   notifications    Notification[]
+  reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
 
   @@index([roleId])
   @@index([departmentId])
@@ -103,7 +104,9 @@ model Department {
   users       User[]
   budgetPlans BudgetPlan[]
   budgetRequests BudgetRequest[]
+  paymentRequests PaymentRequest[]
   approvalSchemas ApprovalSchema[]
+  reconciliationSavedPayments ReconciliationSavedPayment[]
 
   @@index([headId])
   @@map("departments")
@@ -150,6 +153,15 @@ model UserAccess {
   @@map("user_accesses")
 }
 
+model ApplicationSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("application_settings")
+}
+
 model FiscalYear {
   id        String   @id @default(cuid())
   year      Int      @unique
@@ -161,13 +173,14 @@ model FiscalYear {
 }
 
 model Project {
-  id           String      @id @default(cuid())
-  code         String      @unique
-  name         String
-  description  String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  budgetPlans  BudgetPlan[]
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  budgetPlans     BudgetPlan[]
+  paymentRequests PaymentRequest[]
 
   @@map("projects")
 }
@@ -175,7 +188,7 @@ model Project {
 model ApprovalSchema {
   id              String         @id @default(cuid())
   name            String
-  type            String         // BudgetPlan | BudgetRequest
+  type            String         // BudgetPlan | BudgetRequest | PaymentRequest
   period          String         @default("Unlimited") // Unlimited | Custom
   departmentId    String
   createdAt       DateTime       @default(now())
@@ -184,6 +197,7 @@ model ApprovalSchema {
   approvalLevels  ApprovalLevel[]
   budgetPlans     BudgetPlan[]
   budgetRequests  BudgetRequest[]
+  paymentRequests PaymentRequest[]
 
   @@index([departmentId])
   @@map("approval_schemas")
@@ -234,6 +248,7 @@ model BudgetPlan {
   requestorId      String?
   requestDate      DateTime
   status           String               @default("Draft") // Draft | Pending | Reviewed | Approved
+  importedViaBulk  Boolean              @default(false)
   approvalSchemaId String?
   supportingDocs   Json?                // Array of file URLs
   coaId            String?              // account id from static JSON list
@@ -386,11 +401,196 @@ model BudgetRequest {
   approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
   lineItems        BudgetRequestLineItem[]
   allocations      BudgetRequestAllocation[]
+  reconciliationSavedPayments ReconciliationSavedPayment[]
+  dataMartStagingRows        DataMartStagingRow[]
+  paymentRequests            PaymentRequest[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+/// Permohonan pembayaran — alur approval internal Workxpace (eksekusi/pembukuan di Confins tetap terpisah).
+model PaymentRequest {
+  id               String           @id @default(cuid())
+  code             String           @unique
+  subject          String
+  description      String?          @db.Text
+  fiscalYear       Int
+  originOffice     String?
+  departmentId     String
+  projectId        String?
+  budgetRequestId  String?
+  requestorId      String?
+  requestDate      DateTime
+  status           String           @default("Draft") // Draft | Pending | Reviewed | Approved | Revision | Declined
+  /** Grand total to pay (invoice − WHT); mirrors budget request semantics. */
+  amount           Decimal          @db.Decimal(18, 2)
+  totalAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  vatPercent       Decimal          @default(11) @db.Decimal(5, 2)
+  vatAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  whtPercent       Decimal          @default(2) @db.Decimal(5, 2)
+  whtAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  invoiceAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  currency         String           @default("IDR")
+  payeeName        String
+  paymentPurpose   String?          @db.Text
+  notes            String?          @db.Text
+  supportingDocs   Json?
+  category         String?
+  categoryKeyIndex String?
+  costCenter       String?
+  coa              String?
+  type             String?
+  opexAllocation   String?
+  opexType         String?
+  approvalSchemaId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  department       Department       @relation(fields: [departmentId], references: [id])
+  project          Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  budgetRequest    BudgetRequest?   @relation(fields: [budgetRequestId], references: [id], onDelete: SetNull)
+  approvalSchema   ApprovalSchema?  @relation(fields: [approvalSchemaId], references: [id])
+  lineItems        PaymentRequestLineItem[]
+
+  @@index([departmentId])
+  @@index([projectId])
+  @@index([budgetRequestId])
+  @@index([status])
+  @@map("payment_requests")
+}
+
+model PaymentRequestLineItem {
+  id               String         @id @default(cuid())
+  paymentRequestId String
+  item             String
+  qty              Int
+  unitPrice        Decimal        @db.Decimal(18, 2)
+  subtotal         Decimal        @db.Decimal(18, 2)
+  deduction        Decimal        @default(0) @db.Decimal(18, 2)
+  total            Decimal        @db.Decimal(18, 2)
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+
+  @@index([paymentRequestId])
+  @@map("payment_request_line_items")
+}
+
+/// Baris staging untuk laporan Data Mart: kolom terindeks untuk query cepat + JSON fallback untuk field Confins yang berubah-ubah.
+model DataMartStagingRow {
+  id                           String   @id @default(cuid())
+  reconciliationSavedPaymentId String   @unique @map("reconciliation_saved_payment_id")
+
+  confinsPaymentDocId          String   @map("confins_payment_doc_id")
+  budgetRequestId              String   @map("budget_request_id")
+
+  fiscalYear                   Int      @map("fiscal_year")
+  month                        Int
+  period                       String
+  quarter                      Int
+
+  budgetRequestCode            String   @map("budget_request_code")
+  budgetPlanCode               String?  @map("budget_plan_code")
+  budgetRequestSubject         String?  @map("budget_request_subject") @db.Text
+  expenseCategory              String?  @map("expense_category")
+  categoryKeyIndex             String?  @map("category_key_index")
+  costCenter                   String?  @map("cost_center")
+  accountNumberCoa             String?  @map("account_number_coa")
+  opexType                     String?  @map("opex_type")
+  opexAllocation               String?  @map("opex_allocation")
+  budgetRequestType            String?  @map("budget_request_type")
+  projectCode                  String?  @map("project_code")
+
+  departmentId                 String?  @map("department_id")
+  departmentName               String?  @map("department_name")
+  originOffice                 String?  @map("origin_office")
+  divisionName                 String?  @map("division_name")
+
+  requestorName                String?  @map("requestor_name")
+
+  incomingReferenceId          String   @map("incoming_reference_id")
+  voucherNumber                String?  @map("voucher_number")
+  paymentDescription           String?  @map("payment_description") @db.Text
+  paymentSource                String?  @map("payment_source")
+  glAccountCode                String?  @map("gl_account_code")
+  glAccountName                String?  @map("gl_account_name")
+  paidAmount                   Decimal  @map("paid_amount") @db.Decimal(18, 2)
+  expectedAmount               Decimal  @map("expected_amount") @db.Decimal(18, 2)
+  currencyCode                 String?  @map("currency_code")
+
+  businessRole                 String?  @map("business_role")
+  activityCode                 String?  @map("activity_code")
+  subActivityCode              String?  @map("sub_activity_code")
+  activityLabel                String?  @map("activity_label") @db.Text
+  subActivityLabel             String?  @map("sub_activity_label") @db.Text
+  vendorName                   String?  @map("vendor_name")
+  interfaceId                  String?  @map("interface_id")
+  paymentRequestNo             String?  @map("payment_request_no")
+
+  dataInterfaceSource          String?  @map("data_interface_source")
+  expenseTypeFp                String?  @map("expense_type_fp")
+  journalNo                    String?  @map("journal_no")
+  voucherEgl                   String?  @map("voucher_egl")
+  invoiceNo                    String?  @map("invoice_no")
+  invoiceDate                  DateTime? @map("invoice_date")
+  paymentRequestDate           DateTime? @map("payment_request_date")
+  requestedByEmail             String?  @map("requested_by_email")
+  projectName                  String?  @map("project_name")
+  budgetRequestApprovedAt      DateTime? @map("budget_request_approved_at")
+  planAmount                   Decimal? @map("plan_amount") @db.Decimal(18, 2)
+  costDriverMetric             Decimal? @map("cost_driver_metric") @db.Decimal(18, 4)
+  costPerUnit                  Decimal? @map("cost_per_unit") @db.Decimal(18, 6)
+
+  confinsPayloadRaw            Json     @map("confins_payload_raw")
+  budgetRequestSnapshot        Json     @map("budget_request_snapshot")
+
+  matchType                    String   @map("match_type")
+  savedAt                      DateTime @map("saved_at")
+
+  reconciliationSavedPayment ReconciliationSavedPayment @relation(fields: [reconciliationSavedPaymentId], references: [id], onDelete: Cascade)
+  budgetRequest              BudgetRequest              @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+
+  @@index([fiscalYear, month])
+  @@index([budgetRequestId])
+  @@index([departmentId])
+  @@index([originOffice])
+  @@index([vendorName])
+  @@index([savedAt])
+  @@index([expenseCategory])
+  @@index([categoryKeyIndex])
+  @@index([projectCode])
+  @@index([invoiceNo])
+  @@map("data_mart_staging")
+}
+
+model ReconciliationSavedPayment {
+  id                   String   @id @default(cuid())
+  confinsPaymentDocId  String   @unique @map("confins_payment_doc_id")
+  budgetRequestId      String   @map("budget_request_id")
+  matchType            String
+  incomingReferenceId  String   @map("incoming_reference_id")
+  paidAmount           Decimal  @map("paid_amount") @db.Decimal(18, 2)
+  expectedAmount       Decimal  @map("expected_amount") @db.Decimal(18, 2)
+  fiscalYear           Int      @map("fiscal_year")
+  month                Int
+  departmentId         String?  @map("department_id")
+  voucherNumber        String?  @map("voucher_number")
+  paymentDescription   String?  @map("payment_description") @db.Text
+  paymentSource        String?  @map("payment_source")
+  glAccountCode        String?  @map("gl_account_code")
+  glAccountName        String?  @map("gl_account_name")
+  savedByUserId        String   @map("saved_by_user_id")
+  savedAt              DateTime @default(now()) @map("saved_at")
+
+  budgetRequest BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+  department    Department?   @relation(fields: [departmentId], references: [id])
+  savedBy       User          @relation("ReconciliationSavedBy", fields: [savedByUserId], references: [id])
+  dataMartStaging DataMartStagingRow?
+
+  @@index([fiscalYear, month])
+  @@index([budgetRequestId])
+  @@index([savedAt])
+  @@map("reconciliation_saved_payments")
 }
 
 model BudgetRequestAllocation {

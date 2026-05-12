@@ -14,6 +14,7 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
   targetUrl?: string | null;
+  linkLabel?: string | null;
 }
 
 export default function NotificationDropdown() {

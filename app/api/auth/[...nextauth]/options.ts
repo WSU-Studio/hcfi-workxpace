@@ -3,7 +3,14 @@ import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { MenuAccess, ActivityAccess } from '@/types/access-control';
-import { defaultMenuAccess, defaultActivityAccess, fullMenuAccess, fullActivityAccess } from '@/lib/default-access';
+import {
+  fullMenuAccess,
+  fullActivityAccess,
+  mergeWithDefaultMenuAccess,
+  mergeWithDefaultActivityAccess,
+  defaultMenuAccess,
+  defaultActivityAccess,
+} from '@/lib/default-access';
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -71,18 +78,34 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const u = user as { id: string; roleId: string; role: string; departmentId: string; access: { menuAccess: MenuAccess; activityAccess: ActivityAccess } };
+        const u = user as {
+          id: string;
+          roleId: string;
+          role: string;
+          departmentId: string;
+          access: { menuAccess: MenuAccess; activityAccess: ActivityAccess };
+        };
         token.id = u.id;
+        token.sub = u.id;
         token.roleId = u.roleId;
         token.role = u.role;
         token.departmentId = u.departmentId;
         token.access = u.access;
       }
+      const raw = token.access as
+        | { menuAccess?: MenuAccess; activityAccess?: ActivityAccess }
+        | undefined;
+      if (raw) {
+        token.access = {
+          menuAccess: mergeWithDefaultMenuAccess(raw.menuAccess),
+          activityAccess: mergeWithDefaultActivityAccess(raw.activityAccess),
+        };
+      }
       return token;
     },
     async session({ session, token }) {
       if (session?.user) {
-        session.user.id = token.sub!;
+        session.user.id = (token.id as string | undefined) ?? token.sub ?? '';
         session.user.roleId = token.roleId as string;
         session.user.departmentId = token.departmentId as string;
         session.user.role = token.role ?? '';

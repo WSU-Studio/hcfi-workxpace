@@ -112,6 +112,7 @@ export default function NewApprovalSchemaPage() {
             >
               <option value="BudgetPlan">Budget Plan</option>
               <option value="BudgetRequest">Budget Request</option>
+              <option value="PaymentRequest">Payment Request</option>
             </Select>
             {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
           </div>

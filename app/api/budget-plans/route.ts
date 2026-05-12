@@ -37,7 +37,6 @@ export async function GET(request: Request) {
         approvalSchema: { include: { approvalLevels: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
     });
 
     const departments = await prisma.department.findMany({

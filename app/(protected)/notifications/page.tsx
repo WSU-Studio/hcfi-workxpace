@@ -14,6 +14,17 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
   targetUrl?: string | null;
+  linkLabel?: string | null;
+}
+
+function linkLabelForNotification(notification: Notification): string | null {
+  if (notification.linkLabel) return notification.linkLabel;
+  const url = notification.targetUrl;
+  if (!url) return null;
+  if (url.includes('/payment-requests/')) return 'View payment request';
+  if (url.includes('/budget-requests/')) return 'View budget request';
+  if (url.includes('/budget-plans/')) return 'View budget plan';
+  return 'Open';
 }
 
 export default function NotificationsPage() {
@@ -64,7 +75,7 @@ export default function NotificationsPage() {
                   <p className="mt-1 text-xs text-gray-500">{formatDate(notification.createdAt)}</p>
                   {notification.targetUrl ? (
                     <Link href={notification.targetUrl} className="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-700">
-                      Open related budget plan
+                      {linkLabelForNotification(notification)}
                     </Link>
                   ) : null}
                 </div>

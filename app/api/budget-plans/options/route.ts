@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { loadClassificationOptions } from '@/lib/classification-options';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,9 @@ export async function GET() {
       orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
     });
 
-    return NextResponse.json({ fiscalYears, departments, projects, approvalSchemas, originOffices });
+    const classification = await loadClassificationOptions();
+
+    return NextResponse.json({ fiscalYears, departments, projects, approvalSchemas, originOffices, ...classification });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }

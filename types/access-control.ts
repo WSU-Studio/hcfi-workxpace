@@ -2,8 +2,14 @@ export interface MenuAccess {
   dashboard: boolean;
   budgetPlans: boolean;
   budgetRequests: boolean;
+  /** Permohonan pembayaran — approval internal Workxpace (terpisah dari eksekusi Confins). */
+  paymentRequests: boolean;
+  reconciliation: boolean;
+  /** Laporan tersimpan (rekonsiliasi, dll.) */
+  reports: boolean;
   userManagement: boolean;
   workspaceManagement: boolean;
+  settings?: boolean;
   viewDepartment: boolean;
   viewOriginOffice: boolean;
   viewProject: boolean;
@@ -22,6 +28,9 @@ export interface ActivityAccess {
   createBudgetRequest: boolean;
   editBudgetRequest: boolean;
   deleteBudgetRequest: boolean;
+  createPaymentRequest: boolean;
+  editPaymentRequest: boolean;
+  deletePaymentRequest: boolean;
   createDepartment: boolean;
   editDepartment: boolean;
   deleteDepartment: boolean;
@@ -49,4 +58,10 @@ export interface ActivityAccess {
   createUser: boolean;
   editUser: boolean;
   deleteUser: boolean;
+  /** Menjalankan sinkronisasi / integrasi data pembayaran (mis. Confins). */
+  runReconciliationSync: boolean;
+  /** Koreksi pencocokan manual antara pembayaran eksternal dan plan/request. */
+  editReconciliationMapping: boolean;
+  /** Simpan hasil match ke database (menghilangkan baris dari daftar kerja). */
+  saveReconciliationResult: boolean;
 }

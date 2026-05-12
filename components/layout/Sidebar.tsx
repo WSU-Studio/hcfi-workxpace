@@ -6,7 +6,18 @@ import { usePathname } from 'next/navigation';
 import { useSidebarStore } from '@/store/useSidebarStore';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
-import { IconBriefcaseFilled, IconCoins, IconId, IconLayoutDashboardFilled, IconSubtask, IconLogout } from '@tabler/icons-react';
+import {
+  IconBriefcaseFilled,
+  IconChartBar,
+  IconCoins,
+  IconId,
+  IconLayoutDashboardFilled,
+  IconLogout,
+  IconReceipt,
+  IconScale,
+  IconSettings,
+  IconSubtask,
+} from '@tabler/icons-react';
 import Logo from '@/public/workxpace-logo.svg';
 import FullLogo from '@/public/workxpace-full-logo.svg';
 import { MenuAccess } from '@/types/access-control';
@@ -15,6 +26,9 @@ const restrictedMenuAccess: MenuAccess = {
   dashboard: false,
   budgetPlans: false,
   budgetRequests: false,
+  paymentRequests: false,
+  reconciliation: false,
+  reports: false,
   userManagement: false,
   workspaceManagement: false,
   viewDepartment: false,
@@ -39,15 +53,19 @@ const Sidebar = () => {
     { name: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboardFilled, show: menuAccess.dashboard },
     { name: 'Budget Plans', href: '/budget-plans', icon: IconCoins, show: menuAccess.budgetPlans },
     { name: 'Budget Requests', href: '/budget-requests', icon: IconBriefcaseFilled, show: menuAccess.budgetRequests },
+    { name: 'Payment Requests', href: '/payment-requests', icon: IconReceipt, show: menuAccess.paymentRequests },
+    { name: 'Reconciliation', href: '/reconciliation', icon: IconScale, show: menuAccess.reconciliation },
+    { name: 'Reports', href: '/reports', icon: IconChartBar, show: menuAccess.reports },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
+    // { name: 'Application Settings', href: '/settings', icon: IconSettings, show: menuAccess.settings ?? menuAccess.workspaceManagement },
   ].filter((i) => i.show);
 
   if (status === 'loading') {
     return (
       <aside className={cn('relative left-0 top-0 h-screen bg-white border-r', isCollapsed ? 'w-16' : 'w-64')}>
         <div className="py-4 space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
             <div key={i} className="h-11 mx-4 bg-gray-200 rounded animate-pulse" />
           ))}
         </div>

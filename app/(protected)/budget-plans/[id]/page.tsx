@@ -11,6 +11,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { Pencil, ScanSearch } from 'lucide-react';
+import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -23,6 +24,7 @@ type PlanDetail = {
   fiscalYear: number;
   originOffice: string | null;
   status: string;
+  importedViaBulk?: boolean;
   requestDate: string;
   coaId?: string | null;
   opexType?: string | null;
@@ -199,6 +201,11 @@ export default function BudgetPlanDetailPage() {
           <div className="col-span-2">
             <span className="text-gray-500">Status:</span>{' '}
             <span className={`px-2 py-0.5 rounded text-sm ${plan.status === 'Approved' ? 'bg-green-100' : plan.status === 'Pending' ? 'bg-yellow-100' : 'bg-gray-100'}`}>{plan.status}</span>
+            {plan.importedViaBulk ? (
+              <span className="ml-2 inline-flex align-middle">
+                <BulkImportBadge />
+              </span>
+            ) : null}
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
