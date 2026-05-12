@@ -58,7 +58,7 @@ const Sidebar = () => {
     { name: 'Reports', href: '/reports', icon: IconChartBar, show: menuAccess.reports },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
-    { name: 'Application Settings', href: '/settings', icon: IconSettings, show: menuAccess.settings ?? menuAccess.workspaceManagement },
+    // { name: 'Application Settings', href: '/settings', icon: IconSettings, show: menuAccess.settings ?? menuAccess.workspaceManagement },
   ].filter((i) => i.show);
 
   if (status === 'loading') {
