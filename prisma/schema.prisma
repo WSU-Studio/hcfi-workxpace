@@ -248,6 +248,7 @@ model BudgetPlan {
   requestorId      String?
   requestDate      DateTime
   status           String               @default("Draft") // Draft | Pending | Reviewed | Approved
+  importedViaBulk  Boolean              @default(false)
   approvalSchemaId String?
   supportingDocs   Json?                // Array of file URLs
   coaId            String?              // account id from static JSON list
