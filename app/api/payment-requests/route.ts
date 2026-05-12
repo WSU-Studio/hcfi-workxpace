@@ -209,7 +209,7 @@ export async function POST(req: Request) {
 
     let resolvedDepartmentId =
       typeof departmentId === 'string' && departmentId.trim() !== '' ? departmentId : '';
-    let resolvedBudgetRequestId: string | null =
+    const resolvedBudgetRequestId: string | null =
       typeof budgetRequestId === 'string' && budgetRequestId.trim() !== '' ? budgetRequestId : null;
     let resolvedFiscalYear: number;
     let resolvedOriginOffice: string | null;
