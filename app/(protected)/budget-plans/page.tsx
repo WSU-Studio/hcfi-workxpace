@@ -261,6 +261,7 @@ const handleImportRows = async () => {
     const res = await fetch('/api/budget-plans/bulk-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ rows: importRows }),
     });
 

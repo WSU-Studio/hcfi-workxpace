@@ -86,6 +86,7 @@ export const authOptions: AuthOptions = {
           access: { menuAccess: MenuAccess; activityAccess: ActivityAccess };
         };
         token.id = u.id;
+        token.sub = u.id;
         token.roleId = u.roleId;
         token.role = u.role;
         token.departmentId = u.departmentId;
@@ -104,7 +105,7 @@ export const authOptions: AuthOptions = {
     },
     async session({ session, token }) {
       if (session?.user) {
-        session.user.id = token.sub!;
+        session.user.id = (token.id as string | undefined) ?? token.sub ?? '';
         session.user.roleId = token.roleId as string;
         session.user.departmentId = token.departmentId as string;
         session.user.role = token.role ?? '';

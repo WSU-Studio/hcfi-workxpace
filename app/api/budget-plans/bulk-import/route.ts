@@ -68,6 +68,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const requestor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true },
+    });
+
+    if (!requestor) {
+      return NextResponse.json(
+        { error: 'Session expired. Please sign in again.' },
+        { status: 401 }
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       let codeSequence = await getInitialBudgetPlanCodeSequence(tx);
 
