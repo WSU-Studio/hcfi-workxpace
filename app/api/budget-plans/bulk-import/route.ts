@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { prisma } from '@/lib/prisma';
 
+/** Bulk import can run longer than default serverless limits on large XLSX. */
+export const maxDuration = 120;
+
 const MONTH_FIELDS = [
   'jan',
   'feb',
@@ -80,106 +83,136 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await prisma.$transaction(async (tx) => {
-      let codeSequence = await getInitialBudgetPlanCodeSequence(tx);
+    const departmentCodes = [
+      ...new Set(
+        rows
+          .map((r: Record<string, unknown>) => toText(r.departmentCode))
+          .filter(Boolean)
+      ),
+    ];
+    const projectCodes = [
+      ...new Set(
+        rows
+          .map((r: Record<string, unknown>) => toText(r.projectCode))
+          .filter(Boolean)
+      ),
+    ];
+    const approvalSchemaNames = [
+      ...new Set(
+        rows
+          .map((r: Record<string, unknown>) => toText(r.approvalSchemaCode))
+          .filter(Boolean)
+      ),
+    ];
 
-      for (const row of rows) {
-        const fiscalYear = toNumber(row.fiscalYear);
-        const originOffice = toText(row.originOffice) || 'HQ';
-        const departmentCode = toText(row.departmentCode);
-        const projectCode = toText(row.projectCode);
-        const subject = toText(row.subject);
-        const description = toText(row.description);
-        const approvalSchemaCode = toText(row.approvalSchemaCode);
+    const [departments, projects, approvalSchemas] = await Promise.all([
+      prisma.department.findMany({
+        where: { code: { in: departmentCodes } },
+        select: { id: true, code: true },
+      }),
+      projectCodes.length
+        ? prisma.project.findMany({
+            where: { code: { in: projectCodes } },
+            select: { id: true, code: true },
+          })
+        : Promise.resolve([]),
+      approvalSchemaNames.length
+        ? prisma.approvalSchema.findMany({
+            where: { name: { in: approvalSchemaNames } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+    ]);
 
-        if (!fiscalYear) {
-          throw new Error(`Fiscal Year is required for subject: ${subject || '-'}`);
+    const departmentByCode = new Map(
+      departments.map((d) => [d.code, d] as const)
+    );
+    const projectByCode = new Map(projects.map((p) => [p.code, p] as const));
+    const approvalSchemaByName = new Map(
+      approvalSchemas.map((s) => [s.name, s] as const)
+    );
+
+    await prisma.$transaction(
+      async (tx) => {
+        let codeSequence = await getInitialBudgetPlanCodeSequence(tx);
+
+        for (const row of rows) {
+          const fiscalYear = toNumber(row.fiscalYear);
+          const originOffice = toText(row.originOffice) || 'HQ';
+          const departmentCode = toText(row.departmentCode);
+          const projectCode = toText(row.projectCode);
+          const subject = toText(row.subject);
+          const description = toText(row.description);
+          const approvalSchemaCode = toText(row.approvalSchemaCode);
+
+          if (!fiscalYear) {
+            throw new Error(`Fiscal Year is required for subject: ${subject || '-'}`);
+          }
+
+          if (!departmentCode) {
+            throw new Error(`Department Code is required for subject: ${subject || '-'}`);
+          }
+
+          if (!subject) {
+            throw new Error('Subject is required');
+          }
+
+          const department = departmentByCode.get(departmentCode);
+          if (!department) {
+            throw new Error(`Department Code not found: ${departmentCode}`);
+          }
+
+          const project = projectCode ? projectByCode.get(projectCode) ?? null : null;
+          if (projectCode && !project) {
+            throw new Error(`Project Code not found: ${projectCode}`);
+          }
+
+          const approvalSchema = approvalSchemaCode
+            ? approvalSchemaByName.get(approvalSchemaCode) ?? null
+            : null;
+
+          if (approvalSchemaCode && !approvalSchema) {
+            throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
+          }
+
+          codeSequence += 1;
+          const code = `BP-${String(codeSequence).padStart(5, '0')}`;
+
+          const budgetPlan = await tx.budgetPlan.create({
+            data: {
+              code,
+              subject,
+              description,
+              fiscalYear,
+              originOffice,
+              departmentId: department.id,
+              projectId: project?.id || null,
+              approvalSchemaId: approvalSchema?.id || null,
+              requestorId: session.user.id,
+              importedViaBulk: true,
+              status: 'Draft',
+              requestDate: new Date(),
+              supportingDocs: [],
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          await tx.budgetPlanAllocation.createMany({
+            data: MONTH_FIELDS.map((field, index) => ({
+              budgetPlanId: budgetPlan.id,
+              month: index + 1,
+              allocation: toNumber(row[field]),
+            })),
+          });
         }
-
-        if (!departmentCode) {
-          throw new Error(`Department Code is required for subject: ${subject || '-'}`);
-        }
-
-        if (!subject) {
-          throw new Error('Subject is required');
-        }
-
-        const department = await tx.department.findFirst({
-          where: {
-            code: departmentCode,
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        if (!department) {
-          throw new Error(`Department Code not found: ${departmentCode}`);
-        }
-
-        const project = projectCode
-          ? await tx.project.findFirst({
-              where: {
-                code: projectCode,
-              },
-              select: {
-                id: true,
-              },
-            })
-          : null;
-
-        if (projectCode && !project) {
-          throw new Error(`Project Code not found: ${projectCode}`);
-        }
-
-        const approvalSchema = approvalSchemaCode
-          ? await tx.approvalSchema.findFirst({
-              where: {
-                name: approvalSchemaCode,
-              },
-              select: {
-                id: true,
-              },
-            })
-          : null;
-
-        if (approvalSchemaCode && !approvalSchema) {
-          throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
-        }
-
-        codeSequence += 1;
-        const code = `BP-${String(codeSequence).padStart(5, '0')}`;
-
-        const budgetPlan = await tx.budgetPlan.create({
-          data: {
-            code,
-            subject,
-            description,
-            fiscalYear,
-            originOffice,
-            departmentId: department.id,
-            projectId: project?.id || null,
-            approvalSchemaId: approvalSchema?.id || null,
-            requestorId: session.user.id,
-            importedViaBulk: true,
-            status: 'Draft',
-            requestDate: new Date(),
-            supportingDocs: [],
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        await tx.budgetPlanAllocation.createMany({
-          data: MONTH_FIELDS.map((field, index) => ({
-            budgetPlanId: budgetPlan.id,
-            month: index + 1,
-            allocation: toNumber(row[field]),
-          })),
-        });
+      },
+      {
+        maxWait: 20_000,
+        timeout: 90_000,
       }
-    });
+    );
 
     return NextResponse.json({
       success: true,
