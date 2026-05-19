@@ -49,8 +49,10 @@ export async function fetchReconciliationPayments(
 ): Promise<ReconciliationPaymentsResult> {
   const now = new Date();
   const toYear = options.fiscalYear ?? now.getFullYear();
-  const toMonth = options.month ?? now.getMonth() + 1;
+  const filterMonth = options.month ?? now.getMonth() + 1;
   const fromYear = options.fromYear ?? 2005;
+  /** Confins `toMonth` = batas periode posting, bukan InvoiceDate. Tarik sampai Desember lalu filter invoice di app. */
+  const apiToMonth = 12;
   const sourceType = options.sourceType ?? 'EGL';
   const departmentName = await resolveDepartmentName(options.departmentId);
   const confinsMockEnabled = await isConfinsMockEnabled();
@@ -60,7 +62,7 @@ export async function fetchReconciliationPayments(
     path: CONFINS_BUDGET_REAL_PATH,
     body: {
       sourceType,
-      toMonth,
+      toMonth: apiToMonth,
       toYear,
       fromMonth: null,
       fromYear,
@@ -73,7 +75,7 @@ export async function fetchReconciliationPayments(
   const rawRowCount = payments.length;
 
   if (options.month != null) {
-    payments = payments.filter((p) => paymentMatchesInvoiceMonth(p, toYear, options.month!));
+    payments = payments.filter((p) => paymentMatchesInvoiceMonth(p, toYear, filterMonth));
   }
 
   if (departmentName) {
@@ -88,7 +90,7 @@ export async function fetchReconciliationPayments(
   if (includeEdgeCases && payments.length === 0) {
     const edge = staticEdgeCasePayments(now, {
       fiscalYear: toYear,
-      month: toMonth,
+      month: filterMonth,
     });
     edgeCaseCount = edge.length;
     payments = [...payments, ...edge];

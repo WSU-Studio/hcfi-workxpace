@@ -90,24 +90,47 @@ export function invoiceDateParts(date: Date): { fiscalYear: number; month: numbe
   return { fiscalYear: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
-/** Filter rekonsiliasi: bulan/tahun dari InvoiceDate API (bukan Period). */
+export function getInvoiceDateRaw(payment: ConfinsCashDisbursement): string | undefined {
+  if (payment.invoiceDate?.trim()) return payment.invoiceDate.trim();
+  const raw = payment.rawPayload?.InvoiceDate ?? payment.rawPayload?.invoiceDate;
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  return undefined;
+}
+
+/** Filter rekonsiliasi: bulan/tahun dari InvoiceDate API (bukan Period / toMonth request). */
 export function paymentMatchesInvoiceMonth(
   payment: ConfinsCashDisbursement,
   fiscalYear: number,
   month: number
 ): boolean {
-  const fromInvoice = parseConfinsShortDate(payment.invoiceDate ?? undefined);
-  const d = fromInvoice ?? (payment.postDate ? new Date(payment.postDate) : null);
-  if (!d || Number.isNaN(d.getTime())) return false;
-  return d.getFullYear() === fiscalYear && d.getMonth() + 1 === month;
+  const raw = getInvoiceDateRaw(payment);
+  if (raw) {
+    const d = parseConfinsShortDate(raw);
+    if (d && !Number.isNaN(d.getTime())) {
+      return d.getFullYear() === fiscalYear && d.getMonth() + 1 === month;
+    }
+  }
+  return payment.fiscalYear === fiscalYear && payment.month === month;
 }
 
-/** Contoh: `18-Jun-25` */
+/** Contoh: `18-Jun-25`, `2025-05-20`, `20/05/2025` */
 export function parseConfinsShortDate(raw?: string): Date | null {
   if (!raw || typeof raw !== 'string') return null;
-  const m = raw.trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+  const text = raw.trim();
+  const dmy = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const mon = Number(dmy[2]);
+    let year = Number(dmy[3]);
+    if (year < 100) year += year >= 70 ? 1900 : 2000;
+    if (mon >= 1 && mon <= 12) {
+      const d = new Date(year, mon - 1, day, 12, 0, 0);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+  }
+  const m = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/i);
   if (!m) {
-    const d = new Date(raw);
+    const d = new Date(text);
     return Number.isNaN(d.getTime()) ? null : d;
   }
   const day = Number(m[1]);
