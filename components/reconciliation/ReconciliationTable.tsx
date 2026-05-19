@@ -9,8 +9,26 @@ import {
   TableHead,
   TableHeaderRow,
 } from '@/components/ui/Table';
+import type { ConfinsCashDisbursement } from '@/lib/integrations/confins-mock/types';
+import {
+  getInvoiceDateRaw,
+  parseConfinsShortDate,
+} from '@/lib/integrations/confins/v103-budget-real';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReconciliationRow } from '@/types/reconciliation';
+import { useMemo, useState } from 'react';
+
+type InvoiceDateSort = 'asc' | 'desc';
+
+function invoiceDateTimestamp(payment: ConfinsCashDisbursement): number {
+  const raw = getInvoiceDateRaw(payment);
+  if (raw) {
+    const parsed = parseConfinsShortDate(raw);
+    if (parsed && !Number.isNaN(parsed.getTime())) return parsed.getTime();
+  }
+  const fallback = new Date(payment.postDate);
+  return Number.isNaN(fallback.getTime()) ? 0 : fallback.getTime();
+}
 
 interface ReconciliationTableProps {
   rows: ReconciliationRow[];
@@ -29,12 +47,37 @@ export default function ReconciliationTable({
   canEditManual,
   onManualMatch,
 }: ReconciliationTableProps) {
+  const [invoiceDateSort, setInvoiceDateSort] = useState<InvoiceDateSort>('asc');
+
+  const sortedRows = useMemo(() => {
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      const diff = invoiceDateTimestamp(a.payment) - invoiceDateTimestamp(b.payment);
+      return invoiceDateSort === 'asc' ? diff : -diff;
+    });
+    return copy;
+  }, [rows, invoiceDateSort]);
+
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200">
       <Table className="min-w-[1200px] text-sm">
         <thead className="bg-gray-50">
           <TableHeaderRow className="border-gray-200">
-            <TableHead className="text-xs font-semibold uppercase text-gray-600">Invoice Date</TableHead>
+            <TableHead
+              className="text-xs font-semibold uppercase text-gray-600"
+              aria-sort={invoiceDateSort === 'asc' ? 'ascending' : 'descending'}
+            >
+              <button
+                type="button"
+                onClick={() => setInvoiceDateSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
+                className="inline-flex items-center gap-1 hover:text-gray-900"
+              >
+                Invoice Date
+                <span className="text-[10px] font-normal normal-case text-gray-500" aria-hidden>
+                  {invoiceDateSort === 'asc' ? '↑' : '↓'}
+                </span>
+              </button>
+            </TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Source</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Budget Request</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Incoming ID</TableHead>
@@ -49,7 +92,7 @@ export default function ReconciliationTable({
         </thead>
         <tbody>
           {rows.length === 0 && <TableEmptyRow colSpan={11}>Belum ada data rekonsiliasi. Jalankan sync.</TableEmptyRow>}
-          {rows.map((row) => {
+          {sortedRows.map((row) => {
             const payment = row.payment;
             return (
               <TableBodyRow key={payment.id} className="border-gray-200">
