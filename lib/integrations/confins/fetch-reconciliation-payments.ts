@@ -1,4 +1,4 @@
-import { ConfinsClient } from '@/lib/confins/client';
+import { ConfinsClient, isConfinsMockEnabled } from '@/lib/confins/client';
 import { prisma } from '@/lib/prisma';
 import type { ConfinsCashDisbursement } from '@/lib/integrations/confins-mock/types';
 import type { ConfinsMockListMeta } from '@/lib/integrations/confins-mock/types';
@@ -24,7 +24,13 @@ export type ReconciliationPaymentsResult = {
   payments: ConfinsCashDisbursement[];
   meta: ConfinsMockListMeta & {
     apiPath: string;
+    /** Jumlah baris dari API sebelum filter InvoiceDate. */
     rawRowCount: number;
+    /** Jumlah baris setelah filter InvoiceDate (+ department). */
+    filteredRowCount: number;
+    /** Baris contoh QA (hanya saat Mock API aktif). */
+    edgeCaseCount: number;
+    confinsMockEnabled: boolean;
     dataSource: 'confins-api' | 'confins-mock-fixture' | 'local-mock';
   };
 };
@@ -47,6 +53,7 @@ export async function fetchReconciliationPayments(
   const fromYear = options.fromYear ?? 2005;
   const sourceType = options.sourceType ?? 'EGL';
   const departmentName = await resolveDepartmentName(options.departmentId);
+  const confinsMockEnabled = await isConfinsMockEnabled();
 
   const client = new ConfinsClient();
   const rawRows = await client.post<ConfinsBudgetRealApiRow>({
@@ -73,18 +80,19 @@ export async function fetchReconciliationPayments(
     payments = payments.filter((p) => departmentNameMatchesPayment(p, departmentName));
   }
 
-  const includeEdgeCases = options.includeEdgeCases !== false;
+  const filteredRowCount = payments.length;
+  let edgeCaseCount = 0;
+
+  // Contoh BR/IT/00X & variance hanya saat Mock API aktif (Settings), bukan saat API live kosong.
+  const includeEdgeCases = confinsMockEnabled && options.includeEdgeCases !== false;
   if (includeEdgeCases && payments.length === 0) {
     const edge = staticEdgeCasePayments(now, {
       fiscalYear: toYear,
       month: toMonth,
     });
+    edgeCaseCount = edge.length;
     payments = [...payments, ...edge];
   }
-
-  const mockFromEnv =
-    process.env.CONFINS_USE_MOCK === 'true' ||
-    (process.env.NODE_ENV !== 'production' && process.env.CONFINS_USE_MOCK !== 'false');
 
   return {
     payments,
@@ -95,10 +103,13 @@ export async function fetchReconciliationPayments(
       simulatedApiModel: 'API CONFINS For E-Budgeting 1.03',
       apiPath: CONFINS_BUDGET_REAL_PATH,
       rawRowCount,
+      filteredRowCount,
+      edgeCaseCount,
+      confinsMockEnabled,
       dataSource:
         rawRowCount === 0
           ? 'local-mock'
-          : mockFromEnv
+          : confinsMockEnabled
             ? 'confins-mock-fixture'
             : 'confins-api',
     },

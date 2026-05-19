@@ -87,16 +87,21 @@ export class ConfinsClient {
   }
 
   private async isMockEnabled(): Promise<boolean> {
-    if (process.env.NODE_ENV === 'production' && process.env.CONFINS_USE_MOCK !== 'true') {
-      return false;
-    }
+    return isConfinsMockEnabled();
+  }
+}
 
-    try {
-      const { getApplicationSettings } = await import('@/lib/app-settings');
-      const settings = await getApplicationSettings();
-      return settings.confinsUseMock;
-    } catch {
-      return isMockEnabledFromEnv();
-    }
+/** Sama dengan toggle "Activate Mock API" di Settings (+ env fallback di development). */
+export async function isConfinsMockEnabled(): Promise<boolean> {
+  if (process.env.NODE_ENV === 'production' && process.env.CONFINS_USE_MOCK !== 'true') {
+    return false;
+  }
+
+  try {
+    const { getApplicationSettings } = await import('@/lib/app-settings');
+    const settings = await getApplicationSettings();
+    return settings.confinsUseMock;
+  } catch {
+    return isMockEnabledFromEnv();
   }
 }

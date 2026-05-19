@@ -144,7 +144,13 @@ export default function ReconciliationPage() {
       const reqData = (await reqRes.json()) as { requests: BudgetRequestApiItem[] };
       const payData = (await payRes.json()) as {
         payments: ConfinsCashDisbursement[];
-        meta: ConfinsMockListMeta & { rawRowCount?: number; dataSource?: string };
+        meta: ConfinsMockListMeta & {
+          rawRowCount?: number;
+          filteredRowCount?: number;
+          edgeCaseCount?: number;
+          confinsMockEnabled?: boolean;
+          dataSource?: string;
+        };
       };
       const planData = (await planRes.json()) as { departments: DepartmentApiItem[] };
 
@@ -170,16 +176,24 @@ export default function ReconciliationPage() {
       setPayments(payData.payments ?? []);
       setDepartments(planData.departments ?? []);
       setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
-      const rawCount = payData.meta?.rawRowCount ?? payData.meta?.recordCount ?? 0;
+      const rawCount = payData.meta?.rawRowCount ?? 0;
+      const matchedInvoice = payData.meta?.filteredRowCount ?? 0;
       const shown = payData.meta?.recordCount ?? 0;
+      const edgeCases = payData.meta?.edgeCaseCount ?? 0;
       const sourceHint =
         payData.meta?.dataSource === 'confins-api'
           ? 'Confins API'
           : payData.meta?.dataSource === 'confins-mock-fixture'
             ? 'fixture/mock Confins'
             : 'mock lokal';
+      const edgeHint =
+        edgeCases > 0
+          ? ` Termasuk ${edgeCases} baris contoh QA (Mock API aktif).`
+          : matchedInvoice === 0 && rawCount > 0
+            ? ' Tidak ada InvoiceDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
+            : '';
       setSyncMessage(
-        `Sync berhasil (${sourceHint}): ${shown} baris ditampilkan (InvoiceDate bulan ${month}/${fiscalYear}) dari ${rawCount} baris API, ${normalizedRequests.length} budget request Approved tersedia.`
+        `Sync berhasil (${sourceHint}): ${shown} baris ditampilkan (InvoiceDate ${month}/${fiscalYear}). API: ${rawCount} baris → ${matchedInvoice} cocok filter invoice.${edgeHint} ${normalizedRequests.length} budget request Approved.`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
@@ -446,10 +460,9 @@ export default function ReconciliationPage() {
             ). Setelah reset, klik <strong>Run Integration Process</strong> untuk memuat ulang mock payment.
           </p>
           <p className="text-xs text-amber-950/85">
-            Contoh mock bawaan: pembayaran dari <strong>Budget Request Approved</strong> (ID{' '}
-            <code className="rounded bg-white/80 px-1">CFN-REQ-…</code>), plus edge case{' '}
-            <code className="rounded bg-white/80 px-1">BR/IT/00X</code> (typo → manual match) dan{' '}
-            <code className="rounded bg-white/80 px-1">CFN-EDGE-VARIANCE</code> (nominal beda).
+            Contoh <code className="rounded bg-white/80 px-1">BR/IT/00X</code> / variance hanya muncul jika{' '}
+            <strong>Activate Mock API</strong> di Settings aktif. Saat Mock nonaktif, hanya data Confins API (filter
+            InvoiceDate) yang ditampilkan.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
