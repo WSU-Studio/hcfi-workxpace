@@ -142,17 +142,22 @@ export function parseConfinsShortDate(raw?: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-const BR_CODE_RE = /\b(BR\/[A-Z0-9]+\/[A-Z0-9]+)\b/i;
+/**
+ * Satu kolom `ReturnObject` untuk kode Budget Request (Incoming ID / auto-match).
+ * Setelah kesepakatan dengan Confins, ubah env `CONFINS_INCOMING_REF_FIELD` (default: FormCode).
+ *
+ * Jangan pakai InterfaceID — itu ID batch integrasi (sama untuk banyak baris), bukan kode BR.
+ */
+export function getConfinsIncomingRefFieldName(): string {
+  return process.env.CONFINS_INCOMING_REF_FIELD?.trim() || 'FormCode';
+}
 
 export function extractBudgetRequestRef(row: ConfinsBudgetRealApiRow): string {
-  const explicit =
-    (typeof row.FormCode === 'string' && row.FormCode.trim()) ||
-    (typeof row.EbudgetRequestCode === 'string' && row.EbudgetRequestCode.trim()) ||
-    '';
-  if (explicit) return explicit;
-  const desc = typeof row.Description === 'string' ? row.Description : '';
-  const match = desc.match(BR_CODE_RE);
-  return match?.[1]?.toUpperCase() ?? '';
+  const field = getConfinsIncomingRefFieldName();
+  const raw = row[field];
+  if (typeof raw === 'string') return raw.trim();
+  if (raw != null && typeof raw !== 'object') return String(raw).trim();
+  return '';
 }
 
 function resolveSource(row: ConfinsBudgetRealApiRow): ConfinsPaymentSource {
