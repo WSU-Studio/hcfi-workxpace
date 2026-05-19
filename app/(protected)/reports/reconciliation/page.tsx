@@ -196,7 +196,7 @@ export default function ReconciliationReportPage() {
             <Button type="button" onClick={loadReport} disabled={loading}>
               {loading ? 'Loading...' : 'View'}
             </Button>
-            <Button type="button" variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
+            <Button type="button" variant="outline" className='whitespace-nowrap' onClick={exportCsv} disabled={rows.length === 0}>
               Export CSV
             </Button>
           </div>

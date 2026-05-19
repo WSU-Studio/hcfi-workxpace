@@ -60,12 +60,14 @@ export default function ActionsDropdown({
                   }
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-4 py-2 text-left text-sm transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
                   actionClassName
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {action.label}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="whitespace-nowrap">
+                  {action.label}
+                </span>
               </button>
             );
           })}
