@@ -33,6 +33,8 @@ function invoiceDateTimestamp(payment: ConfinsCashDisbursement): number {
 interface ReconciliationTableProps {
   rows: ReconciliationRow[];
   canEditManual: boolean;
+  /** Saat sync/save — tombol sort & Match Manual nonaktif (overlay di parent). */
+  interactionsDisabled?: boolean;
   onManualMatch: (paymentId: string) => void;
 }
 
@@ -45,6 +47,7 @@ function matchClassName(status: ReconciliationRow['matchType']) {
 export default function ReconciliationTable({
   rows,
   canEditManual,
+  interactionsDisabled = false,
   onManualMatch,
 }: ReconciliationTableProps) {
   const [invoiceDateSort, setInvoiceDateSort] = useState<InvoiceDateSort>('asc');
@@ -70,7 +73,8 @@ export default function ReconciliationTable({
               <button
                 type="button"
                 onClick={() => setInvoiceDateSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
-                className="inline-flex items-center gap-1 hover:text-gray-900"
+                disabled={interactionsDisabled}
+                className="inline-flex items-center gap-1 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Invoice Date
                 <span className="text-[10px] font-normal normal-case text-gray-500" aria-hidden>
@@ -123,8 +127,8 @@ export default function ReconciliationTable({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8 px-3 py-1 text-xs"
-                    disabled={!canEditManual}
+                    className="h-8 px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={!canEditManual || interactionsDisabled}
                     onClick={() => onManualMatch(payment.id)}
                   >
                     Match Manual

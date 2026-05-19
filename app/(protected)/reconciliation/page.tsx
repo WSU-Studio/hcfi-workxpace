@@ -115,10 +115,14 @@ export default function ReconciliationPage() {
     [payments, savedPaymentIds]
   );
 
+  const interactionsLocked = syncing || saving;
+
   const runSync = async () => {
-    if (!canSync) return;
+    if (!canSync || syncing) return;
     setSyncing(true);
     setSyncMessage(null);
+    setActivePaymentId(null);
+    setSelectedManualRequestId('');
 
     try {
       const requestsUrl = new URL('/api/budget-requests', window.location.origin);
@@ -231,7 +235,7 @@ export default function ReconciliationPage() {
   );
 
   const saveMatched = async () => {
-    if (!canSave || matchedRowsToSave.length === 0) return;
+    if (!canSave || interactionsLocked || matchedRowsToSave.length === 0) return;
     setSaving(true);
     setSaveMessageType('info');
     setSaveMessage('Menyimpan hasil rekonsiliasi...');
@@ -324,7 +328,7 @@ export default function ReconciliationPage() {
   }, [activeRow, departmentId, requests]);
 
   const openManualMatch = (paymentId: string) => {
-    if (!canManualMatch) return;
+    if (!canManualMatch || interactionsLocked) return;
     setSelectedManualRequestId(manualMap[paymentId] ?? '');
     setActivePaymentId(paymentId);
   };
@@ -356,7 +360,11 @@ export default function ReconciliationPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Department</span>
-            <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+            <Select
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+              disabled={syncing}
+            >
               <option value="">All Departments</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>
@@ -367,7 +375,7 @@ export default function ReconciliationPage() {
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Fiscal Year</span>
-            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}>
+            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} disabled={syncing}>
               {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((year) => (
                 <option key={year} value={String(year)}>
                   {year}
@@ -377,7 +385,7 @@ export default function ReconciliationPage() {
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Month</span>
-            <Select value={month} onChange={(e) => setMonth(e.target.value)}>
+            <Select value={month} onChange={(e) => setMonth(e.target.value)} disabled={syncing}>
               {Array.from({ length: 12 }, (_, idx) => idx + 1).map((m) => (
                 <option key={m} value={String(m)}>
                   {new Date(2026, m - 1, 1).toLocaleString('en-US', { month: 'long' })}
@@ -386,7 +394,13 @@ export default function ReconciliationPage() {
             </Select>
           </label>
           <div className="flex flex-wrap items-end gap-2">
-            <Button type="button" onClick={runSync} disabled={!canSync || syncing}>
+            <Button
+              type="button"
+              onClick={runSync}
+              disabled={!canSync || syncing}
+              className="disabled:cursor-not-allowed disabled:opacity-60"
+              aria-busy={syncing}
+            >
               {syncing ? 'Running sync...' : 'Run Integration Process'}
             </Button>
           </div>
@@ -419,7 +433,7 @@ export default function ReconciliationPage() {
             <Button
               type="button"
               onClick={saveMatched}
-              disabled={!canSave || saving || matchedRowsToSave.length === 0}
+              disabled={!canSave || interactionsLocked || matchedRowsToSave.length === 0}
               className="disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? 'Saving...' : 'Save reconciliation results'}
@@ -447,7 +461,25 @@ export default function ReconciliationPage() {
         {!canSave && (
           <p className="text-xs text-gray-500">Allow &quot;Save Reconciliation Results&quot; in Access Control to save the results.</p>
         )}
-        <ReconciliationTable rows={rows} canEditManual={canManualMatch} onManualMatch={openManualMatch} />
+        <div className="relative min-h-[8rem]">
+          {interactionsLocked && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/75 backdrop-blur-[1px]"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
+                {syncing ? 'Memuat ulang data rekonsiliasi…' : 'Menyimpan hasil rekonsiliasi…'}
+              </span>
+            </div>
+          )}
+          <ReconciliationTable
+            rows={rows}
+            canEditManual={canManualMatch}
+            interactionsDisabled={interactionsLocked}
+            onManualMatch={openManualMatch}
+          />
+        </div>
       </Card>
 
       {canSave && (
