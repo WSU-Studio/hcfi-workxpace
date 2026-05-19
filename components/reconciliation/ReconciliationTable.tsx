@@ -34,7 +34,7 @@ export default function ReconciliationTable({
       <Table className="min-w-[1200px] text-sm">
         <thead className="bg-gray-50">
           <TableHeaderRow className="border-gray-200">
-            <TableHead className="text-xs font-semibold uppercase text-gray-600">Post Date</TableHead>
+            <TableHead className="text-xs font-semibold uppercase text-gray-600">Invoice Date</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Source</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Budget Request</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Incoming ID</TableHead>

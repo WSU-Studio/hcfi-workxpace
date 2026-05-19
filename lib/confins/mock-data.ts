@@ -1,3 +1,8 @@
+import budgetRealFixture from '@/lib/integrations/confins/fixtures/budget-real-egl-sample.json';
+import { CONFINS_BUDGET_REAL_PATH } from '@/lib/integrations/confins/v103-budget-real';
+
+const BUDGET_REAL_PATH_SUFFIX = 'GetListGetListBudgetRealBySourceTypeX';
+
 type ConfinsDepartment = {
   BizUnitCode: string;
   BizUnitName: string;
@@ -71,6 +76,10 @@ export function getConfinsMockData(path: string): unknown[] {
     path === '/v1/IntegrationEBudgetingX/GetListRefOfficeByIsActiveX'
   ) {
     return MOCK_OFFICES;
+  }
+
+  if (path === CONFINS_BUDGET_REAL_PATH || path.endsWith(BUDGET_REAL_PATH_SUFFIX)) {
+    return budgetRealFixture as unknown[];
   }
 
   return [];

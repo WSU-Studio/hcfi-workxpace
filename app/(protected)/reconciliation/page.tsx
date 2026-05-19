@@ -122,7 +122,7 @@ export default function ReconciliationPage() {
 
     try {
       const requestsUrl = new URL('/api/budget-requests', window.location.origin);
-      const paymentsUrl = new URL('/api/integrations/mock/confins/payments', window.location.origin);
+      const paymentsUrl = new URL('/api/integrations/confins/payments', window.location.origin);
       const planUrl = new URL('/api/budget-plans', window.location.origin);
 
       paymentsUrl.searchParams.set('fiscalYear', fiscalYear);
@@ -144,7 +144,7 @@ export default function ReconciliationPage() {
       const reqData = (await reqRes.json()) as { requests: BudgetRequestApiItem[] };
       const payData = (await payRes.json()) as {
         payments: ConfinsCashDisbursement[];
-        meta: ConfinsMockListMeta;
+        meta: ConfinsMockListMeta & { rawRowCount?: number; dataSource?: string };
       };
       const planData = (await planRes.json()) as { departments: DepartmentApiItem[] };
 
@@ -170,8 +170,16 @@ export default function ReconciliationPage() {
       setPayments(payData.payments ?? []);
       setDepartments(planData.departments ?? []);
       setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
+      const rawCount = payData.meta?.rawRowCount ?? payData.meta?.recordCount ?? 0;
+      const shown = payData.meta?.recordCount ?? 0;
+      const sourceHint =
+        payData.meta?.dataSource === 'confins-api'
+          ? 'Confins API'
+          : payData.meta?.dataSource === 'confins-mock-fixture'
+            ? 'fixture/mock Confins'
+            : 'mock lokal';
       setSyncMessage(
-        `Sync berhasil: ${payData.meta?.recordCount ?? 0} payment ditarik, ${normalizedRequests.length} budget request tersedia.`
+        `Sync berhasil (${sourceHint}): ${shown} baris ditampilkan (InvoiceDate bulan ${month}/${fiscalYear}) dari ${rawCount} baris API, ${normalizedRequests.length} budget request Approved tersedia.`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
