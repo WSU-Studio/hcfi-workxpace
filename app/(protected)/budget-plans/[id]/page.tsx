@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { Pencil, Printer, ScanSearch } from 'lucide-react';
+import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
 import Button from '@/components/ui/Button';
 
@@ -123,6 +124,8 @@ export default function BudgetPlanDetailPage() {
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const printableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -190,28 +193,76 @@ export default function BudgetPlanDetailPage() {
     if (typeof window !== 'undefined') window.print();
   };
 
+  const slugify = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+
+  const handleDownloadPdf = async () => {
+    if (!printableRef.current || isExporting) return;
+    setIsExporting(true);
+    document.documentElement.setAttribute('data-exporting', 'pdf');
+    const toastId = toast.loading('Menyiapkan PDF...');
+
+    // Safety net: kalau apapun macet, attribute & state pasti ter-reset
+    // setelah 70 detik supaya layar tidak ter-freeze (sidebar/header sembunyi
+    // karena CSS rule [data-exporting='pdf']).
+    const safetyTimer = window.setTimeout(() => {
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+      toast.error('Generate PDF timeout. Coba lagi.', { id: toastId });
+    }, 70_000);
+
+    try {
+      const { renderPdfFromElement } = await import('@/lib/pdf/inline-computed-colors');
+      const filename = `${plan.code}_${slugify(plan.subject) || 'budget-plan'}.pdf`;
+      await renderPdfFromElement(printableRef.current, { filename, timeoutMs: 60_000 });
+      toast.success('PDF berhasil di-download.', { id: toastId });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal membuat PDF';
+      toast.error(msg, { id: toastId });
+    } finally {
+      window.clearTimeout(safetyTimer);
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl space-y-6 print:max-w-none">
-      <Link href="/budget-plans" className="text-blue-600 hover:underline print:hidden">← Back</Link>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Budget Plan</p>
-          <h1 className="text-2xl font-semibold">{plan.subject}</h1>
-          <p className="hidden text-sm text-gray-600 print:block">
-            {plan.code} · FY {plan.fiscalYear} · {plan.department?.name}
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2"
+            aria-label="Print budget plan detail"
+            disabled={isExporting}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Print
+          </Button>
+          <Button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Download budget plan detail as PDF"
+            aria-busy={isExporting}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            {isExporting ? 'Generating PDF...' : 'Download PDF'}
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handlePrint}
-          className="inline-flex items-center gap-2 print:hidden"
-          aria-label="Print budget plan detail"
-        >
-          <Printer className="h-4 w-4" aria-hidden />
-          Print
-        </Button>
+      </div>
+
+      <div ref={printableRef} className="space-y-6">
+      <div className="min-w-0">
+        <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Budget Plan</p>
+        <h1 className="text-2xl font-semibold">{plan.subject}</h1>
+        <p className="hidden text-sm text-gray-600 print:block">
+          {plan.code} · FY {plan.fiscalYear} · {plan.department?.name}
+        </p>
       </div>
 
       <Card>
@@ -411,6 +462,7 @@ export default function BudgetPlanDetailPage() {
           </div>
         )}
       </Card>
+      </div>
       <EditWarningModal
         isOpen={isEditWarningOpen}
         planSubject={plan.subject}

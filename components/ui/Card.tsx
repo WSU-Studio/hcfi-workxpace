@@ -38,7 +38,7 @@ const Card = ({
   const hasBody = Children.count(bodyContent) > 0;
 
   return (
-    <div className={cn(baseCardClass, 'print:break-inside-avoid print:border-gray-300 print:hover:shadow-none', className)}>
+    <div className={cn(baseCardClass, 'print:border-gray-300 print:hover:shadow-none print:rounded-md', className)}>
       <div className="flex min-h-6 items-center justify-between gap-3">
         <div className="min-h-6 min-w-0 flex-1 flex items-center">{headerContent}</div>
         <button
