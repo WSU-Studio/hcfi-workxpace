@@ -14,11 +14,11 @@ export function TableBodyRow({ className, ...props }: HTMLAttributes<HTMLTableRo
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn('px-4 py-3 text-left font-medium text-gray-900', className)} {...props} />;
+  return <th className={cn('px-4 py-3 print:py-2 text-left font-medium text-gray-900', className)} {...props} />;
 }
 
 export function TableCell({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-4 py-3', className)} {...props} />;
+  return <td className={cn('px-4 py-3 print:py-2', className)} {...props} />;
 }
 
 /** Baris kosong / pesan “tidak ada data” */

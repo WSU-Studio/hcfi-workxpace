@@ -266,7 +266,7 @@ export default function BudgetPlanDetailPage() {
       </div>
 
       <Card>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 print:gap-y-2">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Requestor:</span> {plan.requestorName ?? '-'}</div>
@@ -287,7 +287,7 @@ export default function BudgetPlanDetailPage() {
             <span className="text-gray-500">Description:</span>
             <RichTextContent value={plan.description} className="mt-1" />
           </div>
-          <div className="col-span-2">
+          <div className="col-span-2 print:hidden">
             <span className="text-gray-500">Supporting Documents:</span>
             {supportingDocUrls.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -314,6 +314,7 @@ export default function BudgetPlanDetailPage() {
         collapsible
         collapsed
         header={<h3 className="font-medium">Monthly Allocation</h3>}
+        className="print:break-inside-avoid print:text-sm"
       >
         <div>
           <Table>
@@ -327,12 +328,12 @@ export default function BudgetPlanDetailPage() {
               {(plan.allocations || []).map((a) => (
                 <TableBodyRow key={a.month}>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
-                  <TableCell>{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">
-                <TableCell colSpan={2}>Total</TableCell>
-                <TableCell>{formatCurrency(total)}</TableCell>
+                <TableCell>Total</TableCell>
+                <TableCell className="text-right">{formatCurrency(total)}</TableCell>
               </TableBodyRow>
             </tbody>
           </Table>
@@ -340,7 +341,17 @@ export default function BudgetPlanDetailPage() {
 
         <div className="space-y-3 border-t border-gray-100 pt-4">
           <h3 className="font-medium">Classification</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          <div className="grid grid-cols-2 gap-4">
+            <div><span className="text-gray-500">Cost Center:</span> {plan.costCenter?.name ?? ''}</div>
+            <div><span className="text-gray-500">Category:</span> {plan.category?.name ?? ''}</div>
+            <div><span className="text-gray-500">Category Key Index:</span> {plan.categoryKeyIndex?.name ?? ''}</div>
+            <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
+            <div><span className="text-gray-500">Type:</span> {opexType}</div>
+            <div><span className="text-gray-500">Opex Allocation:</span> {plan.opexAllocation?.name ?? ''}</div>
+          </div>
+
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <ReadonlyField label="Cost Center" value={plan.costCenter?.name ?? ''} />
             <ReadonlyField label="Category" value={plan.category?.name ?? ''} />
             <ReadonlyField label="Category Key Index" value={plan.categoryKeyIndex?.name ?? ''} />
@@ -355,11 +366,11 @@ export default function BudgetPlanDetailPage() {
             {plan.opexType === 'OPEX' ? (
               <ReadonlyField label="Opex Allocation" value={plan.opexAllocation?.name ?? ''} />
             ) : null}
-          </div>
+          </div> */}
         </div>
       </Card>
 
-      <div>
+      <div className="print:break-before-page print:text-sm">
         {plan.approvalSchema?.approvalLevels?.length ? (
           <Card
             collapsible
@@ -444,7 +455,7 @@ export default function BudgetPlanDetailPage() {
         ) : (
           <div className="space-y-2">
             {histories.map((history) => (
-              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm print:px-0 print:pt-0 print:pb-2 print:bg-transparent print:border-b print:border-gray-200">
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
