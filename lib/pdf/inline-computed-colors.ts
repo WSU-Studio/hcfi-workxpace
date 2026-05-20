@@ -64,6 +64,12 @@ export type RenderPdfOptions = {
   orientation?: 'portrait' | 'landscape';
   /** Timeout total proses; jika terlewat, throw untuk mencegah UI hang. Default 60s. */
   timeoutMs?: number;
+  /**
+   * Selector tambahan untuk dianggap sebagai "block atomic" yang tidak boleh
+   * dipotong saat paginasi PDF. Default sudah mencakup tabel-baris, paragraf,
+   * heading, list item, dan elemen ber-`data-pdf-keep-together`.
+   */
+  keepTogetherSelectors?: string[];
 };
 
 /** Bungkus janji dengan timeout — kalau lewat batas, reject dengan pesan jelas. */
@@ -81,6 +87,90 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
       }
     );
   });
+}
+
+/**
+ * Kumpulkan posisi-Y (dalam pixel canvas, setelah dikali scale) yang aman
+ * sebagai tempat memotong halaman PDF. Strategi:
+ *   1. Bottom edge dari setiap top-level child di printable root → break
+ *      paling natural (antar section/card).
+ *   2. Bottom edge dari elemen "garis-tunggal" (tr, p, li, h1..h4) → break
+ *      sekunder jika section terlalu tinggi.
+ *   3. Elemen ber-`data-pdf-keep-together` ditambah TOP-nya (boleh break
+ *      sebelum) tapi tidak diizinkan break di tengah — caller filter sendiri.
+ *
+ * Boundary di-deduplikasi & disortir ascending.
+ */
+function collectBreakBoundaries(
+  root: HTMLElement,
+  scale: number,
+  extraSelectors: string[] = []
+): number[] {
+  const rootRect = root.getBoundingClientRect();
+  const boundaries = new Set<number>([0]);
+
+  const addBottom = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    const y = Math.round((r.bottom - rootRect.top) * scale);
+    if (y > 0) boundaries.add(y);
+  };
+  const addTop = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    const y = Math.round((r.top - rootRect.top) * scale);
+    if (y > 0) boundaries.add(y);
+  };
+
+  for (const child of Array.from(root.children)) {
+    addBottom(child);
+    addTop(child);
+  }
+
+  const secondary = [
+    'tr',
+    'thead',
+    'tbody',
+    'p',
+    'li',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    '[data-pdf-keep-together]',
+    ...extraSelectors,
+  ].join(', ');
+
+  for (const el of Array.from(root.querySelectorAll(secondary))) {
+    addBottom(el);
+    addTop(el);
+  }
+
+  return Array.from(boundaries).sort((a, b) => a - b);
+}
+
+/**
+ * Pilih posisi cut terbaik untuk satu halaman.
+ *   - Mulai dari `yStart` (px canvas).
+ *   - Batas atas page = yStart + maxPageHeight.
+ *   - Cari boundary terbesar yang ≤ maxEnd DAN > yStart + minPageHeight.
+ *   - Kalau tidak ada (mis. elemen tunggal lebih tinggi dari halaman), fallback ke `yStart + maxPageHeight` (forced cut).
+ */
+function pickPageEnd(
+  boundaries: number[],
+  yStart: number,
+  maxPageHeight: number,
+  canvasHeight: number
+): number {
+  const maxEnd = Math.min(yStart + maxPageHeight, canvasHeight);
+  if (maxEnd >= canvasHeight) return canvasHeight;
+
+  // Hindari halaman terlalu pendek (≥ 35% halaman penuh)
+  const minEnd = yStart + Math.floor(maxPageHeight * 0.35);
+
+  for (let i = boundaries.length - 1; i >= 0; i--) {
+    const b = boundaries[i];
+    if (b <= maxEnd && b > minEnd) return b;
+  }
+  return maxEnd;
 }
 
 /**
@@ -121,6 +211,11 @@ export async function renderPdfFromElement(
   try {
     inlineComputedColors(clone);
 
+    // Kumpulkan break boundaries dari CLONE (posisi DOM sesuai apa yang
+    // direkam oleh html2canvas). Wajib dilakukan SEBELUM render karena
+    // setelah render kita hanya punya canvas pixel, bukan DOM.
+    const boundaries = collectBreakBoundaries(clone, scale, options.keepTogetherSelectors);
+
     const { default: html2canvas } = await import('html2canvas-pro');
 
     const canvas = await withTimeout(
@@ -157,8 +252,13 @@ export async function renderPdfFromElement(
     } else {
       let y = 0;
       let isFirst = true;
+      let safety = 0;
       while (y < canvas.height) {
-        const sliceHeight = Math.min(pageHeightPx, canvas.height - y);
+        if (++safety > 200) throw new Error('Pagination safety stop (>200 pages)');
+
+        const sliceEnd = pickPageEnd(boundaries, y, pageHeightPx, canvas.height);
+        const sliceHeight = sliceEnd - y;
+        if (sliceHeight <= 0) break;
 
         const pageCanvas = document.createElement('canvas');
         pageCanvas.width = canvas.width;
@@ -178,7 +278,7 @@ export async function renderPdfFromElement(
           usableWidth,
           sliceHeight / pxPerMm
         );
-        y += sliceHeight;
+        y = sliceEnd;
         isFirst = false;
       }
     }
