@@ -9,9 +9,11 @@ import type {
   ConfinsCashDisbursement,
   ConfinsMockListMeta,
 } from '@/lib/integrations/confins-mock/types';
+import { buildPaymentSignature } from '@/lib/integrations/confins/payment-signature';
 import { formatDate } from '@/lib/utils';
 import type { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -69,6 +71,9 @@ export default function ReconciliationPage() {
   const [departments, setDepartments] = useState<DepartmentApiItem[]>([]);
 
   const [savedPaymentIds, setSavedPaymentIds] = useState<Set<string>>(new Set());
+  const [unusedPaymentIds, setUnusedPaymentIds] = useState<Set<string>>(new Set());
+  const [unusedSignatures, setUnusedSignatures] = useState<Set<string>>(new Set());
+  const [markingUnusedId, setMarkingUnusedId] = useState<string | null>(null);
 
   const [manualMap, setManualMap] = useState<Record<string, string>>({});
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
@@ -92,9 +97,24 @@ export default function ReconciliationPage() {
     }
   }, []);
 
+  const loadUnusedPaymentIds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/reconciliation/unused-ids');
+      if (!res.ok) return;
+      const data = (await res.json()) as { ids?: string[]; signatures?: string[] };
+      setUnusedPaymentIds(new Set(data.ids ?? []));
+      setUnusedSignatures(new Set(data.signatures ?? []));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
-    if (status === 'authenticated') loadSavedPaymentIds();
-  }, [status, loadSavedPaymentIds]);
+    if (status === 'authenticated') {
+      loadSavedPaymentIds();
+      loadUnusedPaymentIds();
+    }
+  }, [status, loadSavedPaymentIds, loadUnusedPaymentIds]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -110,10 +130,22 @@ export default function ReconciliationPage() {
     })();
   }, [status]);
 
-  const paymentsVisible = useMemo(
-    () => payments.filter((p) => !savedPaymentIds.has(p.id)),
-    [payments, savedPaymentIds]
-  );
+  const paymentsVisible = useMemo(() => {
+    return payments.filter((p) => {
+      if (savedPaymentIds.has(p.id)) return false;
+      if (unusedPaymentIds.has(p.id)) return false;
+      if (unusedSignatures.size > 0) {
+        const sig = buildPaymentSignature({
+          paymentRequestNo: p.paymentRequestNo,
+          journalNo: p.journalNo,
+          glAccountCode: p.glAccountCode,
+          paidAmount: p.amount,
+        });
+        if (unusedSignatures.has(sig)) return false;
+      }
+      return true;
+    });
+  }, [payments, savedPaymentIds, unusedPaymentIds, unusedSignatures]);
 
   const interactionsLocked = syncing || saving;
 
@@ -333,6 +365,68 @@ export default function ReconciliationPage() {
     setActivePaymentId(paymentId);
   };
 
+  const markPaymentAsUnused = async (paymentId: string) => {
+    if (!canManualMatch || interactionsLocked || markingUnusedId) return;
+    const payment = payments.find((p) => p.id === paymentId);
+    if (!payment) return;
+    const ok = window.confirm(
+      `Tandai pembayaran ini sebagai "Marked Unused"?\n\nBaris ini akan disembunyikan dari daftar rekonsiliasi pada sync berikutnya. Anda bisa mengembalikannya dari halaman Marked Unused.`
+    );
+    if (!ok) return;
+
+    setMarkingUnusedId(paymentId);
+    try {
+      const res = await fetch('/api/reconciliation/unused', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rows: [
+            {
+              confinsPaymentDocId: payment.id,
+              interfaceId: payment.interfaceId ?? null,
+              paymentRequestNo: payment.paymentRequestNo ?? null,
+              journalNo: payment.journalNo ?? null,
+              invoiceNo: payment.invoiceNo ?? null,
+              invoiceDate: payment.invoiceDate ?? null,
+              fiscalYear: payment.fiscalYear,
+              month: payment.month,
+              departmentId: payment.departmentId ?? null,
+              departmentName: null,
+              paymentSource: payment.source,
+              paidAmount: toNumber(payment.amount),
+              currency: payment.currency,
+              glAccountCode: payment.glAccountCode ?? null,
+              glAccountName: payment.glAccountName ?? null,
+              vendorName: payment.vendorName ?? null,
+              description: payment.description,
+              reason: null,
+            },
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Gagal menandai sebagai unused');
+      setUnusedPaymentIds((prev) => new Set([...prev, payment.id]));
+      setUnusedSignatures((prev) =>
+        new Set([
+          ...prev,
+          buildPaymentSignature({
+            paymentRequestNo: payment.paymentRequestNo,
+            journalNo: payment.journalNo,
+            glAccountCode: payment.glAccountCode,
+            paidAmount: payment.amount,
+          }),
+        ])
+      );
+      toast.success('Pembayaran ditandai sebagai unused.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal menandai sebagai unused';
+      toast.error(msg);
+    } finally {
+      setMarkingUnusedId(null);
+    }
+  };
+
   const saveManualMatch = () => {
     if (!activePaymentId || !selectedManualRequestId) return;
     setManualMap((prev) => ({
@@ -429,7 +523,20 @@ export default function ReconciliationPage() {
               <span className="font-semibold text-rose-700">
                 {rows.filter((row) => row.matchType === 'unmatched').length}
               </span>
+              {unusedPaymentIds.size > 0 && (
+                <>
+                  {' '}
+                  | Marked Unused:{' '}
+                  <span className="font-semibold text-gray-700">{unusedPaymentIds.size}</span>
+                </>
+              )}
             </div>
+            <Link
+              href="/reconciliation/unused"
+              className="inline-flex h-9 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Marked Unused
+            </Link>
             <Button
               type="button"
               onClick={saveMatched}
@@ -476,8 +583,9 @@ export default function ReconciliationPage() {
           <ReconciliationTable
             rows={rows}
             canEditManual={canManualMatch}
-            interactionsDisabled={interactionsLocked}
+            interactionsDisabled={interactionsLocked || Boolean(markingUnusedId)}
             onManualMatch={openManualMatch}
+            onMarkUnused={markPaymentAsUnused}
           />
         </div>
       </Card>

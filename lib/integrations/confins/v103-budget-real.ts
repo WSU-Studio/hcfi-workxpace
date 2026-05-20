@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import type { ConfinsCashDisbursement, ConfinsPaymentSource } from '@/lib/integrations/confins-mock/types';
 
 export const CONFINS_BUDGET_REAL_PATH =
@@ -167,18 +168,46 @@ function resolveSource(row: ConfinsBudgetRealApiRow): ConfinsPaymentSource {
   return 'Core';
 }
 
-function stableRowId(row: ConfinsBudgetRealApiRow, index: number): string {
-  const iface = String(row.InterfaceID ?? 'IF');
-  const pr = String(row.PaymentRequestNo ?? 'PR');
-  const gl = String(row.GLAccount ?? 'GL');
-  const dc = String(row.DC ?? '');
-  const activity = String(row.Activity ?? '');
-  return `${iface}-${pr}-${gl}-${dc}-${activity}-${index}`.replace(/\s+/g, '_');
+/**
+ * ID baris pembayaran yang stabil & idempoten antar sync.
+ *
+ * Catatan penting: `InterfaceID` dari Confins (EGL) ternyata diregenerate
+ * oleh Confins di setiap panggilan API (UUID baru tiap request). Itu adalah
+ * identitas sesi interface, BUKAN identitas baris. Karena itu kami sengaja
+ * MENGECUALIKAN `InterfaceID` dari komposisi ID. Field stabil yang dipakai:
+ *
+ *   PaymentRequestNo | JournalNo | GLAccount | DC | VoucherEGL | Activity | amount(cents)
+ *
+ * Hash SHA-1 di-truncate 16 hex untuk ringkas namun cukup unik. Prefix
+ * `PR-Journal-` dipertahankan untuk keterbacaan di log/DB.
+ */
+function stableRowId(row: ConfinsBudgetRealApiRow): string {
+  const canonical = stableRowCanonicalKey(row);
+  const hash = createHash('sha1').update(canonical).digest('hex').slice(0, 16);
+  const pr = String(row.PaymentRequestNo ?? 'PR').trim().replace(/\s+/g, '_');
+  const jn = String(row.JournalNo ?? 'JN').trim().replace(/\s+/g, '_');
+  return `${pr}-${jn}-${hash}`;
+}
+
+/**
+ * Canonical key dari field stabil sebuah row Confins (tanpa InterfaceID).
+ * Dipakai untuk membentuk `stableRowId` dan juga signature fallback.
+ */
+function stableRowCanonicalKey(row: ConfinsBudgetRealApiRow): string {
+  const pr = String(row.PaymentRequestNo ?? '').trim();
+  const jn = String(row.JournalNo ?? '').trim();
+  const gl = String(row.GLAccount ?? '').trim();
+  const dc = String(row.DC ?? '').trim();
+  const voucher = String(row.VoucherEGL ?? '').trim();
+  const activity = String(row.Activity ?? '').trim();
+  const amt = parseConfinsOriginAmount(row.OriginAmount);
+  const amtCents = Math.round(amt * 100);
+  return `${pr}|${jn}|${gl}|${dc}|${voucher}|${activity}|${amtCents}`;
 }
 
 export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): ConfinsCashDisbursement[] {
   const now = new Date().toISOString();
-  return rows.map((row, index) => {
+  return rows.map((row) => {
     const fromPeriod = parseConfinsPeriod(row.Period);
     const monthFromLabel = parseConfinsMonthLabel(row.Month);
     const yearFromField = Number(row.Year);
@@ -210,7 +239,7 @@ export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): Co
     const incomingReferenceId = extractBudgetRequestRef(row);
 
     return {
-      id: stableRowId(row, index),
+      id: stableRowId(row),
       incomingReferenceId,
       voucherNumber: String(row.JournalNo ?? row.VoucherEGL ?? row.PaymentRequestNo ?? ''),
       postDate: postDateParsed.toISOString(),

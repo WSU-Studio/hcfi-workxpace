@@ -36,6 +36,8 @@ interface ReconciliationTableProps {
   /** Saat sync/save — tombol sort & Match Manual nonaktif (overlay di parent). */
   interactionsDisabled?: boolean;
   onManualMatch: (paymentId: string) => void;
+  /** Tandai pembayaran sebagai "Marked Unused" — disembunyikan dari sync berikutnya. */
+  onMarkUnused?: (paymentId: string) => void;
 }
 
 function matchClassName(status: ReconciliationRow['matchType']) {
@@ -49,6 +51,7 @@ export default function ReconciliationTable({
   canEditManual,
   interactionsDisabled = false,
   onManualMatch,
+  onMarkUnused,
 }: ReconciliationTableProps) {
   const [invoiceDateSort, setInvoiceDateSort] = useState<InvoiceDateSort>('asc');
 
@@ -124,15 +127,29 @@ export default function ReconciliationTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={!canEditManual || interactionsDisabled}
-                    onClick={() => onManualMatch(payment.id)}
-                  >
-                    Match Manual
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={!canEditManual || interactionsDisabled}
+                      onClick={() => onManualMatch(payment.id)}
+                    >
+                      Match Manual
+                    </Button>
+                    {onMarkUnused && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 px-3 py-1 text-xs text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={!canEditManual || interactionsDisabled}
+                        onClick={() => onMarkUnused(payment.id)}
+                        title="Tandai sebagai tidak dipakai — baris ini disembunyikan dari sync berikutnya"
+                      >
+                        Mark as Unused
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableBodyRow>
             );
