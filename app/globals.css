@@ -21,3 +21,38 @@ body {
   color: var(--foreground);
   background: var(--background);
 }
+
+@page {
+  size: A4;
+  margin: 14mm 12mm 16mm 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hindari page break di tengah card/tabel/baris agar rapi */
+  .print-keep-together,
+  table,
+  thead,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Heading mengikat ke konten di bawahnya */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Anchor tidak menampilkan URL setelah teks */
+  a[href]::after {
+    content: '';
+  }
+}

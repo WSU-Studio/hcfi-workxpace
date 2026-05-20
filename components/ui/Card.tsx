@@ -38,13 +38,13 @@ const Card = ({
   const hasBody = Children.count(bodyContent) > 0;
 
   return (
-    <div className={cn(baseCardClass, className)}>
+    <div className={cn(baseCardClass, 'print:break-inside-avoid print:border-gray-300 print:hover:shadow-none', className)}>
       <div className="flex min-h-6 items-center justify-between gap-3">
         <div className="min-h-6 min-w-0 flex-1 flex items-center">{headerContent}</div>
         <button
           type="button"
           className={cn(
-            'shrink-0 rounded-md p-1 text-gray-500 transition-colors',
+            'shrink-0 rounded-md p-1 text-gray-500 transition-colors print:hidden',
             'hover:bg-blue-100/70 hover:text-gray-800',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 cursor-pointer',
           )}
@@ -68,10 +68,12 @@ const Card = ({
             isCollapsed
               ? 'pointer-events-none mt-0 grid-rows-[0fr] opacity-0'
               : 'mt-4 grid-rows-[1fr] opacity-100',
+            // Saat print, paksa body card terbuka penuh tanpa peduli state collapsed
+            'print:pointer-events-auto print:mt-4 print:!grid-rows-[1fr] print:!opacity-100',
           )}
           aria-hidden={isCollapsed}
         >
-          <div className="overflow-hidden">{bodyContent}</div>
+          <div className="overflow-hidden print:overflow-visible">{bodyContent}</div>
         </div>
       )}
     </div>

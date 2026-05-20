@@ -10,8 +10,9 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { Pencil, ScanSearch } from 'lucide-react';
+import { Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import Button from '@/components/ui/Button';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -185,10 +186,34 @@ export default function BudgetPlanDetailPage() {
       minute: '2-digit',
     });
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
   return (
-    <div className="max-w-4xl space-y-6">
-      <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
-      <h1 className="text-2xl font-semibold">{plan.subject}</h1>
+    <div className="max-w-4xl space-y-6 print:max-w-none">
+      <Link href="/budget-plans" className="text-blue-600 hover:underline print:hidden">← Back</Link>
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Budget Plan</p>
+          <h1 className="text-2xl font-semibold">{plan.subject}</h1>
+          <p className="hidden text-sm text-gray-600 print:block">
+            {plan.code} · FY {plan.fiscalYear} · {plan.department?.name}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handlePrint}
+          className="inline-flex items-center gap-2 print:hidden"
+          aria-label="Print budget plan detail"
+        >
+          <Printer className="h-4 w-4" aria-hidden />
+          Print
+        </Button>
+      </div>
+
       <Card>
         <div className="grid grid-cols-2 gap-4">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
@@ -330,7 +355,7 @@ export default function BudgetPlanDetailPage() {
             </Table>
 
             {canEdit || reviewMeta?.canReview ? (
-              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100 print:hidden">
                 {canEdit ? (
                   plan.status === 'Approved' ? (
                     <button
