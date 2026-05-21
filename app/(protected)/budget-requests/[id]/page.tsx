@@ -63,16 +63,16 @@ const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: Edit
   );
 };
 
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
-      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
-        {value || '-'}
-      </p>
-    </div>
-  );
-}
+// function ReadonlyField({ label, value }: { label: string; value: string }) {
+//   return (
+//     <div>
+//       <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+//       <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+//         {value || '-'}
+//       </p>
+//     </div>
+//   );
+// }
 
 export default function BudgetRequestDetailPage() {
   const params = useParams();

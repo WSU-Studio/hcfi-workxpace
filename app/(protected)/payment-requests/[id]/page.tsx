@@ -67,16 +67,16 @@ const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: Edit
   );
 };
 
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
-      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
-        {value || '-'}
-      </p>
-    </div>
-  );
-}
+// function ReadonlyField({ label, value }: { label: string; value: string }) {
+//   return (
+//     <div>
+//       <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+//       <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+//         {value || '-'}
+//       </p>
+//     </div>
+//   );
+// }
 
 export default function PaymentRequestDetailPage() {
   const params = useParams();
@@ -173,18 +173,18 @@ export default function PaymentRequestDetailPage() {
     return account ? `${account.accountCode} - ${account.accountName}` : coaId;
   })();
   const opexType = data.opexType || data.type || '-';
-  const costCenterLabel =
-    data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
-  const categoryLabel =
-    data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
-  const categoryKeyIndexLabel =
-    data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
-    data.categoryKeyIndex ??
-    '-';
-  const opexAllocationLabel =
-    data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
-    data.opexAllocation ??
-    '-';
+  // const costCenterLabel =
+  //   data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
+  // const categoryLabel =
+  //   data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
+  // const categoryKeyIndexLabel =
+  //   data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
+  //   data.categoryKeyIndex ??
+  //   '-';
+  // const opexAllocationLabel =
+  //   data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
+  //   data.opexAllocation ??
+  //   '-';
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();
