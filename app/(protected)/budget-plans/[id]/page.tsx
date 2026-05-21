@@ -266,7 +266,7 @@ export default function BudgetPlanDetailPage() {
       </div>
 
       <Card>
-        <div className="grid grid-cols-2 gap-4 print:gap-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:gap-y-2">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Requestor:</span> {plan.requestorName ?? '-'}</div>
