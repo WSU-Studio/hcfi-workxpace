@@ -157,13 +157,9 @@ export default function ReviewPaymentRequestPage() {
       </Link>
       <h1 className="text-2xl font-semibold">Review Payment Request</h1>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        Approval here only records status in Workxpace. Finance executes payment and journal in Confins according to their procedures.
-      </div>
-
-      <Card className="space-y-4">
-        <h3 className="font-medium">Request information</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <Card className="space-y-4"
+      header={<h3 className="font-medium">Request information</h3>}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <span className="text-gray-500">ID:</span> {data.code}
           </div>
@@ -241,8 +237,9 @@ export default function ReviewPaymentRequestPage() {
         </div>
       </Card>
 
-      <Card className="space-y-3">
-        <h3 className="font-medium">Request Allocation</h3>
+      <Card className="space-y-3" 
+      collapsible
+      header={<h3 className="font-medium">Request Allocation</h3>}>
         {data.lineItems && data.lineItems.length > 0 ? (
           <Table>
             <thead>
