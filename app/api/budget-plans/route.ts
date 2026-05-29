@@ -67,6 +67,9 @@ export async function POST(request: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
+    if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
     const dept = await prisma.department.findUnique({
       where: { id: body.departmentId },
       select: { code: true },
