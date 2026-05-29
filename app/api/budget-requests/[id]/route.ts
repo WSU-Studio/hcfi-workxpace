@@ -154,6 +154,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!subject || typeof subject !== 'string') {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
     }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
 
     const nextBudgetPlanId = bodyPlanId || existing.budgetPlanId;
     const plan = await prisma.budgetPlan.findUnique({

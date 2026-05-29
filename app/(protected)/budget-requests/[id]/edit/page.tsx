@@ -173,6 +173,14 @@ export default function EditBudgetRequestPage() {
       setError('Select budget plan and enter subject');
       return;
     }
+    if (!formData.approvalSchemaId) {
+      setError(
+        schemasForDept.length === 0
+          ? 'No approval schema is configured for the selected department. Set one up before submitting.'
+          : 'Select an approval schema before submitting'
+      );
+      return;
+    }
     if (selectedMonths.length === 0) {
       setError('Select at least one month for request allocation');
       return;
@@ -298,11 +306,13 @@ export default function EditBudgetRequestPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block font-medium">Approval Schema</label>
+            <label className="mb-1.5 block font-medium">Approval Schema *</label>
             <select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
               className="w-full rounded-lg border bg-white px-4 py-2"
+              required
+              aria-invalid={!formData.approvalSchemaId}
             >
               <option value="">-</option>
               {schemasForDept.map((s) => (
@@ -311,6 +321,11 @@ export default function EditBudgetRequestPage() {
                 </option>
               ))}
             </select>
+            {currentPlanDeptId && schemasForDept.length === 0 ? (
+              <p className="mt-1.5 text-xs text-amber-600">
+                No approval schema is configured for the budget plan&apos;s department.
+              </p>
+            ) : null}
           </div>
           <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <h2 className="text-base font-semibold text-gray-900">Request Allocation</h2>

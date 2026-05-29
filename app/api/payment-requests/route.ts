@@ -177,6 +177,9 @@ export async function POST(req: Request) {
     if (!subject || typeof subject !== 'string' || !payeeName || typeof payeeName !== 'string') {
       return NextResponse.json({ error: 'Missing required fields (subject, payee)' }, { status: 400 });
     }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
     if ('error' in normalizedPayload) {

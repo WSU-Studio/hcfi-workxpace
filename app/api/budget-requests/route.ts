@@ -109,6 +109,9 @@ export async function POST(req: Request) {
     if (!budgetPlanId || !subject || !departmentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
 
     const normalizedPayload = normalizeBudgetRequestBody(body, new Date().getFullYear());
     if ('error' in normalizedPayload) {
