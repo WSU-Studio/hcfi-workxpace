@@ -9,6 +9,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import Tooltip from '@/components/ui/Tooltip';
 
 interface PaymentRequestRow {
   id: string;
@@ -21,6 +22,7 @@ interface PaymentRequestRow {
   canReview?: boolean;
   budgetRequest: { code: string; subject: string } | null;
   department: { name: string };
+  approvalSchemaId?: string;
 }
 
 interface EditWarningModalProps {
@@ -230,17 +232,29 @@ export default function PaymentRequestsPage() {
                     }).format(Number(r.amount ?? 0))}
                   </TableCell>
                   <TableCell>
-                    <span
-                      className={`rounded px-2 py-0.5 text-sm ${
-                        r.status === 'Approved'
-                          ? 'bg-green-100 text-green-800'
-                          : r.status === 'Reviewed'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {r.status}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2"> 
+                      <span
+                        className={`rounded px-2 py-0.5 text-sm ${
+                          r.status === 'Approved'
+                            ? 'bg-green-100 text-green-800'
+                            : r.status === 'Reviewed'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                      {!r.approvalSchemaId ? (
+                        <Tooltip content="No approval schema">
+                          <span
+                            aria-label="No approval schema"
+                            className="rounded-lg border border-red-300 bg-red-100 px-2 text-sm font-bold text-red-800"
+                          >
+                            !
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell>{r.department?.name ?? '-'}</TableCell>
                   <TableCell>{r.budgetRequest?.code ?? '-'}</TableCell>
