@@ -98,7 +98,19 @@ export function getInvoiceDateRaw(payment: ConfinsCashDisbursement): string | un
   return undefined;
 }
 
-/** Filter rekonsiliasi: bulan/tahun dari InvoiceDate API (bukan Period / toMonth request). */
+/**
+ * Mirror dari `getInvoiceDateRaw` untuk field `RequestDate`. Dipakai untuk
+ * kolom tampilan & sorting di tabel rekonsiliasi (sesuai permintaan user:
+ * kolom ditampilkan = RequestDate, bukan InvoiceDate).
+ */
+export function getRequestDateRaw(payment: ConfinsCashDisbursement): string | undefined {
+  if (payment.requestDate?.trim()) return payment.requestDate.trim();
+  const raw = payment.rawPayload?.RequestDate ?? payment.rawPayload?.requestDate;
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  return undefined;
+}
+
+/** Filter rekonsiliasi (legacy): bulan/tahun dari InvoiceDate API. */
 export function paymentMatchesInvoiceMonth(
   payment: ConfinsCashDisbursement,
   fiscalYear: number,
@@ -107,6 +119,38 @@ export function paymentMatchesInvoiceMonth(
   const raw = getInvoiceDateRaw(payment);
   if (raw) {
     const d = parseConfinsShortDate(raw);
+    if (d && !Number.isNaN(d.getTime())) {
+      return d.getFullYear() === fiscalYear && d.getMonth() + 1 === month;
+    }
+  }
+  return payment.fiscalYear === fiscalYear && payment.month === month;
+}
+
+/**
+ * Filter rekonsiliasi (aktif): bulan/tahun dari RequestDate API.
+ *
+ * Ini source-of-truth untuk filter & tampilan tabel rekonsiliasi.
+ * Fallback ke InvoiceDate kalau RequestDate kosong/invalid, lalu ke
+ * `payment.fiscalYear/month` (period/Year/Month meta) sebagai last resort —
+ * supaya baris dengan RequestDate kosong tidak hilang kalau memang
+ * masih relevan menurut metadata.
+ */
+export function paymentMatchesRequestMonth(
+  payment: ConfinsCashDisbursement,
+  fiscalYear: number,
+  month: number
+): boolean {
+  const raw = getRequestDateRaw(payment);
+  if (raw) {
+    const d = parseConfinsShortDate(raw);
+    if (d && !Number.isNaN(d.getTime())) {
+      return d.getFullYear() === fiscalYear && d.getMonth() + 1 === month;
+    }
+  }
+  // Fallback: kalau RequestDate kosong, coba InvoiceDate dulu, lalu meta.
+  const invoice = getInvoiceDateRaw(payment);
+  if (invoice) {
+    const d = parseConfinsShortDate(invoice);
     if (d && !Number.isNaN(d.getTime())) {
       return d.getFullYear() === fiscalYear && d.getMonth() + 1 === month;
     }

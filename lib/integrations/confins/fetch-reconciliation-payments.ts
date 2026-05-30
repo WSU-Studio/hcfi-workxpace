@@ -6,7 +6,7 @@ import {
   CONFINS_BUDGET_REAL_PATH,
   departmentNameMatchesPayment,
   mapBudgetRealRowsToPayments,
-  paymentMatchesInvoiceMonth,
+  paymentMatchesRequestMonth,
   type ConfinsBudgetRealApiRow,
 } from '@/lib/integrations/confins/v103-budget-real';
 import { staticEdgeCasePayments } from '@/lib/integrations/confins-mock/edge-case-payments';
@@ -24,9 +24,9 @@ export type ReconciliationPaymentsResult = {
   payments: ConfinsCashDisbursement[];
   meta: ConfinsMockListMeta & {
     apiPath: string;
-    /** Jumlah baris dari API sebelum filter InvoiceDate. */
+    /** Jumlah baris dari API sebelum filter RequestDate. */
     rawRowCount: number;
-    /** Jumlah baris setelah filter InvoiceDate (+ department). */
+    /** Jumlah baris setelah filter RequestDate (+ department). */
     filteredRowCount: number;
     /** Baris contoh QA (hanya saat Mock API aktif). */
     edgeCaseCount: number;
@@ -51,7 +51,7 @@ export async function fetchReconciliationPayments(
   const toYear = options.fiscalYear ?? now.getFullYear();
   const filterMonth = options.month ?? now.getMonth() + 1;
   const fromYear = options.fromYear ?? 2005;
-  /** Confins `toMonth` = batas periode posting, bukan InvoiceDate. Tarik sampai Desember lalu filter invoice di app. */
+  /** Confins `toMonth` = batas periode posting. Tarik full year lalu filter RequestDate di app. */
   const apiToMonth = 12;
   const sourceType = options.sourceType ?? 'EGL';
   const departmentName = await resolveDepartmentName(options.departmentId);
@@ -75,7 +75,7 @@ export async function fetchReconciliationPayments(
   const rawRowCount = payments.length;
 
   if (options.month != null) {
-    payments = payments.filter((p) => paymentMatchesInvoiceMonth(p, toYear, filterMonth));
+    payments = payments.filter((p) => paymentMatchesRequestMonth(p, toYear, filterMonth));
   }
 
   if (departmentName) {

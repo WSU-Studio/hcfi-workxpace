@@ -213,7 +213,7 @@ export default function ReconciliationPage() {
       setDepartments(planData.departments ?? []);
       setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
       const rawCount = payData.meta?.rawRowCount ?? 0;
-      const matchedInvoice = payData.meta?.filteredRowCount ?? 0;
+      const matchedRequest = payData.meta?.filteredRowCount ?? 0;
       const shown = payData.meta?.recordCount ?? 0;
       const edgeCases = payData.meta?.edgeCaseCount ?? 0;
       const sourceHint =
@@ -225,11 +225,11 @@ export default function ReconciliationPage() {
       const edgeHint =
         edgeCases > 0
           ? ` Termasuk ${edgeCases} baris contoh QA (Mock API aktif).`
-          : matchedInvoice === 0 && rawCount > 0
-            ? ' Tidak ada InvoiceDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
+          : matchedRequest === 0 && rawCount > 0
+            ? ' Tidak ada RequestDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
             : '';
       setSyncMessage(
-        `Sync berhasil (${sourceHint}): ${shown} baris ditampilkan (InvoiceDate ${month}/${fiscalYear}). API: ${rawCount} baris → ${matchedInvoice} cocok filter invoice.${edgeHint} ${normalizedRequests.length} budget request Approved.`
+        `Sync berhasil (${sourceHint}): ${shown} baris ditampilkan (RequestDate ${month}/${fiscalYear}). API: ${rawCount} baris → ${matchedRequest} cocok filter request.${edgeHint} ${normalizedRequests.length} budget request Approved.`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
@@ -602,7 +602,7 @@ export default function ReconciliationPage() {
           <p className="text-xs text-amber-950/85">
             Contoh <code className="rounded bg-white/80 px-1">BR/IT/00X</code> / variance hanya muncul jika{' '}
             <strong>Activate Mock API</strong> di Settings aktif. Saat Mock nonaktif, hanya data Confins API (filter
-            InvoiceDate) yang ditampilkan.
+            RequestDate) yang ditampilkan.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button

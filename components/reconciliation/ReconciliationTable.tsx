@@ -11,23 +11,42 @@ import {
 } from '@/components/ui/Table';
 import type { ConfinsCashDisbursement } from '@/lib/integrations/confins-mock/types';
 import {
-  getInvoiceDateRaw,
+  getRequestDateRaw,
   parseConfinsShortDate,
 } from '@/lib/integrations/confins/v103-budget-real';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReconciliationRow } from '@/types/reconciliation';
 import { useMemo, useState } from 'react';
 
-type InvoiceDateSort = 'asc' | 'desc';
+type RequestDateSort = 'asc' | 'desc';
 
-function invoiceDateTimestamp(payment: ConfinsCashDisbursement): number {
-  const raw = getInvoiceDateRaw(payment);
+/**
+ * Parse RequestDate (Confins short date `18-Jun-25`) → Date. Fallback ke
+ * `postDate` ISO bila parsing gagal. Dipakai untuk sorting kolom Request Date.
+ */
+function requestDateTimestamp(payment: ConfinsCashDisbursement): number {
+  const raw = getRequestDateRaw(payment);
   if (raw) {
     const parsed = parseConfinsShortDate(raw);
     if (parsed && !Number.isNaN(parsed.getTime())) return parsed.getTime();
   }
   const fallback = new Date(payment.postDate);
   return Number.isNaN(fallback.getTime()) ? 0 : fallback.getTime();
+}
+
+/**
+ * Render RequestDate untuk kolom tabel. Coba parse format Confins (`18-Jun-25`)
+ * dulu via `parseConfinsShortDate` (karena `new Date('18-Jun-25')` tidak
+ * konsisten antar browser), baru fallback ke `formatDate` biasa, lalu ke `-`.
+ */
+function renderRequestDate(payment: ConfinsCashDisbursement): string {
+  const raw = getRequestDateRaw(payment);
+  if (raw) {
+    const parsed = parseConfinsShortDate(raw);
+    if (parsed && !Number.isNaN(parsed.getTime())) return formatDate(parsed);
+    return raw;
+  }
+  return payment.postDate ? formatDate(payment.postDate) : '-';
 }
 
 interface ReconciliationTableProps {
@@ -53,16 +72,16 @@ export default function ReconciliationTable({
   onManualMatch,
   onMarkUnused,
 }: ReconciliationTableProps) {
-  const [invoiceDateSort, setInvoiceDateSort] = useState<InvoiceDateSort>('asc');
+  const [requestDateSort, setRequestDateSort] = useState<RequestDateSort>('asc');
 
   const sortedRows = useMemo(() => {
     const copy = [...rows];
     copy.sort((a, b) => {
-      const diff = invoiceDateTimestamp(a.payment) - invoiceDateTimestamp(b.payment);
-      return invoiceDateSort === 'asc' ? diff : -diff;
+      const diff = requestDateTimestamp(a.payment) - requestDateTimestamp(b.payment);
+      return requestDateSort === 'asc' ? diff : -diff;
     });
     return copy;
-  }, [rows, invoiceDateSort]);
+  }, [rows, requestDateSort]);
 
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -71,17 +90,17 @@ export default function ReconciliationTable({
           <TableHeaderRow className="border-gray-200">
             <TableHead
               className="text-xs font-semibold uppercase text-gray-600"
-              aria-sort={invoiceDateSort === 'asc' ? 'ascending' : 'descending'}
+              aria-sort={requestDateSort === 'asc' ? 'ascending' : 'descending'}
             >
               <button
                 type="button"
-                onClick={() => setInvoiceDateSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
+                onClick={() => setRequestDateSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
                 disabled={interactionsDisabled}
                 className="inline-flex items-center gap-1 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Invoice Date
+                Request Date
                 <span className="text-[10px] font-normal normal-case text-gray-500" aria-hidden>
-                  {invoiceDateSort === 'asc' ? '↑' : '↓'}
+                  {requestDateSort === 'asc' ? '↑' : '↓'}
                 </span>
               </button>
             </TableHead>
@@ -103,7 +122,7 @@ export default function ReconciliationTable({
             const payment = row.payment;
             return (
               <TableBodyRow key={payment.id} className="border-gray-200">
-                <TableCell>{formatDate(payment.postDate)}</TableCell>
+                <TableCell>{renderRequestDate(payment)}</TableCell>
                 <TableCell>{payment.source}</TableCell>
                 <TableCell>{row.matchedRequest?.code ?? '-'}</TableCell>
                 <TableCell className="font-medium text-gray-700">{payment.incomingReferenceId}</TableCell>
