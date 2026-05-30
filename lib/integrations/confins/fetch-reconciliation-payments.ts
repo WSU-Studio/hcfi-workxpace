@@ -9,7 +9,6 @@ import {
   paymentMatchesRequestMonth,
   type ConfinsBudgetRealApiRow,
 } from '@/lib/integrations/confins/v103-budget-real';
-import { staticEdgeCasePayments } from '@/lib/integrations/confins-mock/edge-case-payments';
 
 export type ReconciliationPaymentsFetchOptions = {
   fiscalYear?: number;
@@ -17,6 +16,12 @@ export type ReconciliationPaymentsFetchOptions = {
   departmentId?: string;
   sourceType?: string;
   fromYear?: number;
+  /**
+   * @deprecated Edge-case injection sudah dimatikan permanen di pipeline
+   * rekonsiliasi. User punya kontrol penuh via "Reconciliation Mock Data"
+   * di Settings. Param ini disimpan untuk backward compatibility caller —
+   * tapi tidak punya efek apa-apa.
+   */
   includeEdgeCases?: boolean;
 };
 
@@ -28,7 +33,7 @@ export type ReconciliationPaymentsResult = {
     rawRowCount: number;
     /** Jumlah baris setelah filter RequestDate (+ department). */
     filteredRowCount: number;
-    /** Baris contoh QA (hanya saat Mock API aktif). */
+    /** Selalu 0 — edge-case injection sudah dimatikan. */
     edgeCaseCount: number;
     confinsMockEnabled: boolean;
     dataSource: 'confins-api' | 'confins-mock-fixture' | 'local-mock';
@@ -83,18 +88,12 @@ export async function fetchReconciliationPayments(
   }
 
   const filteredRowCount = payments.length;
-  let edgeCaseCount = 0;
 
-  // Contoh BR/IT/00X & variance hanya saat Mock API aktif (Settings), bukan saat API live kosong.
-  const includeEdgeCases = confinsMockEnabled && options.includeEdgeCases !== false;
-  if (includeEdgeCases && payments.length === 0) {
-    const edge = staticEdgeCasePayments(now, {
-      fiscalYear: toYear,
-      month: filterMonth,
-    });
-    edgeCaseCount = edge.length;
-    payments = [...payments, ...edge];
-  }
+  // Catatan: edge-case statis (`BR/IT/00X` dkk) sebelumnya di-inject saat
+  // mock aktif & hasil filter kosong. Dimatikan permanen karena user sudah
+  // bisa kontrol penuh isi mock via Settings → "Reconciliation Mock Data".
+  // Bila perlu skenario QA, paste baris yang relevan ke JSON settings.
+  const edgeCaseCount = 0;
 
   return {
     payments,
