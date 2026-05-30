@@ -167,6 +167,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!subject || typeof subject !== 'string' || !payeeName || typeof payeeName !== 'string') {
       return NextResponse.json({ error: 'Subject and payee are required' }, { status: 400 });
     }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
     if ('error' in normalizedPayload) {

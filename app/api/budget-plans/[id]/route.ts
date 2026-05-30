@@ -198,6 +198,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (existing.requestorId !== session.user.id) {
       return NextResponse.json({ error: 'Only requestor can edit this budget plan' }, { status: 403 });
     }
+    if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
 
     await prisma.budgetPlan.update({
       where: { id },

@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Pencil, ScanSearch } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
@@ -65,16 +67,16 @@ const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: Edit
   );
 };
 
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
-      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
-        {value || '-'}
-      </p>
-    </div>
-  );
-}
+// function ReadonlyField({ label, value }: { label: string; value: string }) {
+//   return (
+//     <div>
+//       <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+//       <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+//         {value || '-'}
+//       </p>
+//     </div>
+//   );
+// }
 
 export default function PaymentRequestDetailPage() {
   const params = useParams();
@@ -137,6 +139,8 @@ export default function PaymentRequestDetailPage() {
     accountOptions?: { id: string; accountCode: string; accountName: string }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const printableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch(`/api/payment-requests/${id}`, { credentials: 'include' })
@@ -169,34 +173,89 @@ export default function PaymentRequestDetailPage() {
     return account ? `${account.accountCode} - ${account.accountName}` : coaId;
   })();
   const opexType = data.opexType || data.type || '-';
-  const costCenterLabel =
-    data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
-  const categoryLabel =
-    data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
-  const categoryKeyIndexLabel =
-    data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
-    data.categoryKeyIndex ??
-    '-';
-  const opexAllocationLabel =
-    data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
-    data.opexAllocation ??
-    '-';
+  // const costCenterLabel =
+  //   data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
+  // const categoryLabel =
+  //   data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
+  // const categoryKeyIndexLabel =
+  //   data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
+  //   data.categoryKeyIndex ??
+  //   '-';
+  // const opexAllocationLabel =
+  //   data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
+  //   data.opexAllocation ??
+  //   '-';
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
+  const slugify = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+
+  const handleDownloadPdf = async () => {
+    if (!printableRef.current || isExporting) return;
+    setIsExporting(true);
+    document.documentElement.setAttribute('data-exporting', 'pdf');
+    const toastId = toast.loading('Menyiapkan PDF...');
+
+    const safetyTimer = window.setTimeout(() => {
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+      toast.error('Generate PDF timeout. Coba lagi.', { id: toastId });
+    }, 70_000);
+
+    try {
+      const { renderPdfFromElement } = await import('@/lib/pdf/inline-computed-colors');
+      const filename = `${data.code}_${slugify(data.subject) || 'payment-request'}.pdf`;
+      await renderPdfFromElement(printableRef.current, { filename, timeoutMs: 60_000 });
+      toast.success('PDF berhasil di-download.', { id: toastId });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal membuat PDF';
+      toast.error(msg, { id: toastId });
+    } finally {
+      window.clearTimeout(safetyTimer);
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+    }
+  };
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <Link href="/payment-requests" className="text-blue-600 hover:underline">
-        ← Back
-      </Link>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{data.subject}</h1>
+    <div className="max-w-4xl space-y-6 print:max-w-none">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link href="/payment-requests" className="text-blue-600 hover:underline">
+          ← Back
+        </Link>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2"
+            aria-label="Print payment request detail"
+            disabled={isExporting}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Print
+          </Button>
+          <Button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Download payment request detail as PDF"
+            aria-busy={isExporting}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            {isExporting ? 'Generating PDF...' : 'Download PDF'}
+          </Button>
           {canEditAsRequestor ? (
             data.status === 'Approved' ? (
               <button
                 type="button"
                 onClick={() => setIsEditWarningOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                disabled={isExporting}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Pencil className="h-4 w-4" />
                 Edit
@@ -212,6 +271,15 @@ export default function PaymentRequestDetailPage() {
             )
           ) : null}
         </div>
+      </div>
+
+      <div ref={printableRef} className="space-y-6">
+      <div className="min-w-0">
+        <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Payment Request</p>
+        <h1 className="text-2xl font-semibold">{data.subject}</h1>
+        <p className="hidden text-sm text-gray-600 print:block">
+          {data.code} · FY {data.fiscalYear ?? '-'} · {data.department?.name}
+        </p>
       </div>
 
       <Card className="space-y-4">
@@ -349,7 +417,17 @@ export default function PaymentRequestDetailPage() {
 
         <div className="space-y-3 border-t border-gray-100 mt-6">
           <h3 className="font-medium">Classification</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+          <div className="grid grid-cols-2 gap-4">
+            <div><span className="text-gray-500">Cost Center:</span> {data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-'}</div>
+            <div><span className="text-gray-500">Category:</span> {data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-'}</div>
+            <div><span className="text-gray-500">Category Key Index:</span> {data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ?? data.categoryKeyIndex ?? '-'}</div>
+            <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
+            <div><span className="text-gray-500">Type:</span> {opexType}</div>
+            <div><span className="text-gray-500">Opex Allocation:</span> {data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ?? data.opexAllocation ?? '-'}</div>
+          </div>
+          
+          {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <ReadonlyField label="Cost Center" value={costCenterLabel} />
             <ReadonlyField label="Category" value={categoryLabel} />
             <ReadonlyField label="Category Key Index" value={categoryKeyIndexLabel} />
@@ -367,13 +445,16 @@ export default function PaymentRequestDetailPage() {
           <ReadonlyField label="Payee" value={data.payeeName} />
           {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
           
-          {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null}
+          {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null} */}
         </div>
 
       </Card>
 
-      <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>
-        <div className="space-y-4">
+      <Card collapsible 
+        collapsed={!orderedLevels.length}
+        className="print:break-before-page print:text-sm"
+        header={<h3 className="font-medium">Approval escalation</h3>}>
+        <div className="space-y-4 print:space-y-2 print:text-sm">
           {orderedLevels.length ? (
             <Table>
               <thead>
@@ -419,8 +500,8 @@ export default function PaymentRequestDetailPage() {
             <p className="text-sm text-gray-500">No approval schema — approval by non-requestor.</p>
           )}
 
-          <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
-            {data.canReview ? (
+          {data.canReview ? (
+            <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4 print:hidden">
               <Link
                 href={`/payment-requests/${id}/review`}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
@@ -428,8 +509,8 @@ export default function PaymentRequestDetailPage() {
                 <ScanSearch className="h-4 w-4" />
                 Review
               </Link>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       </Card>
 
@@ -437,7 +518,7 @@ export default function PaymentRequestDetailPage() {
         {data.histories?.length ? (
           <div className="space-y-2">
             {data.histories.map((history) => (
-              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm print:px-0 print:pt-0 print:pb-2 print:bg-transparent print:border-b print:border-gray-200">
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
@@ -469,6 +550,7 @@ export default function PaymentRequestDetailPage() {
           <p className="text-sm text-gray-500">No history yet.</p>
         )}
       </Card>
+      </div>
 
       <EditWarningModal
         isOpen={isEditWarningOpen}

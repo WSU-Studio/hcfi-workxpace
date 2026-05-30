@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { Pencil, ScanSearch } from 'lucide-react';
+import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import Button from '@/components/ui/Button';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -100,14 +102,14 @@ function normalizeSupportingDocs(input: unknown) {
     .filter((url): url is string => typeof url === 'string' && url.length > 0);
 }
 
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
-      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">{value || '-'}</p>
-    </div>
-  );
-}
+// function ReadonlyField({ label, value }: { label: string; value: string }) {
+//   return (
+//     <div>
+//       <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+//       <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">{value || '-'}</p>
+//     </div>
+//   );
+// }
 
 export default function BudgetPlanDetailPage() {
   const params = useParams();
@@ -122,6 +124,8 @@ export default function BudgetPlanDetailPage() {
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const printableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -185,12 +189,84 @@ export default function BudgetPlanDetailPage() {
       minute: '2-digit',
     });
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
+  const slugify = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+
+  const handleDownloadPdf = async () => {
+    if (!printableRef.current || isExporting) return;
+    setIsExporting(true);
+    document.documentElement.setAttribute('data-exporting', 'pdf');
+    const toastId = toast.loading('Menyiapkan PDF...');
+
+    // Safety net: kalau apapun macet, attribute & state pasti ter-reset
+    // setelah 70 detik supaya layar tidak ter-freeze (sidebar/header sembunyi
+    // karena CSS rule [data-exporting='pdf']).
+    const safetyTimer = window.setTimeout(() => {
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+      toast.error('Generate PDF timeout. Coba lagi.', { id: toastId });
+    }, 70_000);
+
+    try {
+      const { renderPdfFromElement } = await import('@/lib/pdf/inline-computed-colors');
+      const filename = `${plan.code}_${slugify(plan.subject) || 'budget-plan'}.pdf`;
+      await renderPdfFromElement(printableRef.current, { filename, timeoutMs: 60_000 });
+      toast.success('PDF berhasil di-download.', { id: toastId });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal membuat PDF';
+      toast.error(msg, { id: toastId });
+    } finally {
+      window.clearTimeout(safetyTimer);
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="max-w-4xl space-y-6">
-      <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
-      <h1 className="text-2xl font-semibold">{plan.subject}</h1>
+    <div className="max-w-4xl space-y-6 print:max-w-none">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2"
+            aria-label="Print budget plan detail"
+            disabled={isExporting}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Print
+          </Button>
+          <Button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Download budget plan detail as PDF"
+            aria-busy={isExporting}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            {isExporting ? 'Generating PDF...' : 'Download PDF'}
+          </Button>
+        </div>
+      </div>
+
+      <div ref={printableRef} className="space-y-6">
+      <div className="min-w-0">
+        <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Budget Plan</p>
+        <h1 className="text-2xl font-semibold">{plan.subject}</h1>
+        <p className="hidden text-sm text-gray-600 print:block">
+          {plan.code} · FY {plan.fiscalYear} · {plan.department?.name}
+        </p>
+      </div>
+
       <Card>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:gap-y-2">
           <div><span className="text-gray-500">ID:</span> {plan.code}</div>
           <div><span className="text-gray-500">Request Date:</span> {formatDate(plan.requestDate)}</div>
           <div><span className="text-gray-500">Requestor:</span> {plan.requestorName ?? '-'}</div>
@@ -211,7 +287,7 @@ export default function BudgetPlanDetailPage() {
             <span className="text-gray-500">Description:</span>
             <RichTextContent value={plan.description} className="mt-1" />
           </div>
-          <div className="col-span-2">
+          <div className="col-span-2 print:hidden">
             <span className="text-gray-500">Supporting Documents:</span>
             {supportingDocUrls.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -238,6 +314,7 @@ export default function BudgetPlanDetailPage() {
         collapsible
         collapsed
         header={<h3 className="font-medium">Monthly Allocation</h3>}
+        className="print:break-inside-avoid print:text-sm"
       >
         <div>
           <Table>
@@ -251,12 +328,12 @@ export default function BudgetPlanDetailPage() {
               {(plan.allocations || []).map((a) => (
                 <TableBodyRow key={a.month}>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
-                  <TableCell>{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">
-                <TableCell colSpan={2}>Total</TableCell>
-                <TableCell>{formatCurrency(total)}</TableCell>
+                <TableCell>Total</TableCell>
+                <TableCell className="text-right">{formatCurrency(total)}</TableCell>
               </TableBodyRow>
             </tbody>
           </Table>
@@ -264,7 +341,17 @@ export default function BudgetPlanDetailPage() {
 
         <div className="space-y-3 border-t border-gray-100 pt-4">
           <h3 className="font-medium">Classification</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          <div className="grid grid-cols-2 gap-4">
+            <div><span className="text-gray-500">Cost Center:</span> {plan.costCenter?.name ?? ''}</div>
+            <div><span className="text-gray-500">Category:</span> {plan.category?.name ?? ''}</div>
+            <div><span className="text-gray-500">Category Key Index:</span> {plan.categoryKeyIndex?.name ?? ''}</div>
+            <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
+            <div><span className="text-gray-500">Type:</span> {opexType}</div>
+            <div><span className="text-gray-500">Opex Allocation:</span> {plan.opexAllocation?.name ?? ''}</div>
+          </div>
+
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <ReadonlyField label="Cost Center" value={plan.costCenter?.name ?? ''} />
             <ReadonlyField label="Category" value={plan.category?.name ?? ''} />
             <ReadonlyField label="Category Key Index" value={plan.categoryKeyIndex?.name ?? ''} />
@@ -279,11 +366,11 @@ export default function BudgetPlanDetailPage() {
             {plan.opexType === 'OPEX' ? (
               <ReadonlyField label="Opex Allocation" value={plan.opexAllocation?.name ?? ''} />
             ) : null}
-          </div>
+          </div> */}
         </div>
       </Card>
 
-      <div>
+      <div className="print:break-before-page print:text-sm">
         {plan.approvalSchema?.approvalLevels?.length ? (
           <Card
             collapsible
@@ -330,7 +417,7 @@ export default function BudgetPlanDetailPage() {
             </Table>
 
             {canEdit || reviewMeta?.canReview ? (
-              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100 print:hidden">
                 {canEdit ? (
                   plan.status === 'Approved' ? (
                     <button
@@ -368,7 +455,7 @@ export default function BudgetPlanDetailPage() {
         ) : (
           <div className="space-y-2">
             {histories.map((history) => (
-              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm print:px-0 print:pt-0 print:pb-2 print:bg-transparent print:border-b print:border-gray-200">
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
@@ -386,6 +473,7 @@ export default function BudgetPlanDetailPage() {
           </div>
         )}
       </Card>
+      </div>
       <EditWarningModal
         isOpen={isEditWarningOpen}
         planSubject={plan.subject}

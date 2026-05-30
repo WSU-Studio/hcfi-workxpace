@@ -248,6 +248,14 @@ export default function EditPaymentRequestPage() {
       setError('Select origin office.');
       return;
     }
+    if (!formData.approvalSchemaId) {
+      setError(
+        schemasForDept.length === 0
+          ? 'No approval schema is configured for the selected department. Set one up before submitting.'
+          : 'Select an approval schema before submitting.'
+      );
+      return;
+    }
     const hasItemName = lineItems.some((item) => item.item.trim().length > 0);
     if (!hasItemName || totalAmount <= 0) {
       setError('Add item details with a total amount greater than 0.');
@@ -482,10 +490,12 @@ export default function EditPaymentRequestPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block font-medium">Approval Schema</label>
+            <label className="mb-1.5 block font-medium">Approval Schema *</label>
             <Select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
+              required
+              aria-invalid={!formData.approvalSchemaId}
             >
               <option value="">-</option>
               {schemasForDept.map((s) => (
@@ -494,6 +504,11 @@ export default function EditPaymentRequestPage() {
                 </option>
               ))}
             </Select>
+            {formData.departmentId && schemasForDept.length === 0 ? (
+              <p className="mt-1.5 text-xs text-amber-600">
+                No approval schema is configured for the selected department.
+              </p>
+            ) : null}
           </div>
 
           <div>

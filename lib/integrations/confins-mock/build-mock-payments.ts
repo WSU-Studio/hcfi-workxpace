@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { staticEdgeCasePayments } from './edge-case-payments';
 import type { ConfinsCashDisbursement, ConfinsPaymentSource } from './types';
 
 export type ConfinsMockFetchOptions = {
@@ -132,62 +133,6 @@ async function paymentsFromApprovedRequests(
   return out;
 }
 
-/** Edge case: typo ref request + variance nominal untuk demo manual matching. */
-function staticEdgeCasePayments(
-  now: Date,
-  options: ConfinsMockFetchOptions,
-  matchedRequests: ConfinsCashDisbursement[]
-): ConfinsCashDisbursement[] {
-  const y = options.fiscalYear ?? now.getFullYear();
-  const m = options.month ?? now.getMonth() + 1;
-  const base = matchedRequests[0];
-
-  return [
-    {
-      id: 'CFN-EDGE-UNKNOWN-REQUEST',
-      incomingReferenceId: 'BR/IT/00X',
-      voucherNumber: 'VCH-EDGE-001',
-      postDate: mockPostingDateIso(y, m, 'CFN-EDGE-UNKNOWN-REQUEST'),
-      fiscalYear: y,
-      month: m,
-      source: 'Core',
-      ebudgetPlanId: null,
-      ebudgetPlanCode: null,
-      ebudgetRequestId: null,
-      ebudgetRequestCode: null,
-      description: 'Mock: referensi budget request typo, harus unmatched lalu manual match',
-      glAccountCode: '5100.01',
-      glAccountName: 'Mock GL - OPEX',
-      amount: n2(5_000_000),
-      currency: 'IDR',
-      departmentId: null,
-      departmentCode: null,
-      updatedAt: now.toISOString(),
-    },
-    {
-      id: 'CFN-EDGE-VARIANCE',
-      incomingReferenceId: base?.incomingReferenceId ?? 'BR/IT/001',
-      voucherNumber: 'VCH-EDGE-002',
-      postDate: mockPostingDateIso(y, m, 'CFN-EDGE-VARIANCE'),
-      fiscalYear: y,
-      month: m,
-      source: 'E-GL',
-      ebudgetPlanId: base?.ebudgetPlanId ?? null,
-      ebudgetPlanCode: base?.ebudgetPlanCode ?? null,
-      ebudgetRequestId: base?.ebudgetRequestId ?? null,
-      ebudgetRequestCode: base?.ebudgetRequestCode ?? null,
-      description: 'Mock: request valid tapi amount berbeda untuk uji variance',
-      glAccountCode: '5200.02',
-      glAccountName: 'Mock GL - Services',
-      amount: n2(600_000_000),
-      currency: 'IDR',
-      departmentId: base?.departmentId ?? null,
-      departmentCode: base?.departmentCode ?? null,
-      updatedAt: now.toISOString(),
-    },
-  ];
-}
-
 export async function fetchConfinsMockPayments(
   options: ConfinsMockFetchOptions = {}
 ): Promise<{
@@ -198,7 +143,7 @@ export async function fetchConfinsMockPayments(
   const includeEdgeCases = options.includeEdgeCases !== false;
 
   const fromDb = await paymentsFromApprovedRequests(now, options);
-  const edge = includeEdgeCases ? staticEdgeCasePayments(now, options, fromDb) : [];
+  const edge = includeEdgeCases ? staticEdgeCasePayments(now, options) : [];
   const merged = [...fromDb, ...edge];
 
   let filtered = merged;

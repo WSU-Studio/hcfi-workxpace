@@ -197,6 +197,14 @@ export default function NewBudgetRequestPage() {
       setError('Select budget plan and enter subject');
       return;
     }
+    if (!formData.approvalSchemaId) {
+      setError(
+        schemasForDept.length === 0
+          ? 'No approval schema is configured for the selected department. Set one up before submitting.'
+          : 'Select an approval schema before submitting'
+      );
+      return;
+    }
     if (selectedMonths.length === 0) {
       setError('Select at least one month for request allocation');
       return;
@@ -436,16 +444,23 @@ export default function NewBudgetRequestPage() {
           )}
 
           <div>
-            <label className="block mb-1.5 font-medium">Approval Schema</label>
+            <label className="block mb-1.5 font-medium">Approval Schema *</label>
             <Select
               value={formData.approvalSchemaId}
               onChange={(e) => setFormData((p) => ({ ...p, approvalSchemaId: e.target.value }))}
+              required
+              aria-invalid={!formData.approvalSchemaId}
             >
               <option value="">-</option>
               {schemasForDept.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </Select>
+            {formData.departmentId && schemasForDept.length === 0 ? (
+              <p className="mt-1.5 text-xs text-amber-600">
+                No approval schema is configured for the selected department.
+              </p>
+            ) : null}
           </div>
 
           <div>
