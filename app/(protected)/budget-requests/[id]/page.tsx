@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
+import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -139,6 +140,7 @@ export default function BudgetRequestDetailPage() {
   const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
   const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
   const allocationsTotal = data.allocations?.reduce((sum, allocation) => sum + Number(allocation.allocation ?? 0), 0) ?? 0;
+  const allocatedMonths = Array.from(new Set((data.allocations || []).map((a) => a.month))).sort((a, b) => a - b);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -302,7 +304,12 @@ export default function BudgetRequestDetailPage() {
         className="print:break-inside-avoid print:text-sm"
         header={<h3 className="font-medium">Request Allocation</h3>}>
         <div className="space-y-4">
-          <Card collapsible collapsed 
+          <div>
+            <label className="mb-2 block font-medium">Month / Period Allocation</label>
+            <MonthChecklistSelector selectedMonths={allocatedMonths} readOnly />
+          </div>
+
+          {/* <Card collapsible collapsed 
           className="bg-orange-50/80"
           header={<h3 className="font-medium">Dev Only: Allocate Budget Per Month (only visible in dev mode)</h3>}>
             <Table>
@@ -325,7 +332,7 @@ export default function BudgetRequestDetailPage() {
                 </TableBodyRow>
               </tbody>
             </Table>
-          </Card>
+          </Card> */}
 
           {data.lineItems?.length ? (
             <Table>
