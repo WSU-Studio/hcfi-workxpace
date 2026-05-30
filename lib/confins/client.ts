@@ -35,7 +35,7 @@ export class ConfinsClient {
     const mockEnabled = await this.isMockEnabled();
     if (mockEnabled) {
       const { getConfinsMockData } = await import('./mock-data');
-      return getConfinsMockData(options.path) as T[];
+      return (await getConfinsMockData(options.path)) as T[];
     }
 
     if (!this.baseUrl) {
@@ -78,7 +78,7 @@ export class ConfinsClient {
       }
       if (isMockFallbackEnabled()) {
         const { getConfinsMockData } = await import('./mock-data');
-        return getConfinsMockData(options.path) as T[];
+        return (await getConfinsMockData(options.path)) as T[];
       }
       throw error;
     } finally {

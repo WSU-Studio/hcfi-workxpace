@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import SettingToggleCard from '@/components/settings/SettingToggleCard';
-import type { ApplicationSettings } from '@/types/app-settings';
-
-const defaultSettings: ApplicationSettings = {
-  confinsUseMock: false,
-};
+import MockJsonEditorCard from '@/components/settings/MockJsonEditorCard';
+import { DEFAULT_APPLICATION_SETTINGS, type ApplicationSettings } from '@/types/app-settings';
 
 type MessageState = {
   type: 'success' | 'error';
@@ -15,7 +12,7 @@ type MessageState = {
 } | null;
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<ApplicationSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ApplicationSettings>(DEFAULT_APPLICATION_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<MessageState>(null);
@@ -27,7 +24,7 @@ export default function SettingsPage() {
         const response = await fetch('/api/application-settings');
         if (!response.ok) throw new Error('Failed to fetch settings');
         const data = (await response.json()) as { settings?: ApplicationSettings };
-        setSettings(data.settings ?? defaultSettings);
+        setSettings(data.settings ?? DEFAULT_APPLICATION_SETTINGS);
       } catch {
         setMessage({ type: 'error', text: 'Failed to load application settings.' });
       } finally {
@@ -36,6 +33,19 @@ export default function SettingsPage() {
     };
 
     fetchSettings();
+  }, []);
+
+  const loadBundledBudgetRealJson = useCallback(async (): Promise<string> => {
+    const response = await fetch('/api/application-settings/mock-fixtures');
+    if (!response.ok) throw new Error('Failed to load default mock fixture');
+    const data = (await response.json()) as {
+      fixtures?: { confinsBudgetRealJson?: string };
+      error?: string;
+    };
+    if (!data.fixtures?.confinsBudgetRealJson) {
+      throw new Error(data.error ?? 'No default fixture available');
+    }
+    return data.fixtures.confinsBudgetRealJson;
   }, []);
 
   const saveSettings = async () => {
@@ -97,6 +107,17 @@ export default function SettingsPage() {
         description="When enabled, CONFINS integration reads mock data instead of external API. Suitable for testing or development fallback."
         enabled={settings.confinsUseMock}
         onChange={(value) => setSettings((prev) => ({ ...prev, confinsUseMock: value }))}
+        disabled={isSaving}
+      />
+
+      <MockJsonEditorCard
+        title="Reconciliation Mock Data (Confins · BudgetRealBySourceTypeX)"
+        description="Override the default mock response used by the Reconciliation page when Mock API is active. Paste the Postman response from Hyundai here, edit, and save. Leave empty to use the bundled fixture."
+        value={settings.confinsMockBudgetRealJson}
+        onChange={(value) =>
+          setSettings((prev) => ({ ...prev, confinsMockBudgetRealJson: value }))
+        }
+        onLoadDefault={loadBundledBudgetRealJson}
         disabled={isSaving}
       />
 
