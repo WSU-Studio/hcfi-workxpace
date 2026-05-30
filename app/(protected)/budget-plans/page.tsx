@@ -10,6 +10,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import Tooltip from '@/components/ui/Tooltip';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
 
 interface Plan {
@@ -22,6 +23,7 @@ interface Plan {
   canReview?: boolean;
   department: { name: string };
   allocations?: { allocation: unknown }[];
+  approvalSchemaId?: string;
 }
 
 interface EditWarningModalProps {
@@ -372,6 +374,16 @@ const handleImportRows = async () => {
                         {p.status}
                       </span>
                       {p.importedViaBulk ? <BulkImportBadge /> : null}
+                      {!p.approvalSchemaId ? (
+                        <Tooltip content="No approval schema">
+                          <span
+                            aria-label="No approval schema"
+                            className="rounded-lg border border-red-300 bg-red-100 px-2 text-sm font-bold text-red-800"
+                          >
+                            !
+                          </span>
+                        </Tooltip>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>{p.department?.name ?? '-'}</TableCell>
