@@ -117,7 +117,7 @@ export default function ReconciliationTable({
           </TableHeaderRow>
         </thead>
         <tbody>
-          {rows.length === 0 && <TableEmptyRow colSpan={11}>Belum ada data rekonsiliasi. Jalankan sync.</TableEmptyRow>}
+          {rows.length === 0 && <TableEmptyRow colSpan={11}>No reconciliation data. Run sync.</TableEmptyRow>}
           {sortedRows.map((row) => {
             const payment = row.payment;
             return (
@@ -163,9 +163,9 @@ export default function ReconciliationTable({
                         className="h-8 px-3 py-1 text-xs text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={!canEditManual || interactionsDisabled}
                         onClick={() => onMarkUnused(payment.id)}
-                        title="Tandai sebagai tidak dipakai — baris ini disembunyikan dari sync berikutnya"
+                        title="Mark Unused — this row will be hidden from the next sync"
                       >
-                        Mark as Unused
+                        Mark Unused
                       </Button>
                     )}
                   </div>
