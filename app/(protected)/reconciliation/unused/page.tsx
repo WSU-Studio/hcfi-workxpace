@@ -117,7 +117,7 @@ export default function ReconciliationUnusedPage() {
   const restoreSelected = async () => {
     if (!canRestore || restoring || selected.size === 0) return;
     const ok = window.confirm(
-      `Kembalikan ${selected.size} baris ke daftar rekonsiliasi?\n\nBaris ini akan kembali muncul saat sync berikutnya sesuai filter Department / Fiscal Year / Month yang relevan.`
+      `Restore ${selected.size} rows to the reconciliation list?\n\nRows will reappear in the next sync according to the relevant Department / Fiscal Year / Month filter.`
     );
     if (!ok) return;
 
@@ -129,11 +129,11 @@ export default function ReconciliationUnusedPage() {
         body: JSON.stringify({ confinsPaymentDocIds: Array.from(selected) }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Restore gagal');
-      toast.success(`${data.restoredCount ?? 0} baris berhasil dikembalikan.`);
+      if (!res.ok) throw new Error(data.error ?? 'Restore failed');
+      toast.success(`${data.restoredCount ?? 0} rows restored successfully.`);
       await loadRows();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Restore gagal';
+      const msg = e instanceof Error ? e.message : 'Restore failed';
       toast.error(msg);
     } finally {
       setRestoring(false);
@@ -145,7 +145,7 @@ export default function ReconciliationUnusedPage() {
   if (!canView) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-gray-600">Anda tidak memiliki akses ke halaman ini.</p>
+        <p className="text-sm text-gray-600">You don&apos;t have access to this page.</p>
       </Card>
     );
   }
@@ -159,9 +159,7 @@ export default function ReconciliationUnusedPage() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Marked Unused</h2>
           <p className="mt-1 text-sm text-gray-600">
-            Daftar pembayaran Confins yang ditandai sebagai tidak dipakai untuk reconciliation. Baris di sini
-            disembunyikan dari daftar kerja saat sync. Pilih satu/beberapa baris lalu klik <strong>Restore</strong> untuk
-            mengembalikannya ke daftar sync-able.
+            List of Confins payments marked as Unused for reconciliation. Rows here are hidden from the work list when syncing. Select one/multiple rows and click <strong>Restore</strong> to bring them back to the syncable list.
           </p>
         </div>
         <Link
@@ -179,7 +177,7 @@ export default function ReconciliationUnusedPage() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari InterfaceID / Invoice / Vendor / Description..."
+              placeholder="Search Invoice / Vendor / Description by keywords..."
               className="h-9 w-72 rounded-md border border-gray-300 px-3 text-sm focus:border-gray-500 focus:outline-none"
             />
             <Button type="button" variant="outline" onClick={loadRows} disabled={loading}>
@@ -213,7 +211,7 @@ export default function ReconciliationUnusedPage() {
         )}
         {!canRestore && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            Anda hanya dapat melihat — restore membutuhkan izin &quot;Edit Reconciliation Mapping&quot;.
+            You can only view — restore requires &quot;Edit Reconciliation Mapping&quot; permission.
           </p>
         )}
 
@@ -247,8 +245,8 @@ export default function ReconciliationUnusedPage() {
               {filteredRows.length === 0 && !loading && (
                 <TableEmptyRow colSpan={12}>
                   {rows.length === 0
-                    ? 'Belum ada pembayaran yang ditandai sebagai unused.'
-                    : 'Tidak ada baris yang cocok dengan pencarian.'}
+                    ? 'No payments marked as Unused.'
+                    : 'No rows matched the search.'}
                 </TableEmptyRow>
               )}
               {filteredRows.map((r) => (
