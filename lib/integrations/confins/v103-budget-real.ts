@@ -220,7 +220,14 @@ function resolveSource(row: ConfinsBudgetRealApiRow): ConfinsPaymentSource {
  * identitas sesi interface, BUKAN identitas baris. Karena itu kami sengaja
  * MENGECUALIKAN `InterfaceID` dari komposisi ID. Field stabil yang dipakai:
  *
- *   PaymentRequestNo | JournalNo | GLAccount | DC | VoucherEGL | Activity | amount(cents)
+ *   PaymentRequestNo | JournalNo | GLAccount | DC | VoucherEGL | Activity
+ *   | Period | InvoiceNo | amount(cents)
+ *
+ * `Period` dimasukkan agar baris recurring schedule (mis. amortization
+ * `SC...` yang di-post 12x ke periode berbeda) tidak collide ID — semua
+ * field stabilnya sama kecuali Period. `InvoiceNo` ditambahkan sebagai
+ * pembeda tambahan untuk batch invoice yang punya PR/JournalNo identik
+ * tapi invoice fisik berbeda.
  *
  * Hash SHA-1 di-truncate 16 hex untuk ringkas namun cukup unik. Prefix
  * `PR-Journal-` dipertahankan untuk keterbacaan di log/DB.
@@ -244,9 +251,11 @@ function stableRowCanonicalKey(row: ConfinsBudgetRealApiRow): string {
   const dc = String(row.DC ?? '').trim();
   const voucher = String(row.VoucherEGL ?? '').trim();
   const activity = String(row.Activity ?? '').trim();
+  const period = String(row.Period ?? '').trim();
+  const invoiceNo = String(row.InvoiceNo ?? '').trim();
   const amt = parseConfinsOriginAmount(row.OriginAmount);
   const amtCents = Math.round(amt * 100);
-  return `${pr}|${jn}|${gl}|${dc}|${voucher}|${activity}|${amtCents}`;
+  return `${pr}|${jn}|${gl}|${dc}|${voucher}|${activity}|${period}|${invoiceNo}|${amtCents}`;
 }
 
 export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): ConfinsCashDisbursement[] {

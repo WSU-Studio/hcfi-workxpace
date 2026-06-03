@@ -212,24 +212,24 @@ export default function ReconciliationPage() {
       setPayments(payData.payments ?? []);
       setDepartments(planData.departments ?? []);
       setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
-      const rawCount = payData.meta?.rawRowCount ?? 0;
+      // const rawCount = payData.meta?.rawRowCount ?? 0;
       const matchedRequest = payData.meta?.filteredRowCount ?? 0;
       const shown = payData.meta?.recordCount ?? 0;
-      const edgeCases = payData.meta?.edgeCaseCount ?? 0;
+      // const edgeCases = payData.meta?.edgeCaseCount ?? 0;
       const sourceHint =
         payData.meta?.dataSource === 'confins-api'
           ? 'Confins API'
           : payData.meta?.dataSource === 'confins-mock-fixture'
             ? 'fixture/mock Confins'
             : 'mock lokal';
-      const edgeHint =
-        edgeCases > 0
-          ? ` Termasuk ${edgeCases} baris contoh QA (Mock API aktif).`
-          : matchedRequest === 0 && rawCount > 0
-            ? ' Tidak ada RequestDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
-            : '';
+      // const edgeHint =
+      //   edgeCases > 0
+      //     ? ` Termasuk ${edgeCases} baris contoh QA (Mock API aktif).`
+      //     : matchedRequest === 0 && rawCount > 0
+      //       ? ' Tidak ada RequestDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
+      //       : '';
       setSyncMessage(
-        `Sync berhasil (${sourceHint}): ${shown} baris ditampilkan (RequestDate ${month}/${fiscalYear}). API: ${rawCount} baris → ${matchedRequest} cocok filter request.${edgeHint} ${normalizedRequests.length} budget request Approved.`
+        `Synced from ${sourceHint}: ${shown} rows shown (RequestDate ${month}/${fiscalYear}) ${matchedRequest} matched filter request.`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
@@ -499,12 +499,12 @@ export default function ReconciliationPage() {
             </Button>
           </div>
           <div className="flex items-end text-sm text-gray-500">
-            {lastSyncedAt ? `Last synced ${formatDate(lastSyncedAt)}` : 'Belum pernah sync'}
+            {lastSyncedAt ? `Last synced ${formatDate(lastSyncedAt)}` : 'Not synced yet'}
           </div>
         </div>
         {!canSync && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Anda tidak memiliki izin menjalankan sinkronisasi.
+            You don&apos;t have permission to run the synchronization.
           </p>
         )}
         {syncMessage && <p className="text-sm text-gray-700">{syncMessage}</p>}
