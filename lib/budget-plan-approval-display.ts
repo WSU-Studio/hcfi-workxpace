@@ -8,7 +8,10 @@ export type BudgetPlanHistoryEntry = {
     currentState?: { allocationAdjustmentNote?: string | null } | null;
   } | null;
   timestamp: string;
-  user: { name: string };
+  // Sengaja dilonggarkan: history mungkin punya user `null` (sistem) atau
+  // `name` `null` (akun di-soft-delete). Helper sudah handle via optional
+  // chaining; type ini juga dipakai oleh budget-request detail page.
+  user: { name: string | null } | null;
 };
 
 function getHistoryStatus(history: BudgetPlanHistoryEntry): string | null {
