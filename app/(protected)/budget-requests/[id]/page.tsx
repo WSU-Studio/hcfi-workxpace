@@ -429,6 +429,7 @@ export default function BudgetRequestDetailPage() {
                     <TableHead>Role</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Updated At</TableHead>
                   </TableHeaderRow>
                 </thead>
                 <tbody>
@@ -439,6 +440,7 @@ export default function BudgetRequestDetailPage() {
                       : level.levelType === 'Reviewer'
                         ? 'Reviewed'
                         : 'Approved';
+                    const stepProgress = getApprovalStepProgress(level.levelType, data.histories ?? []);
                     return (
                       <TableBodyRow key={level.stepOrder}>
                         <TableCell>{level.stepOrder}</TableCell>
@@ -457,6 +459,7 @@ export default function BudgetRequestDetailPage() {
                             {stepStatusLabel}
                           </span>
                         </TableCell>
+                        <TableCell>{stepProgress.timestampLabel}</TableCell>
                       </TableBodyRow>
                     );
                   })}
