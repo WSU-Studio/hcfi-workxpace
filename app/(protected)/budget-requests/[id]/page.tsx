@@ -289,11 +289,11 @@ export default function BudgetRequestDetailPage() {
               {data.status}
             </span>
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 print:col-span-2">
             <span className="text-gray-500">Description:</span>
             <RichTextContent value={data.description} className="mt-1" />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 print:col-span-2">
             <span className="text-gray-500">Notes:</span>
             <p className="mt-1 text-gray-700 whitespace-pre-wrap">{data.notes || '-'}</p>
           </div>
