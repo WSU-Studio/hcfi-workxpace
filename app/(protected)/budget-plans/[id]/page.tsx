@@ -443,7 +443,7 @@ export default function BudgetPlanDetailPage() {
                               ? ''
                               : '';
                         const stampToneClass = isApproved
-                          ? 'border-blue-400 text-blue-500'
+                          ? 'border-2 border-blue-400 text-blue-500'
                           : isPending
                             ? ''
                             : isRevision
@@ -464,7 +464,7 @@ export default function BudgetPlanDetailPage() {
                             </div>
                             <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
                               <span
-                                className={`inline-flex items-center rounded-full border-2 h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
+                                className={`inline-flex items-center rounded-full h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
                               >
                                 {stampLabel}
                               </span>
