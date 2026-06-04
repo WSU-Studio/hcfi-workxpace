@@ -43,8 +43,8 @@ const Card = ({
         type="button"
         aria-label={isCollapsed ? 'Expand card' : 'Collapse card'}
         className="flex min-h-6 items-center justify-between gap-3 cursor-pointer hover:text-blue-500 transition-colors duration-200 w-full group"
-        onClick={() => setIsCollapsed((prev) => !prev)}
-        aria-expanded={!isCollapsed}
+        onClick={ collapsible ? () => setIsCollapsed((prev) => !prev) : undefined }
+        aria-expanded={collapsible ? !isCollapsed : undefined}
       >
         <div className="min-h-6 min-w-0 flex-1 flex items-center">{headerContent}</div>
         <div
