@@ -376,7 +376,7 @@ export default function BudgetPlanDetailPage() {
             collapsible
             header={<h3 className="font-medium">Approval Escalation</h3>}
           >
-            <Table>
+            <Table className="print:hidden">
               <thead>
                 <TableHeaderRow>
                   <TableHead>#</TableHead>
@@ -415,6 +415,71 @@ export default function BudgetPlanDetailPage() {
                 })}
               </tbody>
             </Table>
+
+            <div className="hidden print:block">
+              {(() => {
+                const approvalLevels = plan.approvalSchema!.approvalLevels;
+                return (
+                  <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
+                    <div
+                      className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
+                      style={{
+                        gridTemplateColumns: `repeat(${approvalLevels.length}, minmax(140px, 1fr))`,
+                      }}
+                    >
+                      {approvalLevels.map((l, i) => {
+                        const stepProgress = getApprovalStepProgress(l.levelType, histories);
+                        const isApproved =
+                          stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
+                        const isPending = stepProgress.statusLabel === 'Pending';
+                        const isRevision = stepProgress.statusLabel === 'Revision';
+                        const stampLabel = isApproved
+                          ? stepProgress.statusLabel === 'Reviewed'
+                            ? 'Accept'
+                            : 'Accept'
+                          : isPending
+                            ? ''
+                            : isRevision
+                              ? ''
+                              : '';
+                        const stampToneClass = isApproved
+                          ? 'border-blue-400 text-blue-500'
+                          : isPending
+                            ? ''
+                            : isRevision
+                              ? ''
+                              : '';
+                        const isLastCol = i === approvalLevels.length - 1;
+                        const colBorder = isLastCol ? '' : 'border-r border-gray-300';
+                        return (
+                          <div
+                            key={i}
+                            className={`flex flex-col text-sm print:break-inside-avoid ${colBorder}`}
+                          >
+                            <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
+                              {l.role?.roleName ?? '-'}
+                            </div>
+                            <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
+                              {stepProgress.actorName ?? <span className="text-gray-300">—</span>}
+                            </div>
+                            <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
+                              <span
+                                className={`inline-flex items-center rounded-full border-2 h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
+                              >
+                                {stampLabel}
+                              </span>
+                            </div>
+                            <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
+                              {stepProgress.timestampLabel}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
 
             {canEdit || reviewMeta?.canReview ? (
               <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100 print:hidden">

@@ -37,11 +37,17 @@ export function formatBudgetPlanHistoryDateTime(date: string): string {
   });
 }
 
+export type ApprovalStepProgress = {
+  statusLabel: string;
+  timestampLabel: string;
+  actorName: string | null;
+};
+
 /** Derives per-step status for the approval escalation table from activity history. */
 export function getApprovalStepProgress(
   levelType: string,
   histories: BudgetPlanHistoryEntry[]
-): { statusLabel: string; timestampLabel: string } {
+): ApprovalStepProgress {
   const latestDraftReset = histories.find((history) => getHistoryStatus(history) === 'Draft');
   const scopedHistories = latestDraftReset
     ? histories.filter((history) => new Date(history.timestamp) > new Date(latestDraftReset.timestamp))
@@ -55,12 +61,15 @@ export function getApprovalStepProgress(
       const status = getHistoryStatus(history);
       return status ? ['Reviewed', 'Revision', 'Declined'].includes(status) : false;
     });
-    if (!reviewerHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
+    if (!reviewerHistory) {
+      return { statusLabel: 'Pending', timestampLabel: '-', actorName: null };
+    }
 
     const reviewerStatus = getHistoryStatus(reviewerHistory) || 'Processed';
     return {
       statusLabel: reviewerStatus,
       timestampLabel: formatBudgetPlanHistoryDateTime(reviewerHistory.timestamp),
+      actorName: reviewerHistory.user?.name ?? null,
     };
   }
 
@@ -71,10 +80,13 @@ export function getApprovalStepProgress(
     return hasReviewedStep && reviewedAt && new Date(history.timestamp) > new Date(reviewedAt.timestamp);
   });
 
-  if (!approverHistory) return { statusLabel: 'Pending', timestampLabel: '-' };
+  if (!approverHistory) {
+    return { statusLabel: 'Pending', timestampLabel: '-', actorName: null };
+  }
   const approverStatus = getHistoryStatus(approverHistory) || 'Processed';
   return {
     statusLabel: approverStatus,
     timestampLabel: formatBudgetPlanHistoryDateTime(approverHistory.timestamp),
+    actorName: approverHistory.user?.name ?? null,
   };
 }
