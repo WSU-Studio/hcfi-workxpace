@@ -244,6 +244,20 @@ const handlePreviewImportFile = async (file: File) => {
     }
 
     setImportRows(mappedRows);
+
+    const missingApprovalSchema = mappedRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => !row.approvalSchemaCode);
+    if (missingApprovalSchema.length > 0) {
+      const subjects = missingApprovalSchema
+        .slice(0, 3)
+        .map(({ row, index }) => row.subject || `row ${index + 1}`)
+        .join(', ');
+      const more = missingApprovalSchema.length > 3 ? ` (+${missingApprovalSchema.length - 3} more)` : '';
+      setImportError(
+        `Approval Schema Code is required. Missing on: ${subjects}${more}.`
+      );
+    }
   } catch {
     setImportError('Failed to read Excel file');
   }
@@ -254,6 +268,11 @@ const handleImportRows = async () => {
 
   if (importRows.length === 0) {
     setImportError('Please upload and preview Excel file first');
+    return;
+  }
+
+  if (importRows.some((row) => !row.approvalSchemaCode)) {
+    setImportError('Approval Schema Code is required for every row.');
     return;
   }
 
@@ -547,7 +566,15 @@ const handleImportRows = async () => {
                           <td className="px-3 py-2 text-right">{formatCurrency(row.oct)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.nov)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.dec)}</td>
-                          <td className="px-3 py-2">{row.approvalSchemaCode}</td>
+                          <td
+                            className={`px-3 py-2 ${
+                              row.approvalSchemaCode
+                                ? ''
+                                : 'bg-red-50 text-red-600 font-medium'
+                            }`}
+                          >
+                            {row.approvalSchemaCode || 'required'}
+                          </td>
                         </tr>
                       ))
                     )}

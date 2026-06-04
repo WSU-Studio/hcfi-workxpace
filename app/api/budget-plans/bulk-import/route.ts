@@ -157,6 +157,10 @@ export async function POST(req: NextRequest) {
             throw new Error('Subject is required');
           }
 
+          if (!approvalSchemaCode) {
+            throw new Error(`Approval Schema Code is required for subject: ${subject || '-'}`);
+          }
+
           const department = departmentByCode.get(departmentCode);
           if (!department) {
             throw new Error(`Department Code not found: ${departmentCode}`);
@@ -167,11 +171,8 @@ export async function POST(req: NextRequest) {
             throw new Error(`Project Code not found: ${projectCode}`);
           }
 
-          const approvalSchema = approvalSchemaCode
-            ? approvalSchemaByName.get(approvalSchemaCode) ?? null
-            : null;
-
-          if (approvalSchemaCode && !approvalSchema) {
+          const approvalSchema = approvalSchemaByName.get(approvalSchemaCode) ?? null;
+          if (!approvalSchema) {
             throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
           }
 
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
               originOffice,
               departmentId: department.id,
               projectId: project?.id || null,
-              approvalSchemaId: approvalSchema?.id || null,
+              approvalSchemaId: approvalSchema.id,
               requestorId: session.user.id,
               importedViaBulk: true,
               status: 'Draft',
