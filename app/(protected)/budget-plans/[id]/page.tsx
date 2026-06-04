@@ -448,6 +448,7 @@ export default function BudgetPlanDetailPage() {
       <Card
         collapsible
         collapsed
+        className="print:hidden"
         header={<h3 className="font-medium">Activity History</h3>}
       >
         {histories.length === 0 ? (

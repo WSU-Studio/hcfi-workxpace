@@ -514,7 +514,9 @@ export default function PaymentRequestDetailPage() {
         </div>
       </Card>
 
-      <Card collapsible collapsed header={<h3 className="font-medium">Activity History</h3>}>
+      <Card collapsible collapsed 
+        className="print:hidden"
+        header={<h3 className="font-medium">Activity History</h3>}>
         {data.histories?.length ? (
           <div className="space-y-2">
             {data.histories.map((history) => (
