@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Import, X } from 'lucide-react';
+import { Plus, Import, X, Lock } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -12,6 +12,7 @@ import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
 import { validateXlsxFile } from '@/lib/xlsx-validation';
 
 interface Plan {
@@ -25,6 +26,7 @@ interface Plan {
   department: { name: string };
   allocations?: { allocation: unknown }[];
   approvalSchemaId?: string;
+  budgetRequestCount?: number;
 }
 
 interface EditWarningModalProps {
@@ -407,6 +409,19 @@ const handleImportRows = async () => {
                             className="rounded-lg border border-red-300 bg-red-100 px-2 text-sm font-bold text-red-800"
                           >
                             !
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                      <RequestCountBadge count={p.budgetRequestCount ?? 0} />
+                      {(p.budgetRequestCount ?? 0) > 0 ? (
+                        <Tooltip
+                          content={`Locked: ${p.budgetRequestCount} budget request${(p.budgetRequestCount ?? 0) > 1 ? 's' : ''} issued`}
+                        >
+                          <span
+                            aria-label="Locked"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-gray-300 bg-gray-100 text-gray-600"
+                          >
+                            <Lock className="h-3 w-3" />
                           </span>
                         </Tooltip>
                       ) : null}

@@ -108,6 +108,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         costCenter: true,
         opex: true,
         opexAllocation: true,
+        _count: { select: { budgetRequests: true } },
       },
     });
     if (!plan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -159,10 +160,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       canReview = !!next && userRoleIds.includes(next.roleId);
     }
 
+    const budgetRequestCount = plan._count?.budgetRequests ?? 0;
+    const isRequestor = !!session?.user?.id && plan.requestorId === session.user.id;
+    const canEdit = isRequestor && budgetRequestCount === 0;
+    const editLockReason = !isRequestor
+      ? null
+      : budgetRequestCount > 0
+        ? `Locked: ${budgetRequestCount} budget request${budgetRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`
+        : null;
+
     return NextResponse.json({
       plan: {
         ...plan,
         requestorName: requestor?.name ?? null,
+        budgetRequestCount,
       },
       fiscalYears,
       departments,
@@ -177,6 +188,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       originOffices,
       histories,
       reviewMeta: { canReview, nextStepOrder },
+      editMeta: { canEdit, editLockReason, budgetRequestCount },
     });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
@@ -192,11 +204,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const body = await request.json();
     const existing = await prisma.budgetPlan.findUnique({
       where: { id },
-      select: { id: true, code: true, requestorId: true, status: true },
+      select: {
+        id: true,
+        code: true,
+        requestorId: true,
+        status: true,
+        _count: { select: { budgetRequests: true } },
+      },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (existing.requestorId !== session.user.id) {
       return NextResponse.json({ error: 'Only requestor can edit this budget plan' }, { status: 403 });
+    }
+    const linkedRequestCount = existing._count?.budgetRequests ?? 0;
+    if (linkedRequestCount > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot edit: ${linkedRequestCount} budget request${linkedRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`,
+        },
+        { status: 409 }
+      );
     }
     if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });

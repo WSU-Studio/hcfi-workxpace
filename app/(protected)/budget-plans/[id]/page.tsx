@@ -11,8 +11,10 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
+import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -41,6 +43,7 @@ type PlanDetail = {
   approvalSchema?: {
     approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
   } | null;
+  budgetRequestCount?: number;
 };
 type OriginOfficeOption = {
   code: string;
@@ -122,6 +125,11 @@ export default function BudgetPlanDetailPage() {
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
   const [histories, setHistories] = useState<BudgetPlanHistoryEntry[]>([]);
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
+  const [editMeta, setEditMeta] = useState<{
+    canEdit: boolean;
+    editLockReason: string | null;
+    budgetRequestCount: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -140,6 +148,7 @@ export default function BudgetPlanDetailPage() {
           setAccountOptions([]);
           setHistories([]);
           setReviewMeta(null);
+          setEditMeta(null);
           return;
         }
         const data = await r.json();
@@ -148,12 +157,14 @@ export default function BudgetPlanDetailPage() {
         setAccountOptions(data?.accountOptions || []);
         setHistories(data?.histories || []);
         setReviewMeta(data?.reviewMeta ?? null);
+        setEditMeta(data?.editMeta ?? null);
       })
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
         setOriginOffices([]);
         setReviewMeta(null);
+        setEditMeta(null);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -179,7 +190,13 @@ export default function BudgetPlanDetailPage() {
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const opexType = plan.opexType || '-';
-  const canEdit = !!session?.user?.id && plan.requestorId === session.user.id;
+  const isRequestor = !!session?.user?.id && plan.requestorId === session.user.id;
+  // Server is the source of truth (factors in: requestor + no BR issued).
+  // Fallback to legacy client-side rule if API hasn't responded yet.
+  const canEdit = editMeta ? editMeta.canEdit : isRequestor;
+  const editLocked = isRequestor && editMeta?.canEdit === false;
+  const editLockReason = editMeta?.editLockReason ?? null;
+  const budgetRequestCount = editMeta?.budgetRequestCount ?? plan.budgetRequestCount ?? 0;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -481,29 +498,45 @@ export default function BudgetPlanDetailPage() {
               })()}
             </div>
 
-            {canEdit || reviewMeta?.canReview ? (
-              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100 print:hidden">
-                {canEdit ? (
-                  plan.status === 'Approved' ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditWarningOpen(true)}
-                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 cursor-pointer"
-                    >
-                      <Pencil className="w-5 h-5" />
-                      Edit
-                    </button>
-                  ) : (
-                    <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                      <Pencil className="w-5 h-5" />Edit
+            {canEdit || editLocked || reviewMeta?.canReview ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100 print:hidden">
+                <div className="flex flex-wrap items-center gap-2">
+                  {budgetRequestCount > 0 ? (
+                    <RequestCountBadge count={budgetRequestCount} />
+                  ) : null}
+                  {editLocked ? (
+                    <Tooltip content={editLockReason ?? 'Locked: budget requests have been issued'}>
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
+                        <Lock className="h-3.5 w-3.5" />
+                        Locked from edit
+                      </span>
+                    </Tooltip>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {canEdit ? (
+                    plan.status === 'Approved' ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditWarningOpen(true)}
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 cursor-pointer"
+                      >
+                        <Pencil className="w-5 h-5" />
+                        Edit
+                      </button>
+                    ) : (
+                      <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                        <Pencil className="w-5 h-5" />Edit
+                      </Link>
+                    )
+                  ) : null}
+                  {reviewMeta?.canReview ? (
+                    <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                      <ScanSearch className="w-5 h-5" />Review
                     </Link>
-                  )
-                ) : null}
-                {reviewMeta?.canReview ? (
-                  <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                    <ScanSearch className="w-5 h-5" />Review
-                  </Link>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </Card>

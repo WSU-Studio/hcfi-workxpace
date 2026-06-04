@@ -35,6 +35,7 @@ export async function GET(request: Request) {
         department: { select: { id: true, code: true, name: true } },
         allocations: { orderBy: { month: 'asc' } },
         approvalSchema: { include: { approvalLevels: true } },
+        _count: { select: { budgetRequests: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -44,15 +45,26 @@ export async function GET(request: Request) {
       orderBy: { code: 'asc' },
     });
 
-    const enrichedPlans = plans.map(({ approvalSchema, ...plan }) => ({
-      ...plan,
-      canEdit: !!session?.user?.id && plan.requestorId === session.user.id,
-      canReview: canUserActOnCurrentBudgetPlanStep({
-        planStatus: plan.status,
-        approvalLevels: approvalSchema?.approvalLevels ?? [],
-        userRoleIds,
-      }),
-    }));
+    const enrichedPlans = plans.map(({ approvalSchema, _count, ...plan }) => {
+      const budgetRequestCount = _count?.budgetRequests ?? 0;
+      const isRequestor =
+        !!session?.user?.id && plan.requestorId === session.user.id;
+      // BR has been issued against this plan → freeze the plan for edits.
+      // Even the original requestor cannot edit a plan that already drives BRs,
+      // because changing it would invalidate the budget against issued requests.
+      const canEdit = isRequestor && budgetRequestCount === 0;
+
+      return {
+        ...plan,
+        budgetRequestCount,
+        canEdit,
+        canReview: canUserActOnCurrentBudgetPlanStep({
+          planStatus: plan.status,
+          approvalLevels: approvalSchema?.approvalLevels ?? [],
+          userRoleIds,
+        }),
+      };
+    });
 
     return NextResponse.json({ plans: enrichedPlans, departments });
   } catch (error) {
