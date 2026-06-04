@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import accountOptions from '@/data/accounts.json';
 import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
+import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
 
 export const dynamic = 'force-dynamic';
 
@@ -169,9 +170,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         ? `Locked: ${budgetRequestCount} budget request${budgetRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`
         : null;
 
+    // Realization & Outstanding per month: fetch linked BRs (only the fields we
+    // need for bucketing) and let the pure helper compute the values.
+    const linkedRequests = budgetRequestCount > 0
+      ? await prisma.budgetRequest.findMany({
+          where: { budgetPlanId: id },
+          select: { requestDate: true, grandTotal: true },
+        })
+      : [];
+    const enrichedAllocations = enrichAllocationsWithRealization(
+      plan.allocations,
+      linkedRequests,
+      plan.fiscalYear,
+    );
+
     return NextResponse.json({
       plan: {
         ...plan,
+        allocations: enrichedAllocations,
         requestorName: requestor?.name ?? null,
         budgetRequestCount,
       },

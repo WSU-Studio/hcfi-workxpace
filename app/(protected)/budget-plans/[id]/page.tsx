@@ -34,7 +34,7 @@ type PlanDetail = {
   opexType?: string | null;
   department: { name: string };
   project: { name: string } | null;
-  allocations: { month: number; allocation: unknown }[];
+  allocations: { month: number; allocation: unknown; realization?: number; outstanding?: number }[];
   category?: { id: string; name: string } | null;
   categoryKeyIndex?: { id: string; name: string } | null;
   costCenter?: { id: string; name: string } | null;
@@ -189,6 +189,9 @@ export default function BudgetPlanDetailPage() {
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const totalRealization =
+    plan.allocations?.reduce((s, a) => s + Number(a.realization ?? 0), 0) ?? 0;
+  const totalOutstanding = total - totalRealization;
   const opexType = plan.opexType || '-';
   const isRequestor = !!session?.user?.id && plan.requestorId === session.user.id;
   // Server is the source of truth (factors in: requestor + no BR issued).
@@ -339,6 +342,8 @@ export default function BudgetPlanDetailPage() {
               <TableHeaderRow>
                 <TableHead className="text-left">Month</TableHead>
                 <TableHead className="text-right">Allocation</TableHead>
+                <TableHead className="text-right">Realization</TableHead>
+                <TableHead className="text-right">Outstanding</TableHead>
               </TableHeaderRow>
             </thead>
             <tbody>
@@ -346,11 +351,15 @@ export default function BudgetPlanDetailPage() {
                 <TableBodyRow key={a.month}>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(a.realization ?? 0))}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(a.outstanding ?? 0))}</TableCell>
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">
                 <TableCell>Total</TableCell>
                 <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totalRealization)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totalOutstanding)}</TableCell>
               </TableBodyRow>
             </tbody>
           </Table>
