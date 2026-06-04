@@ -12,6 +12,7 @@ import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import { validateXlsxFile } from '@/lib/xlsx-validation';
 
 interface Plan {
   id: string;
@@ -202,6 +203,12 @@ const handlePreviewImportFile = async (file: File) => {
   setImportError('');
   setImportRows([]);
   setImportFileName(file.name);
+
+  const validation = await validateXlsxFile(file);
+  if (!validation.valid) {
+    setImportError(validation.error);
+    return;
+  }
 
   try {
     const XLSX = await import('xlsx');
@@ -495,11 +502,12 @@ const handleImportRows = async () => {
                     Upload XLSX
                     <input
                       type="file"
-                      accept=".xlsx,.xls"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handlePreviewImportFile(file);
+                        e.target.value = '';
                       }}
                     />
                   </label>
