@@ -7,6 +7,7 @@ import {
   canUserActOnCurrentBudgetPlanStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -164,6 +165,16 @@ export async function POST(request: Request) {
         selectedMonths,
         totalAllocation,
       },
+    });
+
+    // Fan-out to reviewers/approvers configured in the approval schema so
+    // they know there's a fresh BP waiting for review.
+    await createBudgetPlanNotifications({
+      planId: plan.id,
+      actorUserId: session.user.id,
+      status: 'Draft',
+      planCode: plan.code,
+      variant: 'submit',
     });
 
     return NextResponse.json(plan);

@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic';
 
 function extractBudgetPlanCode(title: string, message: string) {
   if (!title.toLowerCase().includes('budget plan')) return null;
-  const match = message.match(/^([A-Za-z0-9-]+)\s+status changed to/i);
+  const match =
+    message.match(/^([A-Za-z0-9-]+)\s+status changed to/i) ||
+    message.match(/^([A-Za-z0-9-]+)\s+(was submitted|was updated)/i);
   return match?.[1] ?? null;
 }
 
