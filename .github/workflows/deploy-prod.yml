@@ -1,0 +1,58 @@
+name: Build & Deploy to Self-Hosted Runner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    environment: production
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      MODE_ENV: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env file
+        run: |
+          touch .env
+          echo "DATABASE_URL=\"${{ secrets.DATABASE_URL }}\"" >> .env
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "" >> .env
+          echo "AWS_ACCESS_KEY_ID=\"${{ secrets.AWS_ACCESS_KEY_ID != 'EMPTY' && secrets.AWS_ACCESS_KEY_ID || '' }}\"" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=\"${{ secrets.AWS_SECRET_ACCESS_KEY != 'EMPTY' && secrets.AWS_SECRET_ACCESS_KEY || '' }}\"" >> .env
+          echo "AWS_REGION=\"${{ secrets.AWS_REGION }}\"" >> .env
+          echo "AWS_S3_BUCKET=\"${{ secrets.AWS_S3_BUCKET }}\"" >> .env
+          echo "" >> .env
+          echo "ADINSKEY=\"${{ secrets.ADINSKEY }}\"" >> .env
+          echo "CONFINS_BASE_URL=\"${{ secrets.CONFINS_BASE_URL }}\"" >> .env
+          echo "CONFINS_USE_MOCK=${{ secrets.CONFINS_USE_MOCK }}" >> .env
+          echo "CONFINS_MOCK_FALLBACK=${{ secrets.CONFINS_MOCK_FALLBACK }}" >> .env
+          echo "CONFINS_INCOMING_REF_FIELD=\"${{ secrets.CONFINS_INCOMING_REF_FIELD }}\"" >> .env
+          echo "NEXT_PUBLIC_SYNC_MANAGED_MASTERS=\"${{ secrets.NEXT_PUBLIC_SYNC_MANAGED_MASTERS }}\"" >> .env
+          echo "" >> .env
+          echo "NEXTAUTH_URL=\"${{ secrets.NEXTAUTH_URL }}\"" >> .env
+          echo "NEXTAUTH_SECRET=\"${{ secrets.NEXTAUTH_SECRET }}\"" >> .env
+          echo "" >> .env
+          echo "NODE_ENV=production" >> .env
+  
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      
+      - name: Build application
+        run: npm run build
+
+      - name: Apply Database Migrations
+        run: npx prisma migrate deploy
+
+      - name: Restart App with PM2
+        run: |
+          pm2 restart nextjs-app || pm2 start npm --name "nextjs-app" -- start
+          pm2 save
+        
