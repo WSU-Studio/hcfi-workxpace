@@ -194,7 +194,8 @@ export function parseConfinsShortDate(raw?: string): Date | null {
  * Jangan pakai InterfaceID — itu ID batch integrasi (sama untuk banyak baris), bukan kode BR.
  */
 export function getConfinsIncomingRefFieldName(): string {
-  return process.env.CONFINS_INCOMING_REF_FIELD?.trim() || 'FormCode';
+  // return process.env.CONFINS_INCOMING_REF_FIELD?.trim() || 'FormCode';
+  return process.env.CONFINS_INCOMING_REF_FIELD?.trim() || 'Description';
 }
 
 export function extractBudgetRequestRef(row: ConfinsBudgetRealApiRow): string {

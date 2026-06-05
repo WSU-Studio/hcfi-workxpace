@@ -40,6 +40,7 @@ const restrictedMenuAccess: MenuAccess = {
   viewRole: false,
   viewApprovalSchema: false,
   viewActivityHistory: false,
+  viewBudgetPlanRealization: false,
 };
 
 const Sidebar = () => {

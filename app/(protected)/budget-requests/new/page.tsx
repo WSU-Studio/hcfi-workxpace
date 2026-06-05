@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { X } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -16,6 +16,7 @@ import BudgetRequestItemsEditor, {
   getItemSubtotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { notifyFormError } from '@/lib/forms/feedback';
 
 const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
@@ -78,6 +79,14 @@ export default function NewBudgetRequestPage() {
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
   const [taxConfig, setTaxConfig] = useState({ vatPercent: 11, whtPercent: 2 });
   const [error, setError] = useState('');
+
+  const errorBannerRef = useRef<HTMLDivElement | null>(null);
+  const budgetPlanFieldRef = useRef<HTMLDivElement | null>(null);
+  const subjectFieldRef = useRef<HTMLDivElement | null>(null);
+  const descriptionFieldRef = useRef<HTMLDivElement | null>(null);
+  const monthsFieldRef = useRef<HTMLDivElement | null>(null);
+  const itemsFieldRef = useRef<HTMLDivElement | null>(null);
+  const approvalSchemaFieldRef = useRef<HTMLDivElement | null>(null);
 
   const totalAmount = useMemo(
     () => lineItems.reduce((sum, item) => sum + getItemTotal(item), 0),
@@ -190,33 +199,52 @@ export default function NewBudgetRequestPage() {
   const isBudgetPlanSelected = formData.budgetPlanId !== '';
   const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
 
+  const reportError = (
+    message: string,
+    fieldRef?: React.RefObject<HTMLDivElement | null>,
+  ) => {
+    setError(message);
+    notifyFormError(message, { fieldRef });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!formData.budgetPlanId || !formData.subject) {
-      setError('Select budget plan and enter subject');
+    if (!formData.budgetPlanId) {
+      reportError('Select a budget plan before submitting', budgetPlanFieldRef);
+      return;
+    }
+    if (!formData.subject) {
+      reportError('Subject is required', subjectFieldRef);
       return;
     }
     if (!formData.approvalSchemaId) {
-      setError(
+      reportError(
         schemasForDept.length === 0
           ? 'No approval schema is configured for the selected department. Set one up before submitting.'
-          : 'Select an approval schema before submitting'
+          : 'Select an approval schema before submitting',
+        approvalSchemaFieldRef,
       );
       return;
     }
     if (selectedMonths.length === 0) {
-      setError('Select at least one month for request allocation');
+      reportError(
+        'Select at least one month for request allocation',
+        monthsFieldRef,
+      );
       return;
     }
     const hasItemName = lineItems.some((item) => item.item.trim().length > 0);
     if (!hasItemName || totalAmount <= 0) {
-      setError('Add item details with a total amount greater than 0');
+      reportError(
+        'Add item details with a total amount greater than 0',
+        itemsFieldRef,
+      );
       return;
     }
     const descriptionSize = new TextEncoder().encode(formData.description || '').length;
     if (descriptionSize > DESCRIPTION_MAX_BYTES) {
-      setError('Description is too large. Maximum 200KB.');
+      reportError('Description is too large. Maximum 200KB.', descriptionFieldRef);
       return;
     }
     setIsSubmitting(true);
@@ -249,13 +277,15 @@ export default function NewBudgetRequestPage() {
       });
       if (!res.ok) {
         const d = await res.json();
-        setError(d.error ?? 'Failed');
+        // Server-rejected submissions don't have a specific field, so scroll
+        // back to the top banner where the message also appears.
+        reportError(d.error ?? 'Failed to submit budget request', errorBannerRef);
         return;
       }
       const data = await res.json();
       router.push(`/budget-requests/${data.id}`);
     } catch {
-      setError('Failed');
+      reportError('Failed to submit budget request', errorBannerRef);
     } finally {
       setIsSubmitting(false);
     }
@@ -271,10 +301,23 @@ export default function NewBudgetRequestPage() {
           No approved budget plans. Create and approve a budget plan first.
         </div>
       )}
-      {error && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>}
+      {error && (
+        <div
+          ref={errorBannerRef}
+          role="alert"
+          aria-live="assertive"
+          className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-red-700 shadow-sm"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" aria-hidden />
+          <div className="flex-1">
+            <p className="font-semibold">Submission failed</p>
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        </div>
+      )}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
+          <div ref={budgetPlanFieldRef}>
             <label className="block mb-1.5 font-medium">Budget Plan (Approved) *</label>
             <Select
               value={formData.budgetPlanId}
@@ -364,7 +407,7 @@ export default function NewBudgetRequestPage() {
             </div>
           </div>
 
-          <div>
+          <div ref={subjectFieldRef}>
             <label className="block mb-1.5 font-medium">Subject *</label>
             <Input
               type="text"
@@ -373,7 +416,7 @@ export default function NewBudgetRequestPage() {
               required
             />
           </div>
-          <div>
+          <div ref={descriptionFieldRef}>
             <label className="block mb-1.5 font-medium">Description</label>
             <RichTextEditor
               value={formData.description}
@@ -407,13 +450,13 @@ export default function NewBudgetRequestPage() {
 
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-gray-900">Request Allocation</h2>
-            <div>
+            <div ref={monthsFieldRef}>
               <label className="mb-2 block font-medium">Month / Period Allocation *</label>
               <MonthChecklistSelector selectedMonths={selectedMonths} onChange={setSelectedMonths} showSelectAll/>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div ref={itemsFieldRef} className="space-y-3">
             <h2 className="text-base font-semibold text-gray-900">Items</h2>
             <BudgetRequestItemsEditor
               items={lineItems}
@@ -443,7 +486,7 @@ export default function NewBudgetRequestPage() {
             </div>
           )}
 
-          <div>
+          <div ref={approvalSchemaFieldRef}>
             <label className="block mb-1.5 font-medium">Approval Schema *</label>
             <Select
               value={formData.approvalSchemaId}
@@ -477,7 +520,7 @@ export default function NewBudgetRequestPage() {
               <X className="w-4 h-4" />
               Cancel
             </Link>
-            <button type="submit" disabled={isSubmitting || plans.length === 0} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting || plans.length === 0} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer">
               {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
           </div>

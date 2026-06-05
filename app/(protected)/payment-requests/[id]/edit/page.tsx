@@ -531,7 +531,7 @@ export default function EditPaymentRequestPage() {
             <button
               type="submit"
               disabled={isSubmitting || departments.length === 0}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>

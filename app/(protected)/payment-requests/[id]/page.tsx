@@ -12,6 +12,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
   id: string;
@@ -450,52 +451,118 @@ export default function PaymentRequestDetailPage() {
 
       </Card>
 
-      <Card collapsible 
-        collapsed={!orderedLevels.length}
-        className="print:break-before-page print:text-sm"
-        header={<h3 className="font-medium">Approval escalation</h3>}>
-        <div className="space-y-4 print:space-y-2 print:text-sm">
+      <div className="print:break-before-page print:text-sm">
+        <Card
+          collapsible
+          collapsed={!orderedLevels.length}
+          header={<h3 className="font-medium">Approval Escalation</h3>}
+        >
           {orderedLevels.length ? (
-            <Table>
-              <thead>
-                <TableHeaderRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableHeaderRow>
-              </thead>
-              <tbody>
-                {orderedLevels.map((level, index) => {
-                  const isCompleted = index < completedSteps;
-                  const stepStatusLabel = !isCompleted
-                    ? 'Pending'
-                    : level.levelType === 'Reviewer'
-                      ? 'Reviewed'
-                      : 'Approved';
-                  return (
-                    <TableBodyRow key={level.stepOrder}>
-                      <TableCell>{level.stepOrder}</TableCell>
-                      <TableCell>{level.role?.roleName ?? '-'}</TableCell>
-                      <TableCell>{level.levelType}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
-                            stepStatusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepStatusLabel === 'Reviewed'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
-                          }`}
+            <>
+              <Table className="print:hidden">
+                <thead>
+                  <TableHeaderRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Updated At</TableHead>
+                  </TableHeaderRow>
+                </thead>
+                <tbody>
+                  {orderedLevels.map((level, index) => {
+                    const isCompleted = index < completedSteps;
+                    const stepStatusLabel = !isCompleted
+                      ? 'Pending'
+                      : level.levelType === 'Reviewer'
+                        ? 'Reviewed'
+                        : 'Approved';
+                    const stepProgress = getApprovalStepProgress(level.levelType, data.histories ?? []);
+                    return (
+                      <TableBodyRow key={level.stepOrder}>
+                        <TableCell>{level.stepOrder}</TableCell>
+                        <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                        <TableCell>{level.levelType}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
+                              stepStatusLabel === 'Pending'
+                                ? 'bg-gray-100 text-gray-700'
+                                : stepStatusLabel === 'Reviewed'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-green-100 text-green-800'
+                            }`}
+                          >
+                            {stepStatusLabel}
+                          </span>
+                        </TableCell>
+                        <TableCell>{stepProgress.timestampLabel}</TableCell>
+                      </TableBodyRow>
+                    );
+                  })}
+                </tbody>
+              </Table>
+
+              <div className="hidden print:block">
+                <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
+                  <div
+                    className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
+                    style={{
+                      gridTemplateColumns: `repeat(${orderedLevels.length}, minmax(140px, 1fr))`,
+                    }}
+                  >
+                    {orderedLevels.map((l, i) => {
+                      const stepProgress = getApprovalStepProgress(l.levelType, data.histories ?? []);
+                      const isApproved =
+                        stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
+                      const isPending = stepProgress.statusLabel === 'Pending';
+                      const isRevision = stepProgress.statusLabel === 'Revision';
+                      const stampLabel = isApproved
+                        ? stepProgress.statusLabel === 'Reviewed'
+                          ? 'Accept'
+                          : 'Accept'
+                        : isPending
+                          ? ''
+                          : isRevision
+                            ? ''
+                            : '';
+                      const stampToneClass = isApproved
+                        ? 'border-2 border-blue-400 text-blue-500'
+                        : isPending
+                          ? ''
+                          : isRevision
+                            ? ''
+                            : '';
+                      const isLastCol = i === orderedLevels.length - 1;
+                      const colBorder = isLastCol ? '' : 'border-r border-gray-300';
+                      return (
+                        <div
+                          key={l.stepOrder}
+                          className={`flex flex-col text-center text-sm print:break-inside-avoid ${colBorder}`}
                         >
-                          {stepStatusLabel}
-                        </span>
-                      </TableCell>
-                    </TableBodyRow>
-                  );
-                })}
-              </tbody>
-            </Table>
+                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
+                            {l.role?.roleName ?? '-'}
+                          </div>
+                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
+                            {stepProgress.actorName ?? <span className="text-gray-300">—</span>}
+                          </div>
+                          <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
+                            <span
+                              className={`inline-flex items-center rounded-full h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
+                            >
+                              {stampLabel}
+                            </span>
+                          </div>
+                          <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
+                            {stepProgress.timestampLabel}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-gray-500">No approval schema — approval by non-requestor.</p>
           )}
@@ -511,10 +578,12 @@ export default function PaymentRequestDetailPage() {
               </Link>
             </div>
           ) : null}
-        </div>
-      </Card>
+        </Card>
+      </div>
 
-      <Card collapsible collapsed header={<h3 className="font-medium">Activity History</h3>}>
+      <Card collapsible collapsed 
+        className="print:hidden"
+        header={<h3 className="font-medium">Activity History</h3>}>
         {data.histories?.length ? (
           <div className="space-y-2">
             {data.histories.map((history) => (

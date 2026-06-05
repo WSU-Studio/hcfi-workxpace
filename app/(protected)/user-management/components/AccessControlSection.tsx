@@ -59,6 +59,7 @@ export const menuAccessItems: Array<{ key: string; label: string }> = [
   { key: 'viewRole', label: 'View Role Page' },
   { key: 'viewApprovalSchema', label: 'View Approval Schema Page' },
   { key: 'viewActivityHistory', label: 'View Activity History Page' },
+  { key: 'viewBudgetPlanRealization', label: 'View Budget Plan Realization (Realization & Outstanding columns)' },
 ];
 
 export const activityAccessItems: Array<{ key: string; label: string }> = [

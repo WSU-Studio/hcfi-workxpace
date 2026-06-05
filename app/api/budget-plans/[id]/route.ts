@@ -5,6 +5,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import accountOptions from '@/data/accounts.json';
 import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
+import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
+import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,62 +37,6 @@ function isValidReviewTransition(currentStatus: string, nextStatus: string) {
   return false;
 }
 
-async function resolveNotificationUserIds(planId: string, actorUserId: string) {
-  const plan = await prisma.budgetPlan.findUnique({
-    where: { id: planId },
-    include: { approvalSchema: { include: { approvalLevels: true } } },
-  });
-  if (!plan) return [];
-
-  const roleIds = Array.from(new Set((plan.approvalSchema?.approvalLevels || []).map((l) => l.roleId)));
-
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { id: plan.requestorId || undefined },
-        { roleId: { in: roleIds } },
-        { userRoles: { some: { roleId: { in: roleIds } } } },
-      ],
-    },
-    select: { id: true },
-  });
-
-  return Array.from(new Set(users.map((u) => u.id))).filter((id) => id !== actorUserId);
-}
-
-async function createApprovalNotifications(params: {
-  planId: string;
-  actorUserId: string;
-  status: string;
-  planCode: string;
-  declineReason?: string | null;
-}) {
-  const recipientIds = await resolveNotificationUserIds(params.planId, params.actorUserId);
-  if (!recipientIds.length) return;
-
-  const titleByStatus: Record<string, string> = {
-    Reviewed: 'Budget Plan Reviewed',
-    Approved: 'Budget Plan Approved',
-    Revision: 'Budget Plan Needs Revision',
-    Declined: 'Budget Plan Declined',
-  };
-  const title = titleByStatus[params.status] || 'Budget Plan Updated';
-  const messageBase = `${params.planCode} status changed to ${params.status}.`;
-  const message =
-    params.declineReason && (params.status === 'Revision' || params.status === 'Declined')
-      ? `${messageBase} Reason: ${params.declineReason}`
-      : messageBase;
-
-  await prisma.notification.createMany({
-    data: recipientIds.map((userId) => ({
-      userId,
-      title,
-      message,
-      type: params.status === 'Approved' ? 'success' : params.status === 'Declined' ? 'error' : 'info',
-    })),
-  });
-}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -108,6 +54,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         costCenter: true,
         opex: true,
         opexAllocation: true,
+        _count: { select: { budgetRequests: true } },
       },
     });
     if (!plan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -159,10 +106,44 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       canReview = !!next && userRoleIds.includes(next.roleId);
     }
 
+    const budgetRequestCount = plan._count?.budgetRequests ?? 0;
+    const isRequestor = !!session?.user?.id && plan.requestorId === session.user.id;
+    const canEdit = isRequestor && budgetRequestCount === 0;
+    const editLockReason = !isRequestor
+      ? null
+      : budgetRequestCount > 0
+        ? `Locked: ${budgetRequestCount} budget request${budgetRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`
+        : null;
+
+    // Realization & Outstanding are sensitive financial figures gated by the
+    // `viewBudgetPlanRealization` menu permission. If the caller lacks it, we
+    // skip both the BR query (saves a roundtrip) and the enrichment, and ship
+    // the plain allocation rows only — defence-in-depth alongside the UI gate.
+    const canViewRealization = Boolean(
+      session?.user?.access?.menuAccess?.viewBudgetPlanRealization,
+    );
+    const enrichedAllocations = canViewRealization
+      ? enrichAllocationsWithRealization(
+          plan.allocations,
+          budgetRequestCount > 0
+            ? await prisma.budgetRequest.findMany({
+                where: { budgetPlanId: id },
+                select: { requestDate: true, grandTotal: true },
+              })
+            : [],
+          plan.fiscalYear,
+        )
+      : plan.allocations.map((a) => ({
+          month: a.month,
+          allocation: Number(a.allocation ?? 0),
+        }));
+
     return NextResponse.json({
       plan: {
         ...plan,
+        allocations: enrichedAllocations,
         requestorName: requestor?.name ?? null,
+        budgetRequestCount,
       },
       fiscalYears,
       departments,
@@ -177,6 +158,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       originOffices,
       histories,
       reviewMeta: { canReview, nextStepOrder },
+      editMeta: { canEdit, editLockReason, budgetRequestCount },
     });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
@@ -192,11 +174,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const body = await request.json();
     const existing = await prisma.budgetPlan.findUnique({
       where: { id },
-      select: { id: true, code: true, requestorId: true, status: true },
+      select: {
+        id: true,
+        code: true,
+        requestorId: true,
+        status: true,
+        _count: { select: { budgetRequests: true } },
+      },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (existing.requestorId !== session.user.id) {
       return NextResponse.json({ error: 'Only requestor can edit this budget plan' }, { status: 403 });
+    }
+    const linkedRequestCount = existing._count?.budgetRequests ?? 0;
+    if (linkedRequestCount > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot edit: ${linkedRequestCount} budget request${linkedRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`,
+        },
+        { status: 409 }
+      );
     }
     if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
@@ -268,11 +265,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     });
 
     if (existing.status !== 'Draft') {
-      await createApprovalNotifications({
+      await createBudgetPlanNotifications({
         planId: id,
         actorUserId: session.user.id,
         status: 'Draft',
         planCode: existing.code,
+        variant: 'resubmit',
       });
     }
 
@@ -432,7 +430,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         },
       });
 
-      await createApprovalNotifications({
+      await createBudgetPlanNotifications({
         planId: id,
         actorUserId: session.user.id,
         status: body.status,

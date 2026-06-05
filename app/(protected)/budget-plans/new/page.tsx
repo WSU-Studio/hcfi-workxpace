@@ -390,7 +390,7 @@ export default function NewBudgetPlanPage() {
               <X className="w-4 h-4" />
               Cancel
             </ButtonLink>
-            <button type="submit" disabled={isSubmitting || isUploadingAttachments} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting || isUploadingAttachments} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer">
               {isUploadingAttachments ? 'Uploading documents...' : isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
           </div>

@@ -61,8 +61,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const rows = body.rows || [];
+    // Bulk import expects rows already parsed from an XLSX file by the client.
+    // The actual file-format check (extension/MIME/magic bytes) lives in
+    // `lib/xlsx-validation.ts` on the client. Reject anything that is not JSON
+    // here as a defence-in-depth measure.
+    const contentType = req.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Invalid Content-Type. Expected application/json from XLSX-parsed rows.' },
+        { status: 415 }
+      );
+    }
+
+    let body: { rows?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Malformed JSON payload.' },
+        { status: 400 }
+      );
+    }
+    const rows = (body?.rows ?? []) as Record<string, unknown>[];
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json(
@@ -157,6 +177,10 @@ export async function POST(req: NextRequest) {
             throw new Error('Subject is required');
           }
 
+          if (!approvalSchemaCode) {
+            throw new Error(`Approval Schema Code is required for subject: ${subject || '-'}`);
+          }
+
           const department = departmentByCode.get(departmentCode);
           if (!department) {
             throw new Error(`Department Code not found: ${departmentCode}`);
@@ -167,11 +191,8 @@ export async function POST(req: NextRequest) {
             throw new Error(`Project Code not found: ${projectCode}`);
           }
 
-          const approvalSchema = approvalSchemaCode
-            ? approvalSchemaByName.get(approvalSchemaCode) ?? null
-            : null;
-
-          if (approvalSchemaCode && !approvalSchema) {
+          const approvalSchema = approvalSchemaByName.get(approvalSchemaCode) ?? null;
+          if (!approvalSchema) {
             throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
           }
 
@@ -187,7 +208,7 @@ export async function POST(req: NextRequest) {
               originOffice,
               departmentId: department.id,
               projectId: project?.id || null,
-              approvalSchemaId: approvalSchema?.id || null,
+              approvalSchemaId: approvalSchema.id,
               requestorId: session.user.id,
               importedViaBulk: true,
               status: 'Draft',

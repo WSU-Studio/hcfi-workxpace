@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Import, X } from 'lucide-react';
+import { Plus, Import, X, Lock } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -12,6 +12,8 @@ import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import { validateXlsxFile } from '@/lib/xlsx-validation';
 
 interface Plan {
   id: string;
@@ -24,6 +26,7 @@ interface Plan {
   department: { name: string };
   allocations?: { allocation: unknown }[];
   approvalSchemaId?: string;
+  budgetRequestCount?: number;
 }
 
 interface EditWarningModalProps {
@@ -203,6 +206,12 @@ const handlePreviewImportFile = async (file: File) => {
   setImportRows([]);
   setImportFileName(file.name);
 
+  const validation = await validateXlsxFile(file);
+  if (!validation.valid) {
+    setImportError(validation.error);
+    return;
+  }
+
   try {
     const XLSX = await import('xlsx');
     const buffer = await file.arrayBuffer();
@@ -244,6 +253,20 @@ const handlePreviewImportFile = async (file: File) => {
     }
 
     setImportRows(mappedRows);
+
+    const missingApprovalSchema = mappedRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => !row.approvalSchemaCode);
+    if (missingApprovalSchema.length > 0) {
+      const subjects = missingApprovalSchema
+        .slice(0, 3)
+        .map(({ row, index }) => row.subject || `row ${index + 1}`)
+        .join(', ');
+      const more = missingApprovalSchema.length > 3 ? ` (+${missingApprovalSchema.length - 3} more)` : '';
+      setImportError(
+        `Approval Schema Code is required. Missing on: ${subjects}${more}.`
+      );
+    }
   } catch {
     setImportError('Failed to read Excel file');
   }
@@ -254,6 +277,11 @@ const handleImportRows = async () => {
 
   if (importRows.length === 0) {
     setImportError('Please upload and preview Excel file first');
+    return;
+  }
+
+  if (importRows.some((row) => !row.approvalSchemaCode)) {
+    setImportError('Approval Schema Code is required for every row.');
     return;
   }
 
@@ -384,6 +412,19 @@ const handleImportRows = async () => {
                           </span>
                         </Tooltip>
                       ) : null}
+                      <RequestCountBadge count={p.budgetRequestCount ?? 0} />
+                      {(p.budgetRequestCount ?? 0) > 0 ? (
+                        <Tooltip
+                          content={`Locked: ${p.budgetRequestCount} budget request${(p.budgetRequestCount ?? 0) > 1 ? 's' : ''} issued`}
+                        >
+                          <span
+                            aria-label="Locked"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-gray-300 bg-gray-100 text-gray-600"
+                          >
+                            <Lock className="h-3 w-3" />
+                          </span>
+                        </Tooltip>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>{p.department?.name ?? '-'}</TableCell>
@@ -476,11 +517,12 @@ const handleImportRows = async () => {
                     Upload XLSX
                     <input
                       type="file"
-                      accept=".xlsx,.xls"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handlePreviewImportFile(file);
+                        e.target.value = '';
                       }}
                     />
                   </label>
@@ -547,7 +589,15 @@ const handleImportRows = async () => {
                           <td className="px-3 py-2 text-right">{formatCurrency(row.oct)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.nov)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.dec)}</td>
-                          <td className="px-3 py-2">{row.approvalSchemaCode}</td>
+                          <td
+                            className={`px-3 py-2 ${
+                              row.approvalSchemaCode
+                                ? ''
+                                : 'bg-red-50 text-red-600 font-medium'
+                            }`}
+                          >
+                            {row.approvalSchemaCode || 'required'}
+                          </td>
                         </tr>
                       ))
                     )}

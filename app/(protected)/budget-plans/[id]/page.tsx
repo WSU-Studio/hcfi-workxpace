@@ -11,8 +11,10 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
+import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -32,7 +34,7 @@ type PlanDetail = {
   opexType?: string | null;
   department: { name: string };
   project: { name: string } | null;
-  allocations: { month: number; allocation: unknown }[];
+  allocations: { month: number; allocation: unknown; realization?: number; outstanding?: number }[];
   category?: { id: string; name: string } | null;
   categoryKeyIndex?: { id: string; name: string } | null;
   costCenter?: { id: string; name: string } | null;
@@ -41,6 +43,7 @@ type PlanDetail = {
   approvalSchema?: {
     approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
   } | null;
+  budgetRequestCount?: number;
 };
 type OriginOfficeOption = {
   code: string;
@@ -122,6 +125,11 @@ export default function BudgetPlanDetailPage() {
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string }[]>([]);
   const [histories, setHistories] = useState<BudgetPlanHistoryEntry[]>([]);
   const [reviewMeta, setReviewMeta] = useState<{ canReview: boolean; nextStepOrder: number | null } | null>(null);
+  const [editMeta, setEditMeta] = useState<{
+    canEdit: boolean;
+    editLockReason: string | null;
+    budgetRequestCount: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -140,6 +148,7 @@ export default function BudgetPlanDetailPage() {
           setAccountOptions([]);
           setHistories([]);
           setReviewMeta(null);
+          setEditMeta(null);
           return;
         }
         const data = await r.json();
@@ -148,12 +157,14 @@ export default function BudgetPlanDetailPage() {
         setAccountOptions(data?.accountOptions || []);
         setHistories(data?.histories || []);
         setReviewMeta(data?.reviewMeta ?? null);
+        setEditMeta(data?.editMeta ?? null);
       })
       .catch(() => {
         setLoadError('Network error');
         setPlan(null);
         setOriginOffices([]);
         setReviewMeta(null);
+        setEditMeta(null);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -178,8 +189,20 @@ export default function BudgetPlanDetailPage() {
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const canViewRealization = Boolean(
+    session?.user?.access?.menuAccess?.viewBudgetPlanRealization,
+  );
+  const totalRealization =
+    plan.allocations?.reduce((s, a) => s + Number(a.realization ?? 0), 0) ?? 0;
+  const totalOutstanding = total - totalRealization;
   const opexType = plan.opexType || '-';
-  const canEdit = !!session?.user?.id && plan.requestorId === session.user.id;
+  const isRequestor = !!session?.user?.id && plan.requestorId === session.user.id;
+  // Server is the source of truth (factors in: requestor + no BR issued).
+  // Fallback to legacy client-side rule if API hasn't responded yet.
+  const canEdit = editMeta ? editMeta.canEdit : isRequestor;
+  const editLocked = isRequestor && editMeta?.canEdit === false;
+  const editLockReason = editMeta?.editLockReason ?? null;
+  const budgetRequestCount = editMeta?.budgetRequestCount ?? plan.budgetRequestCount ?? 0;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -322,6 +345,12 @@ export default function BudgetPlanDetailPage() {
               <TableHeaderRow>
                 <TableHead className="text-left">Month</TableHead>
                 <TableHead className="text-right">Allocation</TableHead>
+                {canViewRealization ? (
+                  <>
+                    <TableHead className="text-right">Realization</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                  </>
+                ) : null}
               </TableHeaderRow>
             </thead>
             <tbody>
@@ -329,11 +358,23 @@ export default function BudgetPlanDetailPage() {
                 <TableBodyRow key={a.month}>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
+                  {canViewRealization ? (
+                    <>
+                      <TableCell className="text-right">{formatCurrency(Number(a.realization ?? 0))}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(a.outstanding ?? 0))}</TableCell>
+                    </>
+                  ) : null}
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">
                 <TableCell>Total</TableCell>
                 <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                {canViewRealization ? (
+                  <>
+                    <TableCell className="text-right">{formatCurrency(totalRealization)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totalOutstanding)}</TableCell>
+                  </>
+                ) : null}
               </TableBodyRow>
             </tbody>
           </Table>
@@ -376,7 +417,7 @@ export default function BudgetPlanDetailPage() {
             collapsible
             header={<h3 className="font-medium">Approval Escalation</h3>}
           >
-            <Table>
+            <Table className="print:hidden">
               <thead>
                 <TableHeaderRow>
                   <TableHead>#</TableHead>
@@ -416,29 +457,110 @@ export default function BudgetPlanDetailPage() {
               </tbody>
             </Table>
 
-            {canEdit || reviewMeta?.canReview ? (
-              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100 print:hidden">
-                {canEdit ? (
-                  plan.status === 'Approved' ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditWarningOpen(true)}
-                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 cursor-pointer"
+            <div className="hidden print:block">
+              {(() => {
+                const approvalLevels = plan.approvalSchema!.approvalLevels;
+                return (
+                  <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
+                    <div
+                      className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
+                      style={{
+                        gridTemplateColumns: `repeat(${approvalLevels.length}, minmax(140px, 1fr))`,
+                      }}
                     >
-                      <Pencil className="w-5 h-5" />
-                      Edit
-                    </button>
-                  ) : (
-                    <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                      <Pencil className="w-5 h-5" />Edit
+                      {approvalLevels.map((l, i) => {
+                        const stepProgress = getApprovalStepProgress(l.levelType, histories);
+                        const isApproved =
+                          stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
+                        const isPending = stepProgress.statusLabel === 'Pending';
+                        const isRevision = stepProgress.statusLabel === 'Revision';
+                        const stampLabel = isApproved
+                          ? stepProgress.statusLabel === 'Reviewed'
+                            ? 'Accept'
+                            : 'Accept'
+                          : isPending
+                            ? ''
+                            : isRevision
+                              ? ''
+                              : '';
+                        const stampToneClass = isApproved
+                          ? 'border-2 border-blue-400 text-blue-500'
+                          : isPending
+                            ? ''
+                            : isRevision
+                              ? ''
+                              : '';
+                        const isLastCol = i === approvalLevels.length - 1;
+                        const colBorder = isLastCol ? '' : 'border-r border-gray-300';
+                        return (
+                          <div
+                            key={i}
+                            className={`flex flex-col text-sm print:break-inside-avoid ${colBorder}`}
+                          >
+                            <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
+                              {l.role?.roleName ?? '-'}
+                            </div>
+                            <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
+                              {stepProgress.actorName ?? <span className="text-gray-300">—</span>}
+                            </div>
+                            <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
+                              <span
+                                className={`inline-flex items-center rounded-full h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
+                              >
+                                {stampLabel}
+                              </span>
+                            </div>
+                            <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
+                              {stepProgress.timestampLabel}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {canEdit || editLocked || reviewMeta?.canReview ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100 print:hidden">
+                <div className="flex flex-wrap items-center gap-2">
+                  {budgetRequestCount > 0 ? (
+                    <RequestCountBadge count={budgetRequestCount} />
+                  ) : null}
+                  {editLocked ? (
+                    <Tooltip content={editLockReason ?? 'Locked: budget requests have been issued'}>
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
+                        <Lock className="h-3.5 w-3.5" />
+                        Locked from edit
+                      </span>
+                    </Tooltip>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {canEdit ? (
+                    plan.status === 'Approved' ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditWarningOpen(true)}
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 cursor-pointer"
+                      >
+                        <Pencil className="w-5 h-5" />
+                        Edit
+                      </button>
+                    ) : (
+                      <Link href={`/budget-plans/${id}/edit`} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                        <Pencil className="w-5 h-5" />Edit
+                      </Link>
+                    )
+                  ) : null}
+                  {reviewMeta?.canReview ? (
+                    <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                      <ScanSearch className="w-5 h-5" />Review
                     </Link>
-                  )
-                ) : null}
-                {reviewMeta?.canReview ? (
-                  <Link href={`/budget-plans/${id}/review`} className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                    <ScanSearch className="w-5 h-5" />Review
-                  </Link>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </Card>
@@ -448,6 +570,7 @@ export default function BudgetPlanDetailPage() {
       <Card
         collapsible
         collapsed
+        className="print:hidden"
         header={<h3 className="font-medium">Activity History</h3>}
       >
         {histories.length === 0 ? (

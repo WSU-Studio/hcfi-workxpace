@@ -9,6 +9,7 @@ import {
   canUserActOnCurrentBudgetRequestStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -297,6 +298,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         grandTotal: Number(br.grandTotal ?? 0),
         monthCount: br.allocations.length,
       },
+    });
+
+    await createBudgetRequestNotifications({
+      requestId: id,
+      actorUserId: session.user.id,
+      status: 'Draft',
+      requestCode: br.code,
+      variant: 'resubmit',
     });
 
     const histories = await prisma.activityHistory.findMany({

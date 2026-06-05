@@ -373,7 +373,7 @@ export default function EditBudgetPlanPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? 'Saving...' : 'Save'}
             </button>
