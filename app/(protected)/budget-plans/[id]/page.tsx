@@ -189,6 +189,9 @@ export default function BudgetPlanDetailPage() {
   if (!plan) return <div className="text-red-500">Not found</div>;
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
+  const canViewRealization = Boolean(
+    session?.user?.access?.menuAccess?.viewBudgetPlanRealization,
+  );
   const totalRealization =
     plan.allocations?.reduce((s, a) => s + Number(a.realization ?? 0), 0) ?? 0;
   const totalOutstanding = total - totalRealization;
@@ -342,8 +345,12 @@ export default function BudgetPlanDetailPage() {
               <TableHeaderRow>
                 <TableHead className="text-left">Month</TableHead>
                 <TableHead className="text-right">Allocation</TableHead>
-                <TableHead className="text-right">Realization</TableHead>
-                <TableHead className="text-right">Outstanding</TableHead>
+                {canViewRealization ? (
+                  <>
+                    <TableHead className="text-right">Realization</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                  </>
+                ) : null}
               </TableHeaderRow>
             </thead>
             <tbody>
@@ -351,15 +358,23 @@ export default function BudgetPlanDetailPage() {
                 <TableBodyRow key={a.month}>
                   <TableCell>{MONTH_NAMES[a.month - 1]}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(a.realization ?? 0))}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(a.outstanding ?? 0))}</TableCell>
+                  {canViewRealization ? (
+                    <>
+                      <TableCell className="text-right">{formatCurrency(Number(a.realization ?? 0))}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(a.outstanding ?? 0))}</TableCell>
+                    </>
+                  ) : null}
                 </TableBodyRow>
               ))}
               <TableBodyRow className="font-medium bg-gray-50">
                 <TableCell>Total</TableCell>
                 <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totalRealization)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totalOutstanding)}</TableCell>
+                {canViewRealization ? (
+                  <>
+                    <TableCell className="text-right">{formatCurrency(totalRealization)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totalOutstanding)}</TableCell>
+                  </>
+                ) : null}
               </TableBodyRow>
             </tbody>
           </Table>

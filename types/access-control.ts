@@ -19,6 +19,8 @@ export interface MenuAccess {
   viewRole: boolean;
   viewApprovalSchema: boolean;
   viewActivityHistory: boolean;
+  /** Lihat kolom Realization & Outstanding di Budget Plan (data finansial sensitif). */
+  viewBudgetPlanRealization: boolean;
 }
 
 export interface ActivityAccess {

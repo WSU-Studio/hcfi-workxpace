@@ -170,19 +170,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         ? `Locked: ${budgetRequestCount} budget request${budgetRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`
         : null;
 
-    // Realization & Outstanding per month: fetch linked BRs (only the fields we
-    // need for bucketing) and let the pure helper compute the values.
-    const linkedRequests = budgetRequestCount > 0
-      ? await prisma.budgetRequest.findMany({
-          where: { budgetPlanId: id },
-          select: { requestDate: true, grandTotal: true },
-        })
-      : [];
-    const enrichedAllocations = enrichAllocationsWithRealization(
-      plan.allocations,
-      linkedRequests,
-      plan.fiscalYear,
+    // Realization & Outstanding are sensitive financial figures gated by the
+    // `viewBudgetPlanRealization` menu permission. If the caller lacks it, we
+    // skip both the BR query (saves a roundtrip) and the enrichment, and ship
+    // the plain allocation rows only — defence-in-depth alongside the UI gate.
+    const canViewRealization = Boolean(
+      session?.user?.access?.menuAccess?.viewBudgetPlanRealization,
     );
+    const enrichedAllocations = canViewRealization
+      ? enrichAllocationsWithRealization(
+          plan.allocations,
+          budgetRequestCount > 0
+            ? await prisma.budgetRequest.findMany({
+                where: { budgetPlanId: id },
+                select: { requestDate: true, grandTotal: true },
+              })
+            : [],
+          plan.fiscalYear,
+        )
+      : plan.allocations.map((a) => ({
+          month: a.month,
+          allocation: Number(a.allocation ?? 0),
+        }));
 
     return NextResponse.json({
       plan: {

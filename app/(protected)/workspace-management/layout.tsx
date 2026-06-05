@@ -25,6 +25,7 @@ const restrictedMenuAccess: MenuAccess = {
   viewRole: false,
   viewApprovalSchema: false,
   viewActivityHistory: false,
+  viewBudgetPlanRealization: false,
 };
 
 export default function WorkspaceManagementLayout({

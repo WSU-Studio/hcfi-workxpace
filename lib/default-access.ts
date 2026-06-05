@@ -18,6 +18,8 @@ export const defaultMenuAccess: MenuAccess = {
   viewRole: true,
   viewApprovalSchema: true,
   viewActivityHistory: true,
+  // Sensitive financial column — opt-in. Admin & users explicitly granted only.
+  viewBudgetPlanRealization: false,
 };
 
 export const defaultActivityAccess: ActivityAccess = {
@@ -81,6 +83,7 @@ export const fullMenuAccess: MenuAccess = {
   viewRole: true,
   viewApprovalSchema: true,
   viewActivityHistory: true,
+  viewBudgetPlanRealization: true,
 };
 
 export const fullActivityAccess: ActivityAccess = {
