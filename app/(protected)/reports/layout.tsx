@@ -6,26 +6,7 @@ import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { IconChartBar, IconDatabase, IconScale } from '@tabler/icons-react';
 import { MenuAccess } from '@/types/access-control';
-
-const restrictedMenuAccess: MenuAccess = {
-  dashboard: false,
-  budgetPlans: false,
-  budgetRequests: false,
-  paymentRequests: false,
-  reconciliation: false,
-  reports: false,
-  userManagement: false,
-  workspaceManagement: false,
-  viewDepartment: false,
-  viewOriginOffice: false,
-  viewProject: false,
-  viewCategory: false,
-  viewCategoryKeyIndex: false,
-  viewCostCenter: false,
-  viewRole: false,
-  viewApprovalSchema: false,
-  viewActivityHistory: false,
-};
+import { restrictedMenuAccess } from '@/lib/default-access';
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

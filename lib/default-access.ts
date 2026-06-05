@@ -22,6 +22,37 @@ export const defaultMenuAccess: MenuAccess = {
   viewBudgetPlanRealization: false,
 };
 
+/**
+ * Lock-everything fallback used by client layouts when the session has no
+ * `access.menuAccess` payload yet (e.g. before NextAuth resolves on first
+ * paint, or for unauthenticated edge cases).
+ *
+ * Single source of truth — adding a new field to `MenuAccess` will produce a
+ * compile error here and the consumers (`Sidebar`, layout files) will keep
+ * working without changes. Derived from the `MenuAccess` shape so we never
+ * forget a key.
+ */
+export const restrictedMenuAccess: MenuAccess = {
+  dashboard: false,
+  budgetPlans: false,
+  budgetRequests: false,
+  paymentRequests: false,
+  reconciliation: false,
+  reports: false,
+  userManagement: false,
+  workspaceManagement: false,
+  viewDepartment: false,
+  viewOriginOffice: false,
+  viewProject: false,
+  viewCategory: false,
+  viewCategoryKeyIndex: false,
+  viewCostCenter: false,
+  viewRole: false,
+  viewApprovalSchema: false,
+  viewActivityHistory: false,
+  viewBudgetPlanRealization: false,
+};
+
 export const defaultActivityAccess: ActivityAccess = {
   createBudgetPlan: false,
   editBudgetPlan: false,
