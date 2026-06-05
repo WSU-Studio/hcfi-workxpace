@@ -8,6 +8,7 @@ import {
   canUserActOnCurrentBudgetRequestStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -235,6 +236,14 @@ export async function POST(req: Request) {
           allocation: Number(allocation.allocation),
         })),
       },
+    });
+
+    await createBudgetRequestNotifications({
+      requestId: br.id,
+      actorUserId: session.user.id,
+      status: 'Draft',
+      requestCode: br.code,
+      variant: 'submit',
     });
 
     return NextResponse.json(br);
