@@ -90,6 +90,9 @@ export const defaultActivityAccess: ActivityAccess = {
   createUser: false,
   editUser: false,
   deleteUser: false,
+  // Changing other users' access permissions is highly privileged — opt-in
+  // only. Admin role bypasses this check via fullActivityAccess.
+  changeAccess: false,
   runReconciliationSync: false,
   editReconciliationMapping: false,
   saveReconciliationResult: false,
@@ -160,6 +163,7 @@ export const fullActivityAccess: ActivityAccess = {
   createUser: true,
   editUser: true,
   deleteUser: true,
+  changeAccess: true,
   runReconciliationSync: true,
   editReconciliationMapping: true,
   saveReconciliationResult: true,

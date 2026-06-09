@@ -60,6 +60,13 @@ export interface ActivityAccess {
   createUser: boolean;
   editUser: boolean;
   deleteUser: boolean;
+  /**
+   * Mengubah hak akses (Menu / Activity / Workspace Management Access) milik
+   * user lain. Terpisah dari `editUser` (yang hanya mengedit data profil
+   * dasar). Default `false`: tombol "Access Control" disembunyikan dan
+   * endpoint PUT user access menolak dengan 403.
+   */
+  changeAccess: boolean;
   /** Menjalankan sinkronisasi / integrasi data pembayaran (mis. Confins). */
   runReconciliationSync: boolean;
   /** Koreksi pencocokan manual antara pembayaran eksternal dan plan/request. */

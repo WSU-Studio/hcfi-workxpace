@@ -72,14 +72,15 @@ export const activityAccessItems: Array<{ key: string; label: string }> = [
   { key: 'createPaymentRequest', label: 'Create Payment Request' },
   { key: 'editPaymentRequest', label: 'Edit Payment Request' },
   { key: 'deletePaymentRequest', label: 'Delete Payment Request' },
-  { key: 'createForOtherDepartment', label: 'Create BP/BR/PR for Other Departments (Cross-Department)' },
-  { key: 'viewOtherDepartmentDocuments', label: 'View BP/BR/PR from Other Departments (Cross-Department)' },
   { key: 'runReconciliationSync', label: 'Run Reconciliation / Confins Sync' },
   { key: 'editReconciliationMapping', label: 'Manual Reconciliation / Override Mapping' },
   { key: 'saveReconciliationResult', label: 'Save Reconciliation Results' },
   { key: 'createUser', label: 'Create User' },
   { key: 'editUser', label: 'Edit User' },
   { key: 'deleteUser', label: 'Delete User' },
+  { key: 'changeAccess', label: 'Change Access' },
+  { key: 'createForOtherDepartment', label: 'Create BP/BR/PR for Other Departments (Cross-Department)' },
+  { key: 'viewOtherDepartmentDocuments', label: 'View BP/BR/PR from Other Departments (Cross-Department)' },
 ];
 
 export const workspaceManagementAccessItems: Array<{ key: string; label: string }> = [
