@@ -50,3 +50,34 @@ export function assertCanActOnDepartment(
 
   return { ok: true };
 }
+
+/**
+ * Build a Prisma WHERE fragment scoping a query to the user's own department
+ * unless they have the `viewOtherDepartmentDocuments` permission.
+ *
+ * Returns `null` (no restriction) when the user can see everything; otherwise
+ * returns `{ departmentId: <userDept> }`. When the user has neither
+ * permission nor a department assigned, returns a sentinel that yields zero
+ * results — fail-closed is safer than fail-open for this kind of scoping.
+ *
+ * Single source of truth used by BP / BR / PR list endpoints to keep the
+ * scoping rule consistent across the API surface.
+ */
+export function buildDepartmentScope(
+  session: Session | null | undefined,
+): { departmentId: string } | null {
+  const canViewOther = Boolean(
+    session?.user?.access?.activityAccess?.viewOtherDepartmentDocuments,
+  );
+  if (canViewOther) return null;
+
+  const userDepartmentId = session?.user?.departmentId ?? '';
+  if (!userDepartmentId) {
+    // Fail-closed: a user without a department and without the cross-dept
+    // view permission should see nothing rather than everything. Use an
+    // impossible sentinel so the equality filter matches no row.
+    return { departmentId: '__no-department-assigned__' };
+  }
+  return { departmentId: userDepartmentId };
+}
+

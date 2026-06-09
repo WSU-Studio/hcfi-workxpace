@@ -8,7 +8,7 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
-import { assertCanActOnDepartment } from '@/lib/access/cross-department';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +30,13 @@ export async function GET(request: Request) {
     }
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
+
+    // Apply cross-department view scoping LAST so a query string cannot
+    // bypass the permission gate by passing another departmentId.
+    const departmentScope = buildDepartmentScope(session);
+    if (departmentScope) {
+      where.departmentId = departmentScope.departmentId;
+    }
 
     const plans = await prisma.budgetPlan.findMany({
       where,

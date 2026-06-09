@@ -12,7 +12,7 @@ import {
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
-import { assertCanActOnDepartment } from '@/lib/access/cross-department';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import {
   classificationToStored,
   mergeStoredClassification,
@@ -41,17 +41,21 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    // Cross-department view scope: applies both to the PR list and to the
+    // "link BR" dropdown so visibility rules stay consistent across the page.
+    const departmentScope = buildDepartmentScope(session);
 
     // Load approved BRs independently so the PR "link BR" dropdown still works if the payment list query fails
     // (e.g. schema drift on payment_requests / line_items) — previously a thrown findMany hid all BR options.
     const [prSettled, brSettled] = await Promise.allSettled([
       prisma.paymentRequest.findMany({
+        where: departmentScope ?? undefined,
         include: paymentRequestListInclude,
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
       prisma.budgetRequest.findMany({
-        where: { status: { equals: 'Approved', mode: 'insensitive' } },
+        where: { status: { equals: 'Approved', mode: 'insensitive' }, ...(departmentScope ?? {}) },
         select: {
           id: true,
           code: true,

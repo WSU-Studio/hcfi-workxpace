@@ -9,7 +9,7 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
-import { assertCanActOnDepartment } from '@/lib/access/cross-department';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,10 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    // Cross-department view scope (null = unrestricted, see helper).
+    const departmentScope = buildDepartmentScope(session);
     const rows = await prisma.budgetRequest.findMany({
+      where: departmentScope ?? undefined,
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
@@ -58,7 +61,9 @@ export async function GET() {
         }),
     }));
     const plans = await prisma.budgetPlan.findMany({
-      where: { status: 'Approved' },
+      // Same cross-department view rule applies to the BP dropdown so users
+      // without permission don't see other departments' BPs as picker options.
+      where: { status: 'Approved', ...(departmentScope ?? {}) },
       select: {
         id: true,
         code: true,

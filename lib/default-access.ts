@@ -96,6 +96,9 @@ export const defaultActivityAccess: ActivityAccess = {
   // Cross-department creation is opt-in. By default users can only create
   // BP/BR/PR for their own department; admin / explicitly-granted users only.
   createForOtherDepartment: false,
+  // Cross-department visibility is opt-in. By default users only see
+  // BP/BR/PR rows from their own department in list pages and dropdowns.
+  viewOtherDepartmentDocuments: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -161,6 +164,7 @@ export const fullActivityAccess: ActivityAccess = {
   editReconciliationMapping: true,
   saveReconciliationResult: true,
   createForOtherDepartment: true,
+  viewOtherDepartmentDocuments: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */

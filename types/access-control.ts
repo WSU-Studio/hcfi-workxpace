@@ -72,4 +72,11 @@ export interface ActivityAccess {
    * Bila `true`: kolom Department menjadi dropdown pilih bebas (cross-department).
    */
   createForOtherDepartment: boolean;
+  /**
+   * Melihat BP/BR/PR yang dibuat oleh department lain (list & dropdown).
+   * Default `false`: list pages hanya menampilkan dokumen dari department user.
+   * Bila `true`: user melihat dokumen lintas department (mis. reviewer finance
+   * yang menangani banyak department).
+   */
+  viewOtherDepartmentDocuments: boolean;
 }
