@@ -91,12 +91,21 @@ export class ConfinsClient {
   }
 }
 
-/** Sama dengan toggle "Activate Mock API" di Settings (+ env fallback di development). */
+/**
+ * Single source of truth: toggle "Activate Mock API" di Application Settings
+ * (DB) menentukan perilaku — di environment manapun (dev / preview / prod).
+ *
+ * Env `CONFINS_USE_MOCK` tetap dipakai sebagai fallback **hanya** kalau DB
+ * settings tidak bisa dibaca (mis. saat build static, atau Prisma belum siap).
+ *
+ * Catatan keamanan:
+ *   Sebelumnya ada production gate yang memaksa mock = false di NODE_ENV
+ *   production kecuali env explicit. Itu membuat toggle UI tidak fungsional di
+ *   Vercel deployment. Karena akses Settings sudah dibatasi role admin dan
+ *   toggle-nya visible, gate tersebut dihapus — admin yang sengaja toggle
+ *   dianggap tahu konsekuensinya.
+ */
 export async function isConfinsMockEnabled(): Promise<boolean> {
-  if (process.env.NODE_ENV === 'production' && process.env.CONFINS_USE_MOCK !== 'true') {
-    return false;
-  }
-
   try {
     const { getApplicationSettings } = await import('@/lib/app-settings');
     const settings = await getApplicationSettings();
