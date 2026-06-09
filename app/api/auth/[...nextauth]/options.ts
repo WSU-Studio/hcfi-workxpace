@@ -1,90 +1,96 @@
-import { prisma } from '@/lib/prisma';
 import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { MenuAccess, ActivityAccess } from '@/types/access-control';
+
+import { prisma } from '@/lib/prisma';
 import {
-  fullMenuAccess,
-  fullActivityAccess,
-  mergeWithDefaultMenuAccess,
-  mergeWithDefaultActivityAccess,
-  defaultMenuAccess,
   defaultActivityAccess,
+  defaultMenuAccess,
+  mergeWithDefaultActivityAccess,
+  mergeWithDefaultMenuAccess,
 } from '@/lib/default-access';
+import { createAzureAdProvider } from '@/lib/auth/azure-ad-provider';
+import {
+  loadSessionUserByEmail,
+  type SessionUser,
+} from '@/lib/auth/session-user';
+import type { ActivityAccess, MenuAccess } from '@/types/access-control';
+
+const credentialsProvider = CredentialsProvider({
+  name: 'Credentials',
+  credentials: {
+    email: { label: 'Email', type: 'email' },
+    password: { label: 'Password', type: 'password' },
+  },
+  async authorize(credentials) {
+    if (!credentials?.email || !credentials?.password) {
+      throw new Error('Missing credentials');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: credentials.email, isActive: true },
+      include: {
+        userRoles: { include: { role: true } },
+        access: true,
+        department: true,
+      },
+    });
+
+    if (!user) throw new Error('No user found');
+    if (!user.userRoles.length) throw new Error('User has no role');
+
+    const isValid = await bcrypt.compare(credentials.password, user.password);
+    if (!isValid) throw new Error('Invalid password');
+
+    const sessionUser = await loadSessionUserByEmail(user.email);
+    if (!sessionUser) throw new Error('User not eligible for sign-in');
+
+    return sessionUser;
+  },
+});
+
+const azureAdProvider = createAzureAdProvider();
 
 export const authOptions: AuthOptions = {
-  providers: [
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Missing credentials');
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email, isActive: true },
-          include: {
-            userRoles: { include: { role: true } },
-            access: true,
-            department: true,
-          },
-        });
-
-        if (!user) throw new Error('No user found');
-        if (!user.userRoles.length) throw new Error('User has no role');
-
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) throw new Error('Invalid password');
-
-        const roleCode = user.userRoles[0].role.roleCode;
-        const isAdmin = roleCode === 'ADMIN';
-
-        const menuAccess = isAdmin
-          ? fullMenuAccess
-          : {
-              ...defaultMenuAccess,
-              ...((typeof user.access?.menuAccess === 'string'
-              ? JSON.parse(user.access.menuAccess as string) as MenuAccess
-              : (user.access?.menuAccess as unknown as MenuAccess)) ?? {}),
-            };
-
-        const activityAccess = isAdmin
-          ? fullActivityAccess
-          : {
-              ...defaultActivityAccess,
-              ...((typeof user.access?.activityAccess === 'string'
-              ? JSON.parse(user.access.activityAccess as string) as ActivityAccess
-              : (user.access?.activityAccess as unknown as ActivityAccess)) ?? {}),
-            };
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          roleId: user.userRoles[0].role.id,
-          role: user.userRoles[0].role.roleName,
-          departmentId: user.departmentId,
-          access: { menuAccess, activityAccess },
-        };
-      },
-    }),
-  ],
+  providers: azureAdProvider
+    ? [credentialsProvider, azureAdProvider]
+    : [credentialsProvider],
   pages: { signIn: '/login', signOut: '/login', error: '/login' },
   callbacks: {
+    /**
+     * Gate for the Azure AD path: SSO must only let in users who have already
+     * been provisioned in our DB (with a role + department). Returning false
+     * sends the browser to `/login?error=AccessDenied`, which the login page
+     * translates into a user-facing message.
+     *
+     * The Credentials path bypasses this gate — its `authorize()` already
+     * enforces the same invariants by throwing on missing user / role.
+     */
+    async signIn({ user, account }) {
+      if (account?.provider !== 'azure-ad') return true;
+
+      const email = user?.email;
+      if (!email) return false;
+
+      const dbUser = await loadSessionUserByEmail(email);
+      if (!dbUser) return false;
+
+      Object.assign(user, {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        image: dbUser.image,
+        roleId: dbUser.roleId,
+        role: dbUser.role,
+        departmentId: dbUser.departmentId,
+        access: dbUser.access,
+      });
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
-        const u = user as {
-          id: string;
-          roleId: string;
-          role: string;
-          departmentId: string;
-          access: { menuAccess: MenuAccess; activityAccess: ActivityAccess };
-        };
+        const u = user as SessionUser;
         token.id = u.id;
         token.sub = u.id;
         token.roleId = u.roleId;

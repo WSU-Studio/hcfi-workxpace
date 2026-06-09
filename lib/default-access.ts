@@ -90,9 +90,18 @@ export const defaultActivityAccess: ActivityAccess = {
   createUser: false,
   editUser: false,
   deleteUser: false,
+  // Changing other users' access permissions is highly privileged — opt-in
+  // only. Admin role bypasses this check via fullActivityAccess.
+  changeAccess: false,
   runReconciliationSync: false,
   editReconciliationMapping: false,
   saveReconciliationResult: false,
+  // Cross-department creation is opt-in. By default users can only create
+  // BP/BR/PR for their own department; admin / explicitly-granted users only.
+  createForOtherDepartment: false,
+  // Cross-department visibility is opt-in. By default users only see
+  // BP/BR/PR rows from their own department in list pages and dropdowns.
+  viewOtherDepartmentDocuments: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -154,9 +163,12 @@ export const fullActivityAccess: ActivityAccess = {
   createUser: true,
   editUser: true,
   deleteUser: true,
+  changeAccess: true,
   runReconciliationSync: true,
   editReconciliationMapping: true,
   saveReconciliationResult: true,
+  createForOtherDepartment: true,
+  viewOtherDepartmentDocuments: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */

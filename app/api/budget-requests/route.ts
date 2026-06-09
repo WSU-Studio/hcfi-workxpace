@@ -9,6 +9,7 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,10 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    // Cross-department view scope (null = unrestricted, see helper).
+    const departmentScope = buildDepartmentScope(session);
     const rows = await prisma.budgetRequest.findMany({
+      where: departmentScope ?? undefined,
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
@@ -57,7 +61,9 @@ export async function GET() {
         }),
     }));
     const plans = await prisma.budgetPlan.findMany({
-      where: { status: 'Approved' },
+      // Same cross-department view rule applies to the BP dropdown so users
+      // without permission don't see other departments' BPs as picker options.
+      where: { status: 'Approved', ...(departmentScope ?? {}) },
       select: {
         id: true,
         code: true,
@@ -112,6 +118,12 @@ export async function POST(req: Request) {
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    // Defense in depth: enforce the cross-department permission server-side.
+    const departmentVerdict = assertCanActOnDepartment(session, departmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
     }
 
     const normalizedPayload = normalizeBudgetRequestBody(body, new Date().getFullYear());

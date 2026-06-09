@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowLeft } from 'lucide-react';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -23,12 +24,22 @@ const initialAccess: UserAccessPayload = {
 export default function UserAccessControlPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const userId = params.id;
   const [username, setUsername] = useState('');
   const [access, setAccess] = useState<UserAccessPayload>(initialAccess);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Defense in depth: even if the route is opened directly, redirect users
+  // who lack `changeAccess`. The action menu already hides the entry point.
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') return;
+    if (!session?.user?.access?.activityAccess?.changeAccess) {
+      router.replace('/user-management');
+    }
+  }, [sessionStatus, session, router]);
 
   useEffect(() => {
     if (!userId) return;

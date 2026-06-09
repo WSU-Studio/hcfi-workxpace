@@ -46,6 +46,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // Defense in depth: changing other users' access permissions is gated by
+    // the `changeAccess` activity permission. The UI already hides the entry
+    // and redirects unauthorized navigation, but a direct API call would
+    // otherwise succeed without this server-side check.
+    if (!session.user.access?.activityAccess?.changeAccess) {
+      return NextResponse.json(
+        { error: 'You do not have permission to change user access.' },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
     const { menuAccess, activityAccess } = await request.json();
 

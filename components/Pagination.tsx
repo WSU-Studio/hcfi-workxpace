@@ -27,7 +27,7 @@ export default function Pagination({
           className={`px-3 py-1 rounded transition-colors ${
             currentPage === pageNum
               ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              : 'bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer'
           }`}
         >
           {pageNum}

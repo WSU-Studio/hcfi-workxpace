@@ -11,10 +11,23 @@ interface UserActionsProps {
   sessionUserId?: string;
   canEditUser: boolean;
   canDeleteUser: boolean;
+  /**
+   * Whether the logged-in user can change another user's access permissions.
+   * Independent from `canEditUser`: editing profile data and editing access
+   * are separate privileges.
+   */
+  canChangeAccess: boolean;
   onDelete: () => void;
 }
 
-export default function UserActions({ userId, sessionUserId, canEditUser, canDeleteUser, onDelete }: UserActionsProps) {
+export default function UserActions({
+  userId,
+  sessionUserId,
+  canEditUser,
+  canDeleteUser,
+  canChangeAccess,
+  onDelete,
+}: UserActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,6 +49,8 @@ export default function UserActions({ userId, sessionUserId, canEditUser, canDel
       icon: Edit,
       onSelect: () => router.push(`/user-management/${userId}/edit`),
     });
+  }
+  if (canChangeAccess) {
     dropdownActions.push({
       label: 'Access Control',
       icon: KeyRound,

@@ -39,6 +39,7 @@ export default function UserManagementPage() {
   const canCreateUser = Boolean(session?.user?.access?.activityAccess?.createUser);
   const canEditUser = Boolean(session?.user?.access?.activityAccess?.editUser);
   const canDeleteUser = Boolean(session?.user?.access?.activityAccess?.deleteUser);
+  const canChangeAccess = Boolean(session?.user?.access?.activityAccess?.changeAccess);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -219,6 +220,7 @@ export default function UserManagementPage() {
                       sessionUserId={session?.user?.id}
                       canEditUser={canEditUser}
                       canDeleteUser={canDeleteUser}
+                      canChangeAccess={canChangeAccess}
                       onDelete={fetchUsers}
                     />
                   </TableCell>
