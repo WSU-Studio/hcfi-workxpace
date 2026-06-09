@@ -126,8 +126,17 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
-    async redirect() {
-      return '/dashboard';
+    /**
+     * Force every post-sign-in landing to `/dashboard`.
+     *
+     * Must return an ABSOLUTE URL — NextAuth (and the browser's URL
+     * constructor it uses for validation) rejects bare paths like
+     * `/dashboard` with `TypeError: URL constructor: ... is not a valid URL`.
+     * Use the `baseUrl` argument (derived from NEXTAUTH_URL) so this
+     * resolves correctly across local, preview, and production deployments.
+     */
+    async redirect({ baseUrl }) {
+      return `${baseUrl}/dashboard`;
     },
   },
   session: { strategy: 'jwt' as const, maxAge: 30 * 24 * 60 * 60 },
