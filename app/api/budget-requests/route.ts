@@ -9,6 +9,7 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
+import { assertCanActOnDepartment } from '@/lib/access/cross-department';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,6 +113,12 @@ export async function POST(req: Request) {
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    // Defense in depth: enforce the cross-department permission server-side.
+    const departmentVerdict = assertCanActOnDepartment(session, departmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
     }
 
     const normalizedPayload = normalizeBudgetRequestBody(body, new Date().getFullYear());

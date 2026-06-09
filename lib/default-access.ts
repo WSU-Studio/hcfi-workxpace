@@ -93,6 +93,9 @@ export const defaultActivityAccess: ActivityAccess = {
   runReconciliationSync: false,
   editReconciliationMapping: false,
   saveReconciliationResult: false,
+  // Cross-department creation is opt-in. By default users can only create
+  // BP/BR/PR for their own department; admin / explicitly-granted users only.
+  createForOtherDepartment: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -157,6 +160,7 @@ export const fullActivityAccess: ActivityAccess = {
   runReconciliationSync: true,
   editReconciliationMapping: true,
   saveReconciliationResult: true,
+  createForOtherDepartment: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */

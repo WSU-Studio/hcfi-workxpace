@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import ButtonLink from '@/components/ui/ButtonLink';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
@@ -11,12 +12,18 @@ import Select from '@/components/ui/Select';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DESCRIPTION_MAX_BYTES = 200 * 1024;
 
 export default function NewBudgetPlanPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userDepartmentId = session?.user?.departmentId ?? '';
+  const canCrossDepartment = Boolean(
+    session?.user?.access?.activityAccess?.createForOtherDepartment,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fiscalYears, setFiscalYears] = useState<{ year: number }[]>([]);
@@ -92,6 +99,21 @@ export default function NewBudgetPlanPage() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  // Lock the default department to the logged-in user's own department when
+  // they lack cross-department permission. Runs after both session and
+  // departments are resolved (session can resolve after the initial mount, so
+  // we cannot rely on the fetch-effect closure above for this).
+  useEffect(() => {
+    if (canCrossDepartment) return;
+    if (!userDepartmentId) return;
+    if (departments.length === 0) return;
+    setFormData((previous) =>
+      previous.departmentId === userDepartmentId
+        ? previous
+        : { ...previous, departmentId: userDepartmentId },
+    );
+  }, [canCrossDepartment, userDepartmentId, departments]);
 
   const schemasForDept = approvalSchemas.filter((s) => s.departmentId === formData.departmentId);
 
@@ -219,19 +241,15 @@ export default function NewBudgetPlanPage() {
                 />
               )}
             </div>
-            <div>
-              <label className="block mb-1.5 font-medium">Department *</label>
-              <Select
-                value={formData.departmentId}
-                onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
-                required
-              >
-                <option value="">-</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </Select>
-            </div>
+            <DepartmentSelectField
+              value={formData.departmentId}
+              departments={departments}
+              userDepartmentId={userDepartmentId}
+              canCrossDepartment={canCrossDepartment}
+              onChange={(departmentId) =>
+                setFormData((previous) => ({ ...previous, departmentId }))
+              }
+            />
             <div>
               <label className="block mb-1.5 font-medium">Project</label>
               <Select

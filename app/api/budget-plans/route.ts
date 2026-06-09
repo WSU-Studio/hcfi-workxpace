@@ -8,6 +8,7 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
+import { assertCanActOnDepartment } from '@/lib/access/cross-department';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,15 @@ export async function POST(request: Request) {
     if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
+
+    // Defense in depth: even if the UI is bypassed, users without the
+    // `createForOtherDepartment` permission must not create BPs for any
+    // department other than their own.
+    const departmentVerdict = assertCanActOnDepartment(session, body.departmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
+    }
+
     const dept = await prisma.department.findUnique({
       where: { id: body.departmentId },
       select: { code: true },

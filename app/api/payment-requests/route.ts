@@ -12,6 +12,7 @@ import {
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
+import { assertCanActOnDepartment } from '@/lib/access/cross-department';
 import {
   classificationToStored,
   mergeStoredClassification,
@@ -275,6 +276,16 @@ export async function POST(req: Request) {
         typeof bodyProjectId === 'string' && bodyProjectId.trim() !== ''
           ? bodyProjectId.trim()
           : null;
+    }
+
+    // Defense in depth: enforce the cross-department permission server-side.
+    // Ran here because `resolvedDepartmentId` may have been overridden by the
+    // linked Budget Request (BR.departmentId is the source of truth when a BR
+    // is selected). Users without permission cannot back-door into another
+    // department by selecting an Approved BR from elsewhere.
+    const departmentVerdict = assertCanActOnDepartment(session, resolvedDepartmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
     }
 
     const dept = await prisma.department.findUnique({ where: { id: resolvedDepartmentId } });

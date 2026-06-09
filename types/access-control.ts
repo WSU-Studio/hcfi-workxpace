@@ -66,4 +66,10 @@ export interface ActivityAccess {
   editReconciliationMapping: boolean;
   /** Simpan hasil match ke database (menghilangkan baris dari daftar kerja). */
   saveReconciliationResult: boolean;
+  /**
+   * Membuat BP/BR/PR untuk department selain department milik user.
+   * Default `false`: kolom Department di form Create dikunci ke department user.
+   * Bila `true`: kolom Department menjadi dropdown pilih bebas (cross-department).
+   */
+  createForOtherDepartment: boolean;
 }

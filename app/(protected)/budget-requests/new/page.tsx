@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AlertCircle, X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -16,6 +17,7 @@ import BudgetRequestItemsEditor, {
   getItemSubtotal,
 } from '@/components/budget-request/BudgetRequestItemsEditor';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
 import { notifyFormError } from '@/lib/forms/feedback';
 
 const DESCRIPTION_MAX_BYTES = 200 * 1024;
@@ -30,6 +32,11 @@ const buildEmptyLineItem = (): BudgetRequestLineItemInput => ({
 
 export default function NewBudgetRequestPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userDepartmentId = session?.user?.departmentId ?? '';
+  const canCrossDepartment = Boolean(
+    session?.user?.access?.activityAccess?.createForOtherDepartment,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [plans, setPlans] = useState<{
@@ -153,6 +160,21 @@ export default function NewBudgetRequestPage() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  // Lock the default department to the logged-in user's own department when
+  // they lack cross-department permission. Only fires when no Budget Plan has
+  // been picked yet — once a plan is selected, its department wins.
+  useEffect(() => {
+    if (canCrossDepartment) return;
+    if (!userDepartmentId) return;
+    if (departments.length === 0) return;
+    setFormData((previous) => {
+      if (previous.budgetPlanId) return previous;
+      return previous.departmentId === userDepartmentId
+        ? previous
+        : { ...previous, departmentId: userDepartmentId };
+    });
+  }, [canCrossDepartment, userDepartmentId, departments]);
 
   const handlePlanSelect = async (planId: string) => {
     const plan = plans.find((p) => p.id === planId);
@@ -378,20 +400,16 @@ export default function NewBudgetRequestPage() {
                 />
               )}
             </div>
-            <div>
-              <label className="block mb-1.5 font-medium">Department *</label>
-              <Select
-                value={formData.departmentId}
-                onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
-                required
-                readonly={isBudgetPlanSelected}
-              >
-                <option value="">-</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </Select>
-            </div>
+            <DepartmentSelectField
+              value={formData.departmentId}
+              departments={departments}
+              userDepartmentId={userDepartmentId}
+              canCrossDepartment={canCrossDepartment}
+              forcedReadonly={isBudgetPlanSelected}
+              onChange={(departmentId) =>
+                setFormData((previous) => ({ ...previous, departmentId }))
+              }
+            />
             <div>
               <label className="block mb-1.5 font-medium">Project</label>
               <Select
