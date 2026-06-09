@@ -1,14 +1,18 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AlertCircle } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Logo from '@/public/workxpace-logo.svg';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import MicrosoftSignInButton from '@/components/auth/MicrosoftSignInButton';
 
 const CALLBACK_URL = '/dashboard';
+
+const ssoEnabled = process.env.NEXT_PUBLIC_AZURE_AD_SSO_ENABLED === 'true';
 
 /**
  * Translate NextAuth `signIn` error codes into user-facing messages.
@@ -23,7 +27,12 @@ function describeLoginError(code: string | undefined | null): string {
     case 'CredentialsSignin':
       return 'Email or password is incorrect. Please check your credentials and try again.';
     case 'AccessDenied':
-      return 'Your account does not have access to this application.';
+      return 'Your Microsoft account is not provisioned in this application. Please contact your administrator.';
+    case 'OAuthSignin':
+    case 'OAuthCallback':
+    case 'OAuthCreateAccount':
+    case 'Callback':
+      return 'Microsoft sign-in could not be completed. Please try again in a moment.';
     case 'CallbackRouteError':
       return 'Login could not be completed. Please try again in a moment.';
     default:
@@ -32,10 +41,26 @@ function describeLoginError(code: string | undefined | null): string {
 }
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingSpin />}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    const errorCode = searchParams.get('error');
+    if (errorCode) {
+      setErrorMessage(describeLoginError(errorCode));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,10 +159,32 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium cursor-pointer"
             >
               {isSubmitting ? 'Logging in...' : 'Login'}
             </button>
+
+            {ssoEnabled && (
+              <>
+                <div
+                  className="relative flex items-center"
+                  role="separator"
+                  aria-label="Or sign in with single sign-on"
+                >
+                  <div className="flex-grow border-t border-gray-200" />
+                  <span className="mx-4 text-xs font-medium uppercase tracking-wide text-gray-400">
+                    or
+                  </span>
+                  <div className="flex-grow border-t border-gray-200" />
+                </div>
+
+                <MicrosoftSignInButton callbackUrl={CALLBACK_URL} />
+
+                <p className="text-center text-xs text-gray-500">
+                  Use your Hyundai Capital corporate account.
+                </p>
+              </>
+            )}
           </form>
         </Card>
       </div>
