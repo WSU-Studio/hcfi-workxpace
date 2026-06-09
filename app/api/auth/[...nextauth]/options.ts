@@ -120,8 +120,12 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
-    async redirect() {
-      return '/dashboard';
+    async redirect({ baseUrl }) {
+      // Always route post-login traffic to /dashboard regardless of any
+      // callbackUrl. Must return an ABSOLUTE URL — when client code uses
+      // `signIn(..., { redirect: false })`, NextAuth validates this value
+      // with `new URL(...)` and would throw on a bare path like `/dashboard`.
+      return `${baseUrl}/dashboard`;
     },
   },
   session: { strategy: 'jwt' as const, maxAge: 30 * 24 * 60 * 60 },

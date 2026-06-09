@@ -427,38 +427,7 @@ async function main() {
       create: { ...categoryKeyIndex, isActive: true },
     });
   }
-
-  // ── Summary ──────────────────────────────────────────────────────────────
-  console.log('Seed completed.');
-  console.log('');
-  console.log('Admin (own password):');
-  console.log('  admin@workxpace.com / admin123');
-  console.log('');
-  console.log('Common password for everyone below: password123');
-  console.log('');
-  console.log('Requestors (3, ADMIN role, dept IT):');
-  console.log('  - requestor@workxpace.com         (Requestor IT)');
-  console.log('  - requestor.2@workxpace.com       (Requestor IT 2)');
-  console.log('  - requestor.3@workxpace.com       (Requestor IT 3)');
-  console.log('');
-  console.log('Reviewers (3, distinct roles, dept IT):');
-  console.log('  - reviewer.fm@workxpace.com       (Reviewer FM,  role FM)');
-  console.log('  - reviewer.spv@workxpace.com      (Reviewer SPV, role SPV)');
-  console.log('  - reviewer.dh@workxpace.com       (Reviewer DH,  role DH)');
-  console.log('');
-  console.log('Approvers (3, distinct roles, dept IT):');
-  console.log('  - approver.ceo@workxpace.com      (Approver CEO, role CEO)');
-  console.log('  - approver.dir@workxpace.com      (Approver DIR, role DIR)');
-  console.log('  - approver.fm@workxpace.com       (Approver FM,  role FM — shares role with Reviewer FM)');
-  console.log('');
-  console.log('Approval schemas seeded for each entity type (BudgetPlan / BudgetRequest / PaymentRequest):');
-  console.log('  - Primary Schema for X    (2 steps): FM(R) → CEO(A)');
-  console.log('  - 3-Step Schema for X     (3 steps): SPV(R) → FM(R) → DIR(A)');
-  console.log('  - 4-Step Schema for X     (4 steps): SPV(R) → DH(R) → FM(R) → CEO(A)');
-  console.log('');
-  console.log('Project:', project.code);
 }
-
 main()
   .then(() => prisma.$disconnect())
   .catch((e) => {
