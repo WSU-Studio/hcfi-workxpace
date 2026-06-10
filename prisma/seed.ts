@@ -78,6 +78,8 @@ interface ApprovalLevelSeed {
 }
 
 interface ApprovalSchemaSeed {
+  /** Stable, human-typeable handle used by the BP bulk-import template. */
+  code: string;
   name: string;
   type: 'BudgetPlan' | 'BudgetRequest' | 'PaymentRequest';
   departmentId: string;
@@ -89,6 +91,11 @@ interface ApprovalSchemaSeed {
  * Create-or-find an approval schema, then ensure its levels exist. Levels are
  * only seeded if the schema currently has zero levels — so admins who later
  * tweak a schema via the UI won't have their changes overwritten on reseed.
+ *
+ * Self-heals codes: if a row already exists (matched by name+dept+type) but
+ * was created before the `code` column existed (the migration backfills
+ * placeholders like `AS-XXXXXXXX`), the next reseed promotes it to the
+ * friendly code declared here.
  */
 async function upsertApprovalSchemaWithLevels(seed: ApprovalSchemaSeed) {
   let schema = await prisma.approvalSchema.findFirst({
@@ -97,11 +104,17 @@ async function upsertApprovalSchemaWithLevels(seed: ApprovalSchemaSeed) {
   if (!schema) {
     schema = await prisma.approvalSchema.create({
       data: {
+        code: seed.code,
         name: seed.name,
         type: seed.type,
         period: 'Unlimited',
         departmentId: seed.departmentId,
       },
+    });
+  } else if (schema.code !== seed.code) {
+    schema = await prisma.approvalSchema.update({
+      where: { id: schema.id },
+      data: { code: seed.code },
     });
   }
 
@@ -312,11 +325,20 @@ async function main() {
     BudgetRequest: 'Budget Request',
     PaymentRequest: 'Payment Request',
   };
+  // Short code prefix per entity type — used together with the depth flavour
+  // (PRIMARY / 3STEP / 4STEP) to build the schema's `code`, e.g. `BP-PRIMARY`.
+  const CODE_PREFIX_BY_TYPE: Record<EntityType, string> = {
+    BudgetPlan: 'BP',
+    BudgetRequest: 'BR',
+    PaymentRequest: 'PR',
+  };
 
   for (const type of ENTITY_TYPES) {
     const label = LABEL_BY_TYPE[type];
+    const codePrefix = CODE_PREFIX_BY_TYPE[type];
 
     await upsertApprovalSchemaWithLevels({
+      code: `${codePrefix}-PRIMARY`,
       name: `Primary Schema for ${label}`,
       type,
       departmentId: dept.id,
@@ -327,6 +349,7 @@ async function main() {
     });
 
     await upsertApprovalSchemaWithLevels({
+      code: `${codePrefix}-3STEP`,
       name: `3-Step Schema for ${label}`,
       type,
       departmentId: dept.id,
@@ -338,6 +361,7 @@ async function main() {
     });
 
     await upsertApprovalSchemaWithLevels({
+      code: `${codePrefix}-4STEP`,
       name: `4-Step Schema for ${label}`,
       type,
       departmentId: dept.id,

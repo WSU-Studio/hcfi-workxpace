@@ -189,6 +189,12 @@ model Project {
 
 model ApprovalSchema {
   id              String         @id @default(cuid())
+  // Short, stable, human-typeable identifier (e.g. `BP-PRIMARY`, `BR-3STEP`).
+  // Used by the bulk-import XLSX template ("Approval Schema Code" column) and
+  // anywhere else where a stable handle is preferable to the wordier `name`.
+  // Unique across the workspace so imports remain unambiguous even if two
+  // departments happen to pick the same `name`.
+  code            String         @unique
   name            String
   type            String         // BudgetPlan | BudgetRequest | PaymentRequest
   period          String         @default("Unlimited") // Unlimited | Custom
