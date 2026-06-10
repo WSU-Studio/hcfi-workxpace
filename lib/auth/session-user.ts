@@ -58,27 +58,32 @@ function parseAccessJson<T>(raw: unknown): Partial<T> {
 /**
  * Build the session payload from a DB user row with the relations we need.
  *
- * Admin role bypasses stored access flags and gets the full grant. All other
- * roles start from the conservative defaults and merge any persisted overrides
- * on top — same algorithm regardless of which provider authenticated the user.
+ * The admin role starts from a fully-permissive baseline; every other role
+ * starts from the conservative default-deny baseline. Either way, the user's
+ * stored access overrides take precedence — this lets the admin narrow a
+ * specific user's powers (e.g. revoke cross-department view for one admin
+ * teammate) via the Access Control UI without having to demote their role.
+ *
+ * Previously the admin branch returned `fullAccess` unconditionally, which
+ * silently ignored any per-user overrides for admin-role users. That made
+ * the cross-department gates impossible to enforce on those users.
  */
 function buildSessionUser(user: UserWithRelations): SessionUser {
   const primaryRole = user.userRoles[0].role;
   const isAdmin = primaryRole.roleCode === ADMIN_ROLE_CODE;
 
-  const menuAccess: MenuAccess = isAdmin
-    ? fullMenuAccess
-    : {
-        ...defaultMenuAccess,
-        ...parseAccessJson<MenuAccess>(user.access?.menuAccess),
-      };
+  const baseMenuAccess = isAdmin ? fullMenuAccess : defaultMenuAccess;
+  const baseActivityAccess = isAdmin ? fullActivityAccess : defaultActivityAccess;
 
-  const activityAccess: ActivityAccess = isAdmin
-    ? fullActivityAccess
-    : {
-        ...defaultActivityAccess,
-        ...parseAccessJson<ActivityAccess>(user.access?.activityAccess),
-      };
+  const menuAccess: MenuAccess = {
+    ...baseMenuAccess,
+    ...parseAccessJson<MenuAccess>(user.access?.menuAccess),
+  };
+
+  const activityAccess: ActivityAccess = {
+    ...baseActivityAccess,
+    ...parseAccessJson<ActivityAccess>(user.access?.activityAccess),
+  };
 
   return {
     id: user.id,
