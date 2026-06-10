@@ -37,6 +37,11 @@ jobs:
           echo "CONFINS_INCOMING_REF_FIELD=\"${{ secrets.CONFINS_INCOMING_REF_FIELD }}\"" >> .env
           echo "NEXT_PUBLIC_SYNC_MANAGED_MASTERS=\"${{ secrets.NEXT_PUBLIC_SYNC_MANAGED_MASTERS }}\"" >> .env
           echo "" >> .env
+          echo "AZURE_APPLICATION_ID=\"${{ secrets.AZURE_APPLICATION_ID }}\"" >> .env
+          echo "AZURE_TENANT_ID=\"${{ secrets.AZURE_TENANT_ID }}\"" >> .env
+          echo "AZURE_CLIENT_SECRET=\"${{ secrets.AZURE_CLIENT_SECRET }}\"" >> .env
+          echo "NEXT_PUBLIC_AZURE_AD_SSO_ENABLED=${{ secrets.NEXT_PUBLIC_AZURE_AD_SSO_ENABLED }}" >> .env
+          echo "" >> .env
           echo "NEXTAUTH_URL=\"${{ secrets.NEXTAUTH_URL }}\"" >> .env
           echo "NEXTAUTH_SECRET=\"${{ secrets.NEXTAUTH_SECRET }}\"" >> .env
           echo "" >> .env
