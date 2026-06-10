@@ -117,10 +117,14 @@ export async function POST(req: NextRequest) {
           .filter(Boolean)
       ),
     ];
-    const approvalSchemaNames = [
+    // The XLSX template column is "Approval Schema Code". Normalize to upper
+    // case to match what the API stores (validateApprovalSchemaCode uppercases
+    // on save), so admins typing `bp-primary` in Excel still match `BP-PRIMARY`
+    // in the DB.
+    const approvalSchemaCodes = [
       ...new Set(
         rows
-          .map((r: Record<string, unknown>) => toText(r.approvalSchemaCode))
+          .map((r: Record<string, unknown>) => toText(r.approvalSchemaCode).toUpperCase())
           .filter(Boolean)
       ),
     ];
@@ -136,10 +140,18 @@ export async function POST(req: NextRequest) {
             select: { id: true, code: true },
           })
         : Promise.resolve([]),
-      approvalSchemaNames.length
+      // Lookup by `code` first; if any rows still ship the schema's `name`
+      // (legacy templates from before code was introduced), they're matched
+      // by name as a fallback. New imports should always use the code.
+      approvalSchemaCodes.length
         ? prisma.approvalSchema.findMany({
-            where: { name: { in: approvalSchemaNames } },
-            select: { id: true, name: true },
+            where: {
+              OR: [
+                { code: { in: approvalSchemaCodes } },
+                { name: { in: approvalSchemaCodes } },
+              ],
+            },
+            select: { id: true, code: true, name: true },
           })
         : Promise.resolve([]),
     ]);
@@ -148,6 +160,11 @@ export async function POST(req: NextRequest) {
       departments.map((d) => [d.code, d] as const)
     );
     const projectByCode = new Map(projects.map((p) => [p.code, p] as const));
+    // Two lookup maps so the per-row code resolution can prefer the code
+    // (canonical) and only fall back to name if no code matched.
+    const approvalSchemaByCode = new Map(
+      approvalSchemas.map((s) => [s.code, s] as const)
+    );
     const approvalSchemaByName = new Map(
       approvalSchemas.map((s) => [s.name, s] as const)
     );
@@ -191,7 +208,13 @@ export async function POST(req: NextRequest) {
             throw new Error(`Project Code not found: ${projectCode}`);
           }
 
-          const approvalSchema = approvalSchemaByName.get(approvalSchemaCode) ?? null;
+          // Prefer code (canonical), then fall back to name for legacy
+          // templates that still ship the schema name in the Code column.
+          const normalizedSchemaKey = approvalSchemaCode.toUpperCase();
+          const approvalSchema =
+            approvalSchemaByCode.get(normalizedSchemaKey) ??
+            approvalSchemaByName.get(approvalSchemaCode) ??
+            null;
           if (!approvalSchema) {
             throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
           }

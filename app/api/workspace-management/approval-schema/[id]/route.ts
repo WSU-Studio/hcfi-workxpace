@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { validateApprovalSchemaCode } from '@/lib/forms/approval-schema-validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +36,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await request.json();
+    const codeResult = validateApprovalSchemaCode(body.code);
+    if (!codeResult.ok) {
+      return NextResponse.json({ error: codeResult.error }, { status: 400 });
+    }
 
     await prisma.approvalSchema.update({
       where: { id },
       data: {
+        code: codeResult.code,
         name: body.name,
         type: body.type,
         period: body.period || 'Unlimited',
@@ -61,6 +68,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ success: true });
   } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Code already in use by another approval schema' },
+        { status: 409 },
+      );
+    }
     console.error('Failed:', e);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }

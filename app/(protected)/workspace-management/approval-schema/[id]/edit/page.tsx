@@ -34,13 +34,14 @@ export default function EditApprovalSchemaPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [formData, setFormData] = useState({
+    code: '',
     name: '',
     type: 'BudgetPlan',
     period: 'Unlimited',
     departmentId: '',
   });
   const [levels, setLevels] = useState<Level[]>([{ levelType: 'Reviewer', roleId: '' }]);
-  const [errors, setErrors] = useState<{ name?: string; type?: string; period?: string; departmentId?: string; levels?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ code?: string; name?: string; type?: string; period?: string; departmentId?: string; levels?: string; general?: string }>({});
 
   useEffect(() => {
     if (!id) return;
@@ -50,6 +51,7 @@ export default function EditApprovalSchemaPage() {
         const s = data.schema;
         if (s) {
           setFormData({
+            code: s.code ?? '',
             name: s.name,
             type: s.type,
             period: s.period || 'Unlimited',
@@ -78,6 +80,10 @@ export default function EditApprovalSchemaPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    if (!formData.code.trim()) {
+      setErrors((p) => ({ ...p, code: 'Code is required' }));
+      return;
+    }
     if (!formData.departmentId || levels.some((l) => !l.roleId)) {
       setErrors((p) => ({ ...p, departmentId: 'Select department', levels: 'Select job position for each level' }));
       return;
@@ -90,7 +96,8 @@ export default function EditApprovalSchemaPage() {
         body: JSON.stringify({ ...formData, levels }),
       });
       if (!res.ok) {
-        setErrors((p) => ({ ...p, general: 'Failed' }));
+        const data = await res.json().catch(() => ({}));
+        setErrors((p) => ({ ...p, general: typeof data?.error === 'string' ? data.error : 'Failed' }));
         return;
       }
       router.push('/workspace-management/approval-schema');
@@ -109,6 +116,27 @@ export default function EditApprovalSchemaPage() {
       {errors.general && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block mb-1.5 font-medium">
+              Code <span className="text-red-500">*</span>
+            </label>
+            <Input
+              name="code"
+              value={formData.code}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, code: e.target.value.toUpperCase() }))
+              }
+              placeholder="BP-PRIMARY"
+              maxLength={64}
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Short, unique identifier (letters, digits, dash, underscore, dot). Used by the
+              Budget Plan bulk-import template — changing this will break old import templates
+              that referenced the previous code.
+            </p>
+            {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+          </div>
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
             <Input

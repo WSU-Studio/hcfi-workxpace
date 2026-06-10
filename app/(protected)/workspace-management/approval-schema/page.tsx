@@ -19,6 +19,7 @@ interface Level {
 
 interface Schema {
   id: string;
+  code: string;
   name: string;
   type: string;
   period: string;
@@ -57,7 +58,15 @@ export default function ApprovalSchemaPage() {
     if (!searchKeyword.trim()) setFiltered(schemas);
     else {
       const kw = searchKeyword.toLowerCase();
-      setFiltered(schemas.filter((s) => s.name?.toLowerCase().includes(kw) || s.type?.toLowerCase().includes(kw) || s.department?.name?.toLowerCase().includes(kw)));
+      setFiltered(
+        schemas.filter(
+          (s) =>
+            s.code?.toLowerCase().includes(kw) ||
+            s.name?.toLowerCase().includes(kw) ||
+            s.type?.toLowerCase().includes(kw) ||
+            s.department?.name?.toLowerCase().includes(kw),
+        ),
+      );
     }
     setCurrentPage(1);
   }, [searchKeyword, schemas]);
@@ -87,6 +96,7 @@ export default function ApprovalSchemaPage() {
           <thead>
             <TableHeaderRow>
               <TableHead>#</TableHead>
+              <TableHead>Code</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Status / Type</TableHead>
@@ -100,6 +110,7 @@ export default function ApprovalSchemaPage() {
               currentSchemas.map((s, i) => (
                 <TableBodyRow key={s.id}>
                   <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell className="font-mono text-sm">{s.code}</TableCell>
                   <TableCell>{s.name}</TableCell>
                   <TableCell>{s.department?.name ?? '-'}</TableCell>
                   <TableCell>{s.type} - Default</TableCell>
