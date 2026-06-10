@@ -9,6 +9,7 @@ import {
   getNextBudgetRequestApprovalStep,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
+import { canEditClassificationFields } from '@/lib/access/classification';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,17 +102,47 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             Math.max(0, Number(lineItem.unitPrice ?? 0)) !== Math.max(0, Number(before.lineItems[index]?.unitPrice ?? 0))
         ));
 
+    // Defense in depth: when the caller lacks `editClassificationSection`,
+    // ignore any classification fields in the body and keep the persisted
+    // values (matches the UI which renders those inputs disabled). Note
+    // that BR uses denormalized text columns (`category`, `costCenter`,
+    // `coa`, `opexAllocation`, `categoryKeyIndex`) rather than the `*Id`
+    // foreign keys used by BP/PR — hence the inline projection here
+    // instead of the shared `pickClassificationFields` helper.
+    const allowClassificationEdit = canEditClassificationFields(session);
+    const nextCategoryKeyIndex = allowClassificationEdit
+      ? body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null
+      : before.categoryKeyIndex ?? null;
+    const nextCostCenter = allowClassificationEdit
+      ? body?.costCenterId ?? before.costCenter ?? null
+      : before.costCenter ?? null;
+    const nextCategory = allowClassificationEdit
+      ? body?.categoryId ?? before.category ?? null
+      : before.category ?? null;
+    const nextCoa = allowClassificationEdit
+      ? body?.coaId ?? before.coa ?? null
+      : before.coa ?? null;
+    const nextType = allowClassificationEdit
+      ? body?.opexType ?? before.type ?? null
+      : before.type ?? null;
+    const nextOpexType = allowClassificationEdit
+      ? body?.opexType ?? before.opexType ?? null
+      : before.opexType ?? null;
+    const nextOpexAllocation = allowClassificationEdit
+      ? (nextOpexType === 'OPEX' ? body?.opexAllocationId ?? before.opexAllocation ?? null : null)
+      : before.opexAllocation ?? null;
+
     const updated = await prisma.budgetRequest.update({
       where: { id },
       data: {
         status: newStatus,
-        categoryKeyIndex: body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null,
-        costCenter: body?.costCenterId ?? before.costCenter ?? null,
-        category: body?.categoryId ?? before.category ?? null,
-        coa: body?.coaId ?? before.coa ?? null,
-        type: body?.opexType ?? before.type ?? null,
-        opexAllocation: body?.opexAllocationId ?? before.opexAllocation ?? null,
-        opexType: body?.opexType ?? before.opexType ?? null,
+        categoryKeyIndex: nextCategoryKeyIndex,
+        costCenter: nextCostCenter,
+        category: nextCategory,
+        coa: nextCoa,
+        type: nextType,
+        opexAllocation: nextOpexAllocation,
+        opexType: nextOpexType,
       },
       select: { status: true },
     });
@@ -190,12 +221,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         departmentName: before?.department?.name ?? null,
         lineItemCount: before?.lineItems.length ?? 0,
         totalRequested,
-        categoryKeyIndex: body?.categoryKeyIndexId ?? before?.categoryKeyIndex ?? null,
-        costCenter: body?.costCenterId ?? before?.costCenter ?? null,
-        category: body?.categoryId ?? before?.category ?? null,
-        coa: body?.coaId ?? before?.coa ?? null,
-        type: body?.opexType ?? before?.type ?? null,
-        opexAllocation: body?.opexAllocationId ?? before?.opexAllocation ?? null,
+        categoryKeyIndex: nextCategoryKeyIndex,
+        costCenter: nextCostCenter,
+        category: nextCategory,
+        coa: nextCoa,
+        type: nextType,
+        opexAllocation: nextOpexAllocation,
         qtyUnitPriceAdjustmentNote,
         declineReason: action === 'revision' || action === 'decline' ? body?.declineReason ?? null : null,
       },

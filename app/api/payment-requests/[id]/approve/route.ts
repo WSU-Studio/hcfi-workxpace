@@ -9,6 +9,7 @@ import {
   getNextBudgetRequestApprovalStep,
 } from '@/lib/budget-plan-review-eligibility';
 import { createPaymentRequestApprovalNotifications } from '@/lib/payment-request-notifications';
+import { canEditClassificationFields } from '@/lib/access/classification';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,17 +94,40 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
+    // Defense in depth: when the caller lacks `editClassificationSection`,
+    // drop the classification fields from the body and keep the persisted
+    // values (matches the read-only UI). PR uses denormalized text columns
+    // (`category`, `costCenter`, `coa`, `opexAllocation`, `categoryKeyIndex`),
+    // so the projection is inline rather than via the shared helper that
+    // expects the `*Id` shape used by BP.
+    const allowClassificationEdit = canEditClassificationFields(session);
+    const nextOpexType = allowClassificationEdit
+      ? body?.opexType ?? before.opexType ?? null
+      : before.opexType ?? null;
+
     const updated = await prisma.paymentRequest.update({
       where: { id },
       data: {
         status: newStatus,
-        categoryKeyIndex: body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null,
-        costCenter: body?.costCenterId ?? before.costCenter ?? null,
-        category: body?.categoryId ?? before.category ?? null,
-        coa: body?.coaId ?? before.coa ?? null,
-        type: body?.opexType ?? before.type ?? null,
-        opexAllocation: body?.opexAllocationId ?? before.opexAllocation ?? null,
-        opexType: body?.opexType ?? before.opexType ?? null,
+        categoryKeyIndex: allowClassificationEdit
+          ? body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null
+          : before.categoryKeyIndex ?? null,
+        costCenter: allowClassificationEdit
+          ? body?.costCenterId ?? before.costCenter ?? null
+          : before.costCenter ?? null,
+        category: allowClassificationEdit
+          ? body?.categoryId ?? before.category ?? null
+          : before.category ?? null,
+        coa: allowClassificationEdit
+          ? body?.coaId ?? before.coa ?? null
+          : before.coa ?? null,
+        type: allowClassificationEdit
+          ? body?.opexType ?? before.type ?? null
+          : before.type ?? null,
+        opexAllocation: allowClassificationEdit
+          ? (nextOpexType === 'OPEX' ? body?.opexAllocationId ?? before.opexAllocation ?? null : null)
+          : before.opexAllocation ?? null,
+        opexType: nextOpexType,
       },
       select: { status: true },
     });

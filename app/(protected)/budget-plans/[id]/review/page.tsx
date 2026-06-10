@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
@@ -18,6 +19,7 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 export default function ReviewBudgetPlanPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const id = params.id as string;
   const [plan, setPlan] = useState<{
     code: string;
@@ -230,7 +232,16 @@ export default function ReviewBudgetPlanPage() {
     ? `${selectedOriginOffice.code} - ${selectedOriginOffice.name}`
     : (plan.originOffice || '-');
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
+  // Drives the Allocation grid editability (review-eligibility only).
   const canEditClassification = canTakeAction;
+  // Classification section is additionally gated by the dedicated permission
+  // `editClassificationSection`. Reviewers without this permission still see
+  // the section but as read-only — they can approve/decline but cannot
+  // re-tag the document's COA / cost center / category.
+  const hasEditClassificationPermission = Boolean(
+    session?.user?.access?.activityAccess?.editClassificationSection,
+  );
+  const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -317,7 +328,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Cost Center</label>
               <Select
                 value={classification.costCenterId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, costCenterId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -332,7 +343,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Category</label>
               <Select
                 value={classification.categoryId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -347,7 +358,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Category Key Index</label>
               <Select
                 value={classification.categoryKeyIndexId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryKeyIndexId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -364,7 +375,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
               <Select
                 value={classification.coaId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -381,7 +392,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Type</label>
               <Select
                 value={classification.opexType}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) =>
                   setClassification((p) => ({
                     ...p,
@@ -399,7 +410,7 @@ export default function ReviewBudgetPlanPage() {
                 <label className="block mb-1.5 text-sm font-medium">Opex Allocation</label>
                 <Select
                   value={classification.opexAllocationId}
-                  disabled={!canEditClassification}
+                  disabled={!canEditClassificationFields}
                   onChange={(e) => setClassification((p) => ({ ...p, opexAllocationId: e.target.value }))}
                 >
                   <option value="">-</option>

@@ -86,4 +86,13 @@ export interface ActivityAccess {
    * yang menangani banyak department).
    */
   viewOtherDepartmentDocuments: boolean;
+  /**
+   * Mengedit field Classification (Cost Center, Category, Category Key Index,
+   * Kode Akun, OPEX/CAPEX Type, OPEX Allocation) pada halaman Review BP/BR/PR.
+   * Default `false`: section Classification dirender read-only meskipun user
+   * adalah reviewer yang berwenang di step saat ini. Hak ini dipisah agar
+   * accounting / finance controller dapat membatasi siapa yang boleh men-tag
+   * dokumen ke akun & cost center tertentu tanpa mencabut hak review.
+   */
+  editClassificationSection: boolean;
 }

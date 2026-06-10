@@ -81,6 +81,7 @@ export const activityAccessItems: Array<{ key: string; label: string }> = [
   { key: 'changeAccess', label: 'Change Access' },
   { key: 'createForOtherDepartment', label: 'Create BP/BR/PR for Other Departments (Cross-Department)' },
   { key: 'viewOtherDepartmentDocuments', label: 'View BP/BR/PR from Other Departments (Cross-Department)' },
+  { key: 'editClassificationSection', label: 'Edit Classification Section on BR/BP/PR' },
 ];
 
 export const workspaceManagementAccessItems: Array<{ key: string; label: string }> = [

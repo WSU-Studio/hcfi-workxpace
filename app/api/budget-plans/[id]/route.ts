@@ -7,6 +7,10 @@ import accountOptions from '@/data/accounts.json';
 import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
 import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
+import {
+  canEditClassificationFields,
+  pickClassificationFields,
+} from '@/lib/access/classification';
 
 export const dynamic = 'force-dynamic';
 
@@ -324,17 +328,43 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
       }
 
+      // Defense in depth: the UI renders the Classification section as
+      // read-only for users without `editClassificationSection`, but a
+      // direct PATCH could still try to slip those fields in. Project the
+      // incoming body onto either the caller-supplied overrides (allowed)
+      // or the persisted values (not allowed) so the approve/decline flow
+      // still succeeds without partially overwriting accounting tags.
+      const classification = pickClassificationFields(
+        {
+          coaId: body.coaId,
+          categoryId: body.categoryId,
+          categoryKeyIndexId: body.categoryKeyIndexId,
+          costCenterId: body.costCenterId,
+          opexType: body.opexType,
+          opexAllocationId: body.opexAllocationId,
+        },
+        {
+          coaId: before.coaId,
+          categoryId: before.categoryId,
+          categoryKeyIndexId: before.categoryKeyIndexId,
+          costCenterId: before.costCenterId,
+          opexType: before.opexType,
+          opexAllocationId: before.opexAllocationId,
+        },
+        canEditClassificationFields(session),
+      );
+
       const updated = await prisma.budgetPlan.update({
         where: { id },
         data: {
           status: body.status,
-          coaId: body.coaId ?? undefined,
-          categoryId: body.categoryId ?? undefined,
-          categoryKeyIndexId: body.categoryKeyIndexId ?? undefined,
-          costCenterId: body.costCenterId ?? undefined,
+          coaId: classification.coaId,
+          categoryId: classification.categoryId,
+          categoryKeyIndexId: classification.categoryKeyIndexId,
+          costCenterId: classification.costCenterId,
           opexId: null,
-          opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId ?? undefined : null,
-          opexType: body.opexType ?? undefined,
+          opexAllocationId: classification.opexAllocationId,
+          opexType: classification.opexType,
         },
         select: {
           status: true,

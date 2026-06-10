@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -20,6 +21,7 @@ import {
 export default function ReviewPaymentRequestPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const id = params.id as string;
   const [data, setData] = useState<{
     id: string;
@@ -140,7 +142,14 @@ export default function ReviewPaymentRequestPage() {
   const completedSteps =
     data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
   const approveHistories = (data.histories || []).filter((h) => h.action === 'approve');
-  const canEditClassification = Boolean(data.canReview);
+  // PR review only edits the Classification section (no line-item editing
+  // here, unlike BR review), so the variable can be folded directly: a user
+  // who can review BUT lacks `editClassificationSection` sees the section
+  // read-only and the underlying `RequestClassificationFields` honors that.
+  const hasEditClassificationPermission = Boolean(
+    session?.user?.access?.activityAccess?.editClassificationSection,
+  );
+  const canEditClassification = Boolean(data.canReview) && hasEditClassificationPermission;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
