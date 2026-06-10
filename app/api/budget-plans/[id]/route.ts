@@ -128,7 +128,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           budgetRequestCount > 0
             ? await prisma.budgetRequest.findMany({
                 where: { budgetPlanId: id },
-                select: { requestDate: true, grandTotal: true },
+                // `status` is required so the realization bucket can filter
+                // out non-Approved BRs (Draft / Pending / Revision / etc.)
+                // — only fully-approved requests count as realized budget.
+                select: { requestDate: true, grandTotal: true, status: true },
               })
             : [],
           plan.fiscalYear,
