@@ -10,6 +10,7 @@ import {
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
+import { bucketRealizationByMonth } from '@/lib/budget-plan-realization';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             costCenter: { select: { name: true } },
             categoryKeyIndex: { select: { name: true } },
             opexAllocation: { select: { name: true } },
+            // Needed to compute the plan's total allocation; the BR review
+            // page surfaces it alongside the plan's outstanding so reviewers
+            // can gauge available budget before approving this request.
+            allocations: { select: { month: true, allocation: true } },
           },
         },
         department: true,
@@ -62,6 +67,34 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
     });
     if (!br) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // Sibling Budget Requests against the SAME plan that have already been
+    // fully approved. Used to compute the plan's "realized" total, which
+    // reviewers need on this page to decide whether the plan still has room
+    // for the current request. We deliberately exclude the current BR (`id`)
+    // so the projection "outstanding if this BR is approved" can be derived
+    // cleanly on the client as `outstanding - this.grandTotal`, regardless
+    // of whether this BR is itself already Approved.
+    const siblingApprovedRequests = br.budgetPlanId
+      ? await prisma.budgetRequest.findMany({
+          where: {
+            budgetPlanId: br.budgetPlanId,
+            status: 'Approved',
+            NOT: { id: br.id },
+          },
+          select: { requestDate: true, grandTotal: true, status: true },
+        })
+      : [];
+
+    const planAllocationTotal = (br.budgetPlan?.allocations ?? []).reduce(
+      (sum, allocation) => sum + Number(allocation.allocation ?? 0),
+      0,
+    );
+    const planRealizationBuckets = br.budgetPlan
+      ? bucketRealizationByMonth(siblingApprovedRequests, br.budgetPlan.fiscalYear)
+      : [];
+    const planRealization = planRealizationBuckets.reduce((sum, value) => sum + value, 0);
+    const planOutstanding = planAllocationTotal - planRealization;
     const requestor = br.requestorId
       ? await prisma.user.findUnique({
           where: { id: br.requestorId },
@@ -99,6 +132,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({
       ...br,
+      // Override `budgetPlan` (which `...br` already spread in) with the
+      // enriched version carrying allocationTotal / realization / outstanding.
+      // These are the *plan's* totals excluding the current BR, so the
+      // reviewer can see how much room is still available before deciding.
+      budgetPlan: br.budgetPlan
+        ? {
+            ...br.budgetPlan,
+            allocationTotal: planAllocationTotal,
+            realization: planRealization,
+            outstanding: planOutstanding,
+          }
+        : null,
       requestorName: requestor?.name ?? null,
       histories,
       canReview,

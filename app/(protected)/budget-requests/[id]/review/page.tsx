@@ -59,6 +59,12 @@ export default function ReviewBudgetRequestPage() {
       costCenter?: { name: string } | null;
       categoryKeyIndex?: { name: string } | null;
       opexAllocation?: { name: string } | null;
+      // Totals computed server-side, excluding this BR. The review page uses
+      // them to render the plan's outstanding balance and the projected
+      // balance if the reviewer approves this BR.
+      allocationTotal?: number;
+      realization?: number;
+      outstanding?: number;
     };
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
@@ -190,6 +196,17 @@ export default function ReviewBudgetRequestPage() {
   const whtAmount = Math.round(transactionAmount * (whtPercent / 100));
   const invoiceAmount = transactionAmount + vatAmount;
   const grandTotal = invoiceAmount - whtAmount;
+
+  // Budget Plan Status — totals are computed server-side excluding this BR
+  // (see `app/api/budget-requests/[id]/route.ts`), so the projected
+  // outstanding "if this BR is approved" is just `outstanding - grandTotal`,
+  // and the same calculation also yields the actual current outstanding for
+  // an already-Approved BR (because self was excluded from realization).
+  const planAllocationTotal = Number(data.budgetPlan?.allocationTotal ?? 0);
+  const planRealization = Number(data.budgetPlan?.realization ?? 0);
+  const planOutstanding = Number(data.budgetPlan?.outstanding ?? 0);
+  const projectedOutstanding = planOutstanding - grandTotal;
+  const isOverbudget = projectedOutstanding < 0;
   // `canEditClassification` keeps its original meaning — "can edit the
   // review form including line items (qty / unit price)". Line items are
   // economic facts of the request, so they remain gated only by review
@@ -326,6 +343,61 @@ export default function ReviewBudgetRequestPage() {
             </TableBodyRow>
           </tbody>
         </Table>
+      </Card>
+
+      <Card
+        className="space-y-3"
+        header={<h3 className="font-medium">Budget Plan Status</h3>}
+      >
+        <p className="text-sm text-gray-500">
+          Snapshot of plan <span className="font-medium text-gray-700">{data.budgetPlan?.code}</span>{' '}
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+            <span className="text-sm text-gray-600">Plan total</span>
+            <span className="font-medium tabular-nums">{formatCurrency(planAllocationTotal)}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+            <span className="text-sm text-gray-600">Realized (other approved BRs)</span>
+            <span className="font-medium tabular-nums">{formatCurrency(planRealization)}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 ring-1 ring-blue-200">
+            <span className="text-sm font-medium text-blue-700">Outstanding (available)</span>
+            <span className="font-semibold tabular-nums text-blue-800">
+              {formatCurrency(planOutstanding)}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+            <span className="text-sm text-gray-600">This request grand total</span>
+            <span className="font-medium tabular-nums">{formatCurrency(grandTotal)}</span>
+          </div>
+        </div>
+        <div
+          className={`flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 ${
+            isOverbudget
+              ? 'bg-red-50 ring-1 ring-red-300'
+              : 'bg-emerald-50 ring-1 ring-emerald-200'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            className={`text-sm font-medium ${
+              isOverbudget ? 'text-red-700' : 'text-emerald-700'
+            }`}
+          >
+            {isOverbudget
+              ? 'Outstanding after approval — over budget!'
+              : 'Outstanding after approval'}
+          </span>
+          <span
+            className={`font-semibold tabular-nums ${
+              isOverbudget ? 'text-red-800' : 'text-emerald-800'
+            }`}
+          >
+            {formatCurrency(projectedOutstanding)}
+          </span>
+        </div>
       </Card>
 
       <Card collapsible header={<h3 className="font-medium">Classification</h3>}>
