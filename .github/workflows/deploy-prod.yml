@@ -47,17 +47,14 @@ jobs:
           echo "" >> .env
           echo "NODE_ENV=production" >> .env
   
-      - name: Run first-time setup 
-        if: ${{ github.run_number == 1}}
-        run: |
-          npm run db:migrate
-          npm run seed
-
       - name: Build application
         run: npm run build
 
       - name: Apply Database Migrations
-        run: npm run db:migrate:deploy
+        run: |
+          npm run db:migrate
+          npm run seed
+          npm run db:migrate:deploy
 
       - name: Restart App with PM2
         run: |
