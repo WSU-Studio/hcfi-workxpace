@@ -10,6 +10,13 @@ import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
+import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
+import {
+  ALL_FISCAL_YEARS,
+  type FiscalYearFilterValue,
+  getCurrentFiscalYear,
+  serializeFiscalYearParam,
+} from '@/lib/fiscal-year';
 
 interface PaymentRequestRow {
   id: string;
@@ -86,6 +93,8 @@ export default function PaymentRequestsPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
+  const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
+  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<PaymentRequestRow | null>(null);
   const [listFetchWarning, setListFetchWarning] = useState('');
 
@@ -94,7 +103,22 @@ export default function PaymentRequestsPage() {
   const currentRequests = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
-    fetch('/api/payment-requests', { credentials: 'include' })
+    fetch('/api/fiscal-years', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
+      .then((data: { fiscalYears?: { year: number }[] }) => {
+        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
+      })
+      .catch(() => setAvailableFiscalYears([]));
+  }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (fiscalYearFilter !== ALL_FISCAL_YEARS) {
+      params.set('fiscalYear', serializeFiscalYearParam(fiscalYearFilter));
+    }
+    const query = params.toString();
+    fetch(`/api/payment-requests${query ? `?${query}` : ''}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { requests: [] }))
       .then((data) => {
         const list = data.requests || [];
@@ -105,7 +129,7 @@ export default function PaymentRequestsPage() {
         );
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [fiscalYearFilter]);
 
   useEffect(() => {
     const kw = searchKeyword.trim().toLowerCase();
@@ -161,6 +185,11 @@ export default function PaymentRequestsPage() {
             placeholder="Search..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <FiscalYearFilter
+            value={fiscalYearFilter}
+            onChange={setFiscalYearFilter}
+            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}
@@ -295,7 +324,13 @@ export default function PaymentRequestsPage() {
           </tbody>
         </Table>
       </Card>
-      <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        itemNoun="payment requests"
+      />
       <EditWarningModal
         isOpen={Boolean(requestToConfirmEdit)}
         requestSubject={requestToConfirmEdit?.subject}

@@ -13,6 +13,13 @@ import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRo
 import Tooltip from '@/components/ui/Tooltip';
 import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
 import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
+import {
+  ALL_FISCAL_YEARS,
+  type FiscalYearFilterValue,
+  getCurrentFiscalYear,
+  serializeFiscalYearParam,
+} from '@/lib/fiscal-year';
 import { validateXlsxFile } from '@/lib/xlsx-validation';
 
 interface Plan {
@@ -119,6 +126,8 @@ export default function BudgetPlansPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
+  const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
+  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
@@ -132,8 +141,17 @@ export default function BudgetPlansPage() {
   const [importError, setImportError] = useState('');
 
 
-  const fetchData = async () => {
-    const res = await fetch('/api/budget-plans', { credentials: 'include' });
+  const fetchData = async (fy: FiscalYearFilterValue) => {
+    const params = new URLSearchParams();
+    // Skip the param entirely when "all" is selected so the server returns
+    // every accessible plan; otherwise scope to the chosen fiscal year.
+    if (fy !== ALL_FISCAL_YEARS) {
+      params.set('fiscalYear', serializeFiscalYearParam(fy));
+    }
+    const query = params.toString();
+    const res = await fetch(`/api/budget-plans${query ? `?${query}` : ''}`, {
+      credentials: 'include',
+    });
     const data = await res.json();
     const list = data.plans || [];
     setPlans(list);
@@ -142,8 +160,18 @@ export default function BudgetPlansPage() {
   };
 
   useEffect(() => {
-    fetchData().finally(() => setIsLoading(false));
+    fetch('/api/fiscal-years', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
+      .then((data: { fiscalYears?: { year: number }[] }) => {
+        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
+      })
+      .catch(() => setAvailableFiscalYears([]));
   }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchData(fiscalYearFilter).finally(() => setIsLoading(false));
+  }, [fiscalYearFilter]);
 
   useEffect(() => {
     const kw = searchKeyword.trim().toLowerCase();
@@ -305,7 +333,7 @@ const handleImportRows = async () => {
     setIsImportModalOpen(false);
     setImportRows([]);
     setImportFileName('');
-    await fetchData();
+    await fetchData(fiscalYearFilter);
   } catch {
     setImportError('Failed to import budget plans');
   } finally {
@@ -325,6 +353,11 @@ const handleImportRows = async () => {
             placeholder="Search..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <FiscalYearFilter
+            value={fiscalYearFilter}
+            onChange={setFiscalYearFilter}
+            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}
@@ -463,7 +496,13 @@ const handleImportRows = async () => {
           </tbody>
         </Table>
       </Card>
-      <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        itemNoun="budget plans"
+      />
       <EditWarningModal
         isOpen={Boolean(planToConfirmEdit)}
         planSubject={planToConfirmEdit?.subject}

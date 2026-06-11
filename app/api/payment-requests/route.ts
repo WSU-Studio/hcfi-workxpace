@@ -13,6 +13,7 @@ import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
+import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
 import {
   classificationToStored,
   mergeStoredClassification,
@@ -37,19 +38,31 @@ type PaymentRequestListRow = Prisma.PaymentRequestGetPayload<{
   include: typeof paymentRequestListInclude;
 }>;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const { searchParams } = new URL(request.url);
+
     // Cross-department view scope: applies both to the PR list and to the
     // "link BR" dropdown so visibility rules stay consistent across the page.
     const departmentScope = buildDepartmentScope(session);
+    // Optional fiscal-year scope (driven by the FY filter dropdown). Applied
+    // only to the PR list — the BR picker dropdown stays unrestricted by FY
+    // so users can link to any approved BR they have access to.
+    const fiscalYearFilter = parseFiscalYearParam(searchParams.get('fiscalYear'));
+    const prListWhere = {
+      ...(departmentScope ?? {}),
+      ...(fiscalYearFilter !== null && fiscalYearFilter !== ALL_FISCAL_YEARS
+        ? { fiscalYear: fiscalYearFilter }
+        : {}),
+    };
 
     // Load approved BRs independently so the PR "link BR" dropdown still works if the payment list query fails
     // (e.g. schema drift on payment_requests / line_items) — previously a thrown findMany hid all BR options.
     const [prSettled, brSettled] = await Promise.allSettled([
       prisma.paymentRequest.findMany({
-        where: departmentScope ?? undefined,
+        where: Object.keys(prListWhere).length > 0 ? prListWhere : undefined,
         include: paymentRequestListInclude,
         orderBy: { createdAt: 'desc' },
         take: 100,

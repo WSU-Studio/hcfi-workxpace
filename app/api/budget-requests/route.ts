@@ -10,17 +10,30 @@ import {
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
+import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const { searchParams } = new URL(request.url);
+
     // Cross-department view scope (null = unrestricted, see helper).
     const departmentScope = buildDepartmentScope(session);
+    // Optional fiscal-year scope (driven by the FY filter dropdown).
+    const fiscalYearFilter = parseFiscalYearParam(searchParams.get('fiscalYear'));
+    const where = {
+      ...(departmentScope ?? {}),
+      ...(fiscalYearFilter !== null && fiscalYearFilter !== ALL_FISCAL_YEARS
+        ? { fiscalYear: fiscalYearFilter }
+        : {}),
+    };
+    const rowsWhere = Object.keys(where).length > 0 ? where : undefined;
+
     const rows = await prisma.budgetRequest.findMany({
-      where: departmentScope ?? undefined,
+      where: rowsWhere,
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },

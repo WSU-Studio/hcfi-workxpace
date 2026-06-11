@@ -303,11 +303,11 @@ async function main() {
     create: { year: 2026, isActive: true },
   });
 
-  const project = await prisma.project.upsert({
-    where: { code: 'B1' },
-    update: {},
-    create: { code: 'B1', name: 'B1 - Non Project' },
-  });
+  // const project = await prisma.project.upsert({
+  //   where: { code: 'B1' },
+  //   update: {},
+  //   create: { code: 'B1', name: 'B1 - Non Project' },
+  // });
 
   // ── Approval schemas ─────────────────────────────────────────────────────
   // For every entity type (BudgetPlan / BudgetRequest / PaymentRequest) we

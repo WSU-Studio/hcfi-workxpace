@@ -9,6 +9,7 @@ import {
 } from '@/lib/budget-plan-review-eligibility';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
+import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,13 @@ export async function GET(request: Request) {
     }
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
+
+    // Optional fiscal-year scope (driven by the FY filter dropdown). Absent
+    // or `all` ⇒ no restriction; a numeric year ⇒ exact-match WHERE clause.
+    const fiscalYearFilter = parseFiscalYearParam(searchParams.get('fiscalYear'));
+    if (fiscalYearFilter !== null && fiscalYearFilter !== ALL_FISCAL_YEARS) {
+      where.fiscalYear = fiscalYearFilter;
+    }
 
     // Apply cross-department view scoping LAST so a query string cannot
     // bypass the permission gate by passing another departmentId.

@@ -10,6 +10,13 @@ import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
+import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
+import {
+  ALL_FISCAL_YEARS,
+  type FiscalYearFilterValue,
+  getCurrentFiscalYear,
+  serializeFiscalYearParam,
+} from '@/lib/fiscal-year';
 
 interface BudgetRequest {
   id: string;
@@ -86,6 +93,8 @@ export default function BudgetRequestsPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
+  const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
+  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<BudgetRequest | null>(null);
 
   const itemsPerPage = 10;
@@ -93,7 +102,22 @@ export default function BudgetRequestsPage() {
   const currentRequests = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
-    fetch('/api/budget-requests', { credentials: 'include' })
+    fetch('/api/fiscal-years', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
+      .then((data: { fiscalYears?: { year: number }[] }) => {
+        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
+      })
+      .catch(() => setAvailableFiscalYears([]));
+  }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (fiscalYearFilter !== ALL_FISCAL_YEARS) {
+      params.set('fiscalYear', serializeFiscalYearParam(fiscalYearFilter));
+    }
+    const query = params.toString();
+    fetch(`/api/budget-requests${query ? `?${query}` : ''}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { requests: [] }))
       .then((data) => {
         const list = data.requests || [];
@@ -101,7 +125,7 @@ export default function BudgetRequestsPage() {
         setFiltered(list);
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [fiscalYearFilter]);
 
   useEffect(() => {
     const kw = searchKeyword.trim().toLowerCase();
@@ -151,6 +175,11 @@ export default function BudgetRequestsPage() {
             placeholder="Search..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <FiscalYearFilter
+            value={fiscalYearFilter}
+            onChange={setFiscalYearFilter}
+            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}
@@ -271,7 +300,13 @@ export default function BudgetRequestsPage() {
           </tbody>
         </Table>
       </Card>
-      <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        itemNoun="budget requests"
+      />
       <EditWarningModal
         isOpen={Boolean(requestToConfirmEdit)}
         requestSubject={requestToConfirmEdit?.subject}
