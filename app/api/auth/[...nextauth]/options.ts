@@ -81,10 +81,33 @@ export const authOptions: AuthOptions = {
       if (account?.provider !== 'azure-ad') return true;
 
       const email = user?.email ?? (profile as { email?: string } | undefined)?.email;
-      if (!email) return false;
+      if (!email) {
+        console.warn('[SSO] reject: no email in profile', {
+          profileKeys: profile ? Object.keys(profile) : null,
+        });
+        return false;
+      }
 
       const groupClaim = (profile as { groups?: unknown } | undefined)?.groups;
-      if (!isAuthorizedByEntraGroup(groupClaim)) return false;
+      const claimSources = (profile as { _claim_sources?: unknown } | undefined)
+        ?._claim_sources;
+      const allowed = isAuthorizedByEntraGroup(groupClaim);
+
+      console.log('[SSO] group check', {
+        email,
+        groupsClaimPresent: Array.isArray(groupClaim),
+        groupsCount: Array.isArray(groupClaim) ? groupClaim.length : null,
+        groupsSample: Array.isArray(groupClaim) ? groupClaim.slice(0, 5) : null,
+        hasClaimSources: Boolean(claimSources),
+        allowlistConfigured: Boolean(process.env.AZURE_ALLOWED_GROUP_IDS),
+        allowlistCount: (process.env.AZURE_ALLOWED_GROUP_IDS ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean).length,
+        authorized: allowed,
+      });
+
+      if (!allowed) return false;
 
       const entraOid =
         (profile as { oid?: string; sub?: string } | undefined)?.oid ??
