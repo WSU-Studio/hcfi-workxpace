@@ -64,11 +64,10 @@ export const authOptions: AuthOptions = {
     /**
      * Two-stage gate for the Azure AD (Entra ID) path:
      *
-     *   1. AUTHORIZATION (group check) — user must be a member of the
-     *      `HCFI-all-users` security group, identified by its Object ID in
-     *      env var `AZURE_ALL_USERS_GROUP_ID`. Outsiders are rejected before
-     *      any DB write. Requires App Registration → Token Configuration →
-     *      Add groups claim to be enabled on the Entra side.
+     *   1. AUTHORIZATION (group check) — when `AZURE_ALLOWED_GROUP_IDS` is
+     *      non-empty, the user's `groups` claim must intersect the allowlist.
+     *      When empty/unset, any authenticated Entra user is allowed. See
+     *      `isAuthorizedByEntraGroup` for the full policy.
      *
      *   2. PROVISIONING (auto) — once authorized, the user is upserted into
      *      the DB with placeholder GUEST role / UNASSIGNED department and

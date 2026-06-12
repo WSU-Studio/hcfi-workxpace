@@ -39,27 +39,60 @@ const UNASSIGNED_DEPARTMENT_DEFAULTS = {
 };
 
 /**
- * Verify Microsoft Entra group membership.
+ * Verify Microsoft Entra group membership against the configured allowlist.
  *
- * Hyundai policy: only members of the `HCFI-all-users` security group are
- * allowed to sign in. The group's Object ID lives in env (so we can swap
- * tenants/groups without code changes), and is matched against the `groups`
- * claim that Entra emits when the App Registration has groups configured
- * under Token Configuration → Add groups claim.
+ * The allowlist lives in env var `AZURE_ALLOWED_GROUP_IDS` as a
+ * comma-separated list of Entra group Object IDs (GUIDs). The user's `groups`
+ * claim (emitted when App Registration → Token Configuration → Add groups
+ * claim is enabled with "Security groups, Group ID") must intersect the
+ * allowlist for sign-in to proceed.
  *
- * Returns `true` when env is configured AND user is in the allowed group;
- * returns `false` in any other case. When the env var is unset we fail
- * closed (reject all SSO) to avoid accidentally exposing the app while
- * waiting for the group ID from the Entra admin.
+ * Two modes:
+ *
+ *   1. UNRESTRICTED (env empty or unset) — any authenticated Entra user is
+ *      allowed. Use this when access is gated solely by which tenant
+ *      authenticates the user (e.g., single-tenant App Registration).
+ *
+ *   2. ALLOWLIST (env non-empty) — only members of at least one listed
+ *      group are allowed. Use this when the tenant contains users beyond
+ *      your application's audience (e.g., HCFI policy: only members of
+ *      `HCFI-all-users` may sign in).
+ *
+ * Example values:
+ *   AZURE_ALLOWED_GROUP_IDS=""                                  → unrestricted
+ *   AZURE_ALLOWED_GROUP_IDS="a1b2c3d4-..."                      → single group
+ *   AZURE_ALLOWED_GROUP_IDS="a1b2c3d4-..., e5f6g7h8-..."        → any of two
+ *
+ * Note: when the allowlist is non-empty but the token carries no `groups`
+ * claim, we deny (fail-closed). This protects against accidental exposure
+ * if the Entra admin forgets to enable group claims on the App Registration.
  */
 export function isAuthorizedByEntraGroup(
   groupClaim: unknown,
 ): boolean {
-  const requiredGroupId = process.env.AZURE_ALL_USERS_GROUP_ID;
-  if (!requiredGroupId) return false;
+  const allowlist = parseAllowedGroupIds();
+
+  if (allowlist.length === 0) return true;
 
   if (!Array.isArray(groupClaim)) return false;
-  return groupClaim.includes(requiredGroupId);
+  return groupClaim.some((g) => typeof g === 'string' && allowlist.includes(g));
+}
+
+/**
+ * Parse `AZURE_ALLOWED_GROUP_IDS` into a clean string array.
+ *
+ * - Splits on comma, trims whitespace, drops empty entries.
+ * - Order-independent and duplicate-tolerant (no dedup needed because we
+ *   only do `.includes()` on it; duplicates are functionally harmless).
+ * - Returns empty array when env var is unset or contains no meaningful
+ *   values — caller treats this as "unrestricted".
+ */
+function parseAllowedGroupIds(): string[] {
+  const raw = process.env.AZURE_ALLOWED_GROUP_IDS ?? '';
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /**
