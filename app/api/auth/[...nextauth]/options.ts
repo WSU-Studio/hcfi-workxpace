@@ -11,6 +11,10 @@ import {
 } from '@/lib/default-access';
 import { createAzureAdProvider } from '@/lib/auth/azure-ad-provider';
 import {
+  isAuthorizedByEntraGroup,
+  provisionOrLoadAzureAdUser,
+} from '@/lib/auth/azure-ad-provision';
+import {
   loadSessionUserByEmail,
   type SessionUser,
 } from '@/lib/auth/session-user';
@@ -58,32 +62,52 @@ export const authOptions: AuthOptions = {
   pages: { signIn: '/login', signOut: '/login', error: '/login' },
   callbacks: {
     /**
-     * Gate for the Azure AD path: SSO must only let in users who have already
-     * been provisioned in our DB (with a role + department). Returning false
-     * sends the browser to `/login?error=AccessDenied`, which the login page
-     * translates into a user-facing message.
+     * Two-stage gate for the Azure AD (Entra ID) path:
      *
-     * The Credentials path bypasses this gate — its `authorize()` already
-     * enforces the same invariants by throwing on missing user / role.
+     *   1. AUTHORIZATION (group check) — user must be a member of the
+     *      `HCFI-all-users` security group, identified by its Object ID in
+     *      env var `AZURE_ALL_USERS_GROUP_ID`. Outsiders are rejected before
+     *      any DB write. Requires App Registration → Token Configuration →
+     *      Add groups claim to be enabled on the Entra side.
+     *
+     *   2. PROVISIONING (auto) — once authorized, the user is upserted into
+     *      the DB with placeholder GUEST role / UNASSIGNED department and
+     *      `isActive=true` but ZERO menu/activity access. Admin must
+     *      explicitly grant access via User Management afterwards.
+     *
+     * The Credentials path bypasses both gates — its `authorize()` enforces
+     * the existing email+password invariants directly.
      */
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider !== 'azure-ad') return true;
 
-      const email = user?.email;
+      const email = user?.email ?? (profile as { email?: string } | undefined)?.email;
       if (!email) return false;
 
-      const dbUser = await loadSessionUserByEmail(email);
-      if (!dbUser) return false;
+      const groupClaim = (profile as { groups?: unknown } | undefined)?.groups;
+      if (!isAuthorizedByEntraGroup(groupClaim)) return false;
+
+      const entraOid =
+        (profile as { oid?: string; sub?: string } | undefined)?.oid ??
+        (profile as { sub?: string } | undefined)?.sub ??
+        null;
+
+      const sessionUser = await provisionOrLoadAzureAdUser({
+        email,
+        name: user?.name ?? (profile as { name?: string } | undefined)?.name ?? null,
+        oid: entraOid,
+      });
+      if (!sessionUser) return false;
 
       Object.assign(user, {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        image: dbUser.image,
-        roleId: dbUser.roleId,
-        role: dbUser.role,
-        departmentId: dbUser.departmentId,
-        access: dbUser.access,
+        id: sessionUser.id,
+        name: sessionUser.name,
+        email: sessionUser.email,
+        image: sessionUser.image,
+        roleId: sessionUser.roleId,
+        role: sessionUser.role,
+        departmentId: sessionUser.departmentId,
+        access: sessionUser.access,
       });
 
       return true;

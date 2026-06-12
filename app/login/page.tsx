@@ -27,7 +27,7 @@ function describeLoginError(code: string | undefined | null): string {
     case 'CredentialsSignin':
       return 'Email or password is incorrect. Please check your credentials and try again.';
     case 'AccessDenied':
-      return 'Your Microsoft account is not provisioned in this application. Please contact your administrator.';
+      return 'Your Microsoft account is not authorized to access this application. Please ensure you are a member of the required security group, or contact your administrator.';
     case 'OAuthSignin':
     case 'OAuthCallback':
     case 'OAuthCreateAccount':
