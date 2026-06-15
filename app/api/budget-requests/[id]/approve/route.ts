@@ -4,10 +4,11 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
-  getNextBudgetRequestApprovalStep,
+  getNextApprovalStep,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { canEditClassificationFields } from '@/lib/access/classification';
 
@@ -40,14 +41,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const levels = before.approvalSchema?.approvalLevels ?? [];
     const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+    // Used by the multi-step eligibility checks below; this is the *only*
+    // way to tell apart "still on step 2 of a 4-step ladder" from "already
+    // through every step" when `status === 'Reviewed'`.
+    const histories = (await prisma.activityHistory.findMany({
+      where: { entityType: 'BudgetRequest', entityId: id },
+      select: { action: true, details: true, timestamp: true },
+    })) as unknown as BudgetPlanHistoryEntry[];
     const action =
       body?.action === 'revision' ? 'revision' : body?.action === 'decline' ? 'decline' : 'approve';
     let newStatus: string;
 
     if (action === 'revision' || action === 'decline') {
-      const allowed = canUserActOnCurrentBudgetRequestStep({
-        requestStatus: before.status,
+      const allowed = canUserActOnCurrentStep({
+        status: before.status,
         approvalLevels: levels,
+        histories,
         userRoleIds,
         requestorId: before.requestorId ?? null,
         actorUserId: session.user.id,
@@ -71,9 +80,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
         newStatus = 'Approved';
       } else {
-        const allowed = canUserActOnCurrentBudgetRequestStep({
-          requestStatus: before.status,
+        const allowed = canUserActOnCurrentStep({
+          status: before.status,
           approvalLevels: levels,
+          histories,
           userRoleIds,
           requestorId: before.requestorId ?? null,
           actorUserId: session.user.id,
@@ -82,12 +92,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           return NextResponse.json({ error: 'You are not allowed to approve at this stage' }, { status: 403 });
         }
         const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-        const next = getNextBudgetRequestApprovalStep(before.status, levels);
+        const next = getNextApprovalStep(before.status, levels, histories);
         if (!next) {
           return NextResponse.json({ error: 'No approval step available' }, { status: 400 });
         }
-        const stepIndex = ordered.findIndex((l) => l.stepOrder === next.stepOrder);
-        const isLastStep = stepIndex >= 0 && stepIndex === ordered.length - 1;
+        const isLastStep = next.stepOrder === ordered[ordered.length - 1]!.stepOrder;
         newStatus = isLastStep ? 'Approved' : 'Reviewed';
       }
     }

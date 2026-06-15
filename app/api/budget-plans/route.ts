@@ -4,9 +4,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import {
-  canUserActOnCurrentBudgetPlanStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
@@ -62,6 +63,22 @@ export async function GET(request: Request) {
       orderBy: { code: 'asc' },
     });
 
+    // Batched history lookup so multi-step `canReview` stays accurate without
+    // an N+1 query: a single fetch keyed by entityId, then bucketed in memory.
+    const planIds = plans.map((p) => p.id);
+    const allHistories = planIds.length
+      ? await prisma.activityHistory.findMany({
+          where: { entityType: 'BudgetPlan', entityId: { in: planIds } },
+          select: { entityId: true, action: true, details: true, timestamp: true },
+        })
+      : [];
+    const historiesByEntity = new Map<string, BudgetPlanHistoryEntry[]>();
+    for (const h of allHistories) {
+      const bucket = historiesByEntity.get(h.entityId) ?? [];
+      bucket.push(h as unknown as BudgetPlanHistoryEntry);
+      historiesByEntity.set(h.entityId, bucket);
+    }
+
     const enrichedPlans = plans.map(({ approvalSchema, _count, ...plan }) => {
       const budgetRequestCount = _count?.budgetRequests ?? 0;
       const isRequestor =
@@ -75,11 +92,16 @@ export async function GET(request: Request) {
         ...plan,
         budgetRequestCount,
         canEdit,
-        canReview: canUserActOnCurrentBudgetPlanStep({
-          planStatus: plan.status,
-          approvalLevels: approvalSchema?.approvalLevels ?? [],
-          userRoleIds,
-        }),
+        canReview:
+          !!session?.user?.id &&
+          canUserActOnCurrentStep({
+            status: plan.status,
+            approvalLevels: approvalSchema?.approvalLevels ?? [],
+            histories: historiesByEntity.get(plan.id) ?? [],
+            userRoleIds,
+            requestorId: plan.requestorId ?? null,
+            actorUserId: session.user.id,
+          }),
       };
     });
 

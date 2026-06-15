@@ -4,7 +4,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import accountOptions from '@/data/accounts.json';
-import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
+import {
+  getBudgetPlanUserRoleIds,
+  getNextApprovalStep,
+  isNextStepFinal,
+} from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 import {
@@ -31,15 +36,14 @@ type OriginOfficeMasterDelegate = {
   >;
 };
 
-function isValidReviewTransition(currentStatus: string, nextStatus: string) {
-  if (currentStatus === 'Draft') {
-    return ['Reviewed', 'Revision', 'Declined'].includes(nextStatus);
-  }
-  if (currentStatus === 'Reviewed') {
-    return ['Approved', 'Revision', 'Declined'].includes(nextStatus);
-  }
-  return false;
-}
+/**
+ * Allow a reviewer to take any of these actions from a non-terminal status.
+ * Intent normalization happens later — the body status is treated as the
+ * caller's desire, and the actual persisted status is derived from where the
+ * BP is in its multi-step ladder.
+ */
+const REVIEW_INTENT_STATUSES = new Set(['Reviewed', 'Approved', 'Revision', 'Declined']);
+const REVIEWABLE_FROM_STATUSES = new Set(['Draft', 'Pending', 'Reviewed']);
 
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -105,9 +109,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     let nextStepOrder: number | null = null;
     if (session?.user?.id && plan.approvalSchema?.approvalLevels?.length) {
       const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
-      const next = getNextBudgetPlanApprovalStep(plan.status, plan.approvalSchema.approvalLevels);
+      const next = getNextApprovalStep(
+        plan.status,
+        plan.approvalSchema.approvalLevels,
+        histories as unknown as BudgetPlanHistoryEntry[],
+      );
       nextStepOrder = next?.stepOrder ?? null;
-      canReview = !!next && userRoleIds.includes(next.roleId);
+      // Defence in depth: requestor can never review their own plan.
+      canReview =
+        !!next &&
+        userRoleIds.includes(next.roleId) &&
+        plan.requestorId !== session.user.id;
     }
 
     const budgetRequestCount = plan._count?.budgetRequests ?? 0;
@@ -313,12 +325,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
       if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-      if (['Reviewed', 'Approved', 'Revision', 'Declined'].includes(body.status)) {
-        const levels = before.approvalSchema?.approvalLevels ?? [];
-        const next = getNextBudgetPlanApprovalStep(before.status, levels);
-        if (!isValidReviewTransition(before.status, body.status)) {
+      // Multi-step approval gate. The body's `status` is treated as the
+      // caller's *intent* (Reviewed / Approved = "advance one step";
+      // Revision / Declined = "interrupt and bounce back to the requestor").
+      // The actual persisted status is derived below based on where in the
+      // schema we are, so a 3- or 4-step ladder progresses correctly instead
+      // of getting stuck on step 2 like the old 2-step heuristic.
+      let resolvedStatus: string = body.status;
+      if (REVIEW_INTENT_STATUSES.has(body.status)) {
+        if (!REVIEWABLE_FROM_STATUSES.has(before.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
         }
+        if (before.requestorId === session.user.id) {
+          return NextResponse.json({ error: 'Requestor cannot review own plan' }, { status: 403 });
+        }
+        const levels = before.approvalSchema?.approvalLevels ?? [];
+        const reviewHistories = (await prisma.activityHistory.findMany({
+          where: { entityType: 'BudgetPlan', entityId: id },
+          select: { action: true, details: true, timestamp: true },
+        })) as unknown as BudgetPlanHistoryEntry[];
+        const next = getNextApprovalStep(before.status, levels, reviewHistories);
         if (!next) {
           return NextResponse.json({ error: 'No available review step' }, { status: 400 });
         }
@@ -326,7 +352,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (!userRoleIds.includes(next.roleId)) {
           return NextResponse.json({ error: 'You are not allowed to review at this stage' }, { status: 403 });
         }
+        if (body.status === 'Reviewed' || body.status === 'Approved') {
+          // Approve intent → land on `Approved` only if this is the final
+          // step; otherwise advance one rung to `Reviewed`.
+          resolvedStatus = isNextStepFinal(before.status, levels, reviewHistories)
+            ? 'Approved'
+            : 'Reviewed';
+        }
+        // For Revision / Declined we just persist the body status as-is.
       }
+      body.status = resolvedStatus;
 
       // Defense in depth: the UI renders the Classification section as
       // read-only for users without `editClassificationSection`, but a

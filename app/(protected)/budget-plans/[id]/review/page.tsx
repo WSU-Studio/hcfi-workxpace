@@ -156,12 +156,14 @@ export default function ReviewBudgetPlanPage() {
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      const targetStatus = plan?.status === 'Draft' ? 'Reviewed' : 'Approved';
+      // We always send `Approved` as the approve *intent*; the backend
+      // resolves it to `Reviewed` for intermediate steps in a multi-step
+      // schema (3-step / 4-step) and to `Approved` only on the final step.
       const res = await fetch(`/api/budget-plans/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: targetStatus,
+          status: 'Approved',
           coaId: classification.coaId || null,
           categoryId: classification.categoryId || null,
           categoryKeyIndexId: classification.categoryKeyIndexId || null,
@@ -232,6 +234,17 @@ export default function ReviewBudgetPlanPage() {
     ? `${selectedOriginOffice.code} - ${selectedOriginOffice.name}`
     : (plan.originOffice || '-');
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
+  // "Final approve" only applies to the very last step in a multi-step
+  // schema, mirroring BR/PR. For BP we lean on `reviewMeta.nextStepOrder`
+  // returned by the API — the API itself already accounts for completed
+  // approve events in the current cycle.
+  const orderedApprovalLevels = [...(plan.approvalSchema?.approvalLevels || [])].sort(
+    (a, b) => a.stepOrder - b.stepOrder,
+  );
+  const isFinalApprovalStep =
+    orderedApprovalLevels.length > 0 &&
+    reviewMeta.nextStepOrder !== null &&
+    reviewMeta.nextStepOrder === orderedApprovalLevels[orderedApprovalLevels.length - 1]!.stepOrder;
   // Drives the Allocation grid editability (review-eligibility only).
   const canEditClassification = canTakeAction;
   // Classification section is additionally gated by the dedicated permission
@@ -499,7 +512,7 @@ export default function ReviewBudgetPlanPage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                   title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
                 >
-                  {isSubmitting ? 'Processing...' : 'Approve'}
+                  {isSubmitting ? 'Processing...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
                 </button>
               </div>
             )}

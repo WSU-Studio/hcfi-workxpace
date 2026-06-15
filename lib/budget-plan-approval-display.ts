@@ -54,6 +54,63 @@ export type ApprovalStepProgress = {
   actorName: string | null;
 };
 
+type ScannedCycle = {
+  /** Histories that completed an approval step (Reviewed / Approved), in ASC order. */
+  completedActions: BudgetPlanHistoryEntry[];
+  /** The latest Revision / Declined event, if it terminates the current cycle. */
+  interruptedAction: BudgetPlanHistoryEntry | null;
+};
+
+/**
+ * Walk the history and return the events that belong to the *current* approval
+ * cycle — i.e. everything that happened after the latest moment the requestor
+ * (re)submitted the doc and landed it back on `Draft`. Used by the display
+ * helper and by the review-eligibility helpers so they share one source of
+ * truth about "where are we in the workflow right now".
+ */
+function scanCurrentCycle(histories: BudgetPlanHistoryEntry[]): ScannedCycle {
+  const sortedAsc = histories
+    .slice()
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  // The cycle reset boundary is the latest `Draft` status logged. Detection by
+  // status (rather than action name) keeps one rule that works across BR, PR,
+  // and BP — including BP, where the action label `update` is overloaded for
+  // both requestor edits AND reviewer-triggered Revision / Declined events.
+  let resetIdx = -1;
+  for (let i = sortedAsc.length - 1; i >= 0; i--) {
+    if (getHistoryStatus(sortedAsc[i]) === 'Draft') {
+      resetIdx = i;
+      break;
+    }
+  }
+  const scoped = resetIdx >= 0 ? sortedAsc.slice(resetIdx + 1) : sortedAsc;
+
+  const completedActions: BudgetPlanHistoryEntry[] = [];
+  let interruptedAction: BudgetPlanHistoryEntry | null = null;
+  for (const history of scoped) {
+    const status = getHistoryStatus(history);
+    if (status === 'Reviewed' || status === 'Approved') {
+      completedActions.push(history);
+    } else if (status === 'Revision' || status === 'Declined') {
+      interruptedAction = history;
+      // Any further completing events after a revision/decline only make
+      // sense once the requestor resubmits, which moves the reset boundary
+      // above this point — so stop scanning the current cycle here.
+      break;
+    }
+  }
+  return { completedActions, interruptedAction };
+}
+
+/**
+ * Number of approval steps already completed in the current cycle.
+ * Used by the review-eligibility helpers to know which level is up next.
+ */
+export function countCompletedApprovalSteps(histories: BudgetPlanHistoryEntry[]): number {
+  return scanCurrentCycle(histories).completedActions.length;
+}
+
 /**
  * Derive per-step approval state for a multi-step schema (e.g. 3-step or
  * 4-step ladders) from the entity's activity history.
@@ -77,43 +134,7 @@ export function getMultiStepApprovalProgress(
   const empty = orderedLevels.map(() => ({ ...pending }));
   if (!orderedLevels.length) return empty;
 
-  const sortedAsc = histories
-    .slice()
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-  // The "cycle reset" boundary is the latest moment the requestor (re)submitted
-  // the doc, which always lands the status back on `Draft`. Detection by the
-  // logged *status* (rather than action name) keeps a single rule that works
-  // across BR, PR, and BP — including BP, where the action label `update` is
-  // overloaded for both requestor edits AND reviewer-triggered Revision /
-  // Declined transitions.
-  let resetIdx = -1;
-  for (let i = sortedAsc.length - 1; i >= 0; i--) {
-    if (getHistoryStatus(sortedAsc[i]) === 'Draft') {
-      resetIdx = i;
-      break;
-    }
-  }
-  const scoped = resetIdx >= 0 ? sortedAsc.slice(resetIdx + 1) : sortedAsc;
-
-  // Walk the surviving events and classify by resulting status alone. This
-  // avoids hard-coding the action name (`approve` for BR/PR, `review` /
-  // `approve` / `update` for BP) and matches the existing
-  // `getApprovalStepProgress` helper's status-first contract.
-  const completedActions: BudgetPlanHistoryEntry[] = [];
-  let interruptedAction: BudgetPlanHistoryEntry | null = null;
-  for (const history of scoped) {
-    const status = getHistoryStatus(history);
-    if (status === 'Reviewed' || status === 'Approved') {
-      completedActions.push(history);
-    } else if (status === 'Revision' || status === 'Declined') {
-      interruptedAction = history;
-      // Any further completing events after a revision/decline only make
-      // sense once the requestor resubmits, which moves the reset boundary
-      // above this point — so stop scanning the current cycle here.
-      break;
-    }
-  }
+  const { completedActions, interruptedAction } = scanCurrentCycle(histories);
 
   return orderedLevels.map((level, index) => {
     const completed = completedActions[index];

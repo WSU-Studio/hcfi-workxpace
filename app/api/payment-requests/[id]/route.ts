@@ -6,9 +6,10 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
 import { loadClassificationOptions } from '@/lib/classification-options';
 import {
@@ -91,9 +92,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
     const canReview =
       !!session?.user?.id &&
-      canUserActOnCurrentBudgetRequestStep({
-        requestStatus: row.status,
+      canUserActOnCurrentStep({
+        status: row.status,
         approvalLevels: row.approvalSchema?.approvalLevels ?? [],
+        histories: histories as unknown as BudgetPlanHistoryEntry[],
         userRoleIds,
         requestorId: row.requestorId ?? null,
         actorUserId: session.user.id,

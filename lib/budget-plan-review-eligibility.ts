@@ -1,4 +1,8 @@
 import { prisma } from '@/lib/prisma';
+import {
+  countCompletedApprovalSteps,
+  type BudgetPlanHistoryEntry,
+} from '@/lib/budget-plan-approval-display';
 
 export async function getBudgetPlanUserRoleIds(userId: string): Promise<string[]> {
   const user = await prisma.user.findUnique({
@@ -12,50 +16,68 @@ export async function getBudgetPlanUserRoleIds(userId: string): Promise<string[]
   return Array.from(new Set([user.roleId, ...user.userRoles.map((ur) => ur.roleId)]));
 }
 
-export function getNextBudgetPlanApprovalStep(
+export type ApprovalLevel = {
+  stepOrder: number;
+  roleId: string;
+  levelType: string;
+};
+
+/**
+ * Next pending approval step in the current cycle, accounting for multi-step
+ * schemas. Returns `null` when:
+ *   - The schema has no levels.
+ *   - The request is in a terminal state (`Approved`, `Declined`).
+ *   - The request is waiting for the requestor to act (`Revision`).
+ *   - Every step in the schema has already been completed in this cycle.
+ *
+ * `histories` must be the entity's activity history (any order) so we can
+ * count how many approve events have happened *in the current cycle* (since
+ * the last `Draft` reset). Counting from history — rather than inferring
+ * from status alone — is what makes 3- and 4-step ladders progress past the
+ * second level instead of getting stuck.
+ */
+export function getNextApprovalStep(
   status: string,
-  levels: { stepOrder: number; roleId: string; levelType: string }[]
-) {
+  levels: ApprovalLevel[],
+  histories: BudgetPlanHistoryEntry[],
+): ApprovalLevel | null {
   const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
   if (!ordered.length) return null;
-  if (status === 'Draft') return ordered[0];
-  if (status === 'Reviewed' && ordered.length > 1) return ordered[1];
-  return null;
+  if (status === 'Approved' || status === 'Declined' || status === 'Revision') return null;
+  const completed = countCompletedApprovalSteps(histories);
+  return ordered[completed] ?? null;
 }
 
-/** True if the user holds the role required for the current workflow step (Draft → step 1, Reviewed → step 2). */
-export function canUserActOnCurrentBudgetPlanStep(params: {
-  planStatus: string;
-  approvalLevels: { stepOrder: number; roleId: string; levelType: string }[];
-  userRoleIds: string[];
-}): boolean {
-  const next = getNextBudgetPlanApprovalStep(params.planStatus, params.approvalLevels);
+/**
+ * Returns `true` when the next pending step in this cycle is the FINAL step
+ * of the schema (the `Approver` level per seed convention). Frontend uses
+ * this to switch the action button label from "Approve" to "Final approve".
+ */
+export function isNextStepFinal(
+  status: string,
+  levels: ApprovalLevel[],
+  histories: BudgetPlanHistoryEntry[],
+): boolean {
+  const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
+  const next = getNextApprovalStep(status, ordered, histories);
   if (!next) return false;
-  return params.userRoleIds.includes(next.roleId);
+  return next.stepOrder === ordered[ordered.length - 1]!.stepOrder;
 }
 
-/** Next step for budget request: Draft → first level (e.g. Reviewer), Pending/Reviewed → second level (e.g. Approver). */
-export function getNextBudgetRequestApprovalStep(
-  status: string,
-  levels: { stepOrder: number; roleId: string; levelType: string }[]
-) {
-  const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-  if (!ordered.length) return null;
-  if (status === 'Approved') return null;
-  if (status === 'Draft') return ordered[0];
-  if ((status === 'Pending' || status === 'Reviewed') && ordered.length > 1) return ordered[1];
-  return null;
-}
-
-export function canUserActOnCurrentBudgetRequestStep(params: {
-  requestStatus: string;
-  approvalLevels: { stepOrder: number; roleId: string; levelType: string }[];
+/**
+ * Gate the reviewer action on the current pending step. The requestor can
+ * never act on their own document (defence in depth — the UI hides it too).
+ */
+export function canUserActOnCurrentStep(params: {
+  status: string;
+  approvalLevels: ApprovalLevel[];
+  histories: BudgetPlanHistoryEntry[];
   userRoleIds: string[];
   requestorId: string | null;
   actorUserId: string;
 }): boolean {
   if (params.requestorId && params.requestorId === params.actorUserId) return false;
-  const next = getNextBudgetRequestApprovalStep(params.requestStatus, params.approvalLevels);
+  const next = getNextApprovalStep(params.status, params.approvalLevels, params.histories);
   if (!next) return false;
   return params.userRoleIds.includes(next.roleId);
 }

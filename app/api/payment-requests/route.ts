@@ -6,9 +6,10 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
@@ -149,6 +150,22 @@ async function serializePaymentRequestList(
     : [];
   const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
 
+  // Batched history lookup for accurate multi-step `canReview` — see BR list
+  // route for the rationale; single query keyed by entityId.
+  const rowIds = rows.map((row) => row.id);
+  const allHistories = rowIds.length
+    ? await prisma.activityHistory.findMany({
+        where: { entityType: 'PaymentRequest', entityId: { in: rowIds } },
+        select: { entityId: true, action: true, details: true, timestamp: true },
+      })
+    : [];
+  const historiesByEntity = new Map<string, BudgetPlanHistoryEntry[]>();
+  for (const h of allHistories) {
+    const bucket = historiesByEntity.get(h.entityId) ?? [];
+    bucket.push(h as unknown as BudgetPlanHistoryEntry);
+    historiesByEntity.set(h.entityId, bucket);
+  }
+
   return rows.map(({ approvalSchema, lineItems, ...r }) => ({
     ...r,
     amount: Number(r.amount),
@@ -161,9 +178,10 @@ async function serializePaymentRequestList(
     canEdit: !!session?.user?.id && r.requestorId === session.user.id,
     canReview:
       !!session?.user?.id &&
-      canUserActOnCurrentBudgetRequestStep({
-        requestStatus: r.status,
+      canUserActOnCurrentStep({
+        status: r.status,
         approvalLevels: approvalSchema?.approvalLevels ?? [],
+        histories: historiesByEntity.get(r.id) ?? [],
         userRoleIds,
         requestorId: r.requestorId ?? null,
         actorUserId: session.user.id,

@@ -5,9 +5,10 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
@@ -57,6 +58,22 @@ export async function GET(request: Request) {
       : [];
     const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
 
+    // Batched history lookup so multi-step `canReview` stays accurate without
+    // an N+1 query: a single fetch keyed by entityId, then bucketed in memory.
+    const rowIds = rows.map((row) => row.id);
+    const allHistories = rowIds.length
+      ? await prisma.activityHistory.findMany({
+          where: { entityType: 'BudgetRequest', entityId: { in: rowIds } },
+          select: { entityId: true, action: true, details: true, timestamp: true },
+        })
+      : [];
+    const historiesByEntity = new Map<string, BudgetPlanHistoryEntry[]>();
+    for (const h of allHistories) {
+      const bucket = historiesByEntity.get(h.entityId) ?? [];
+      bucket.push(h as unknown as BudgetPlanHistoryEntry);
+      historiesByEntity.set(h.entityId, bucket);
+    }
+
     const requests = rows.map(({ approvalSchema, ...r }) => ({
       ...r,
       requestorName: r.requestorId ? requestorNameMap.get(r.requestorId) ?? null : null,
@@ -65,9 +82,10 @@ export async function GET(request: Request) {
         r.requestorId === session.user.id,
       canReview:
         !!session?.user?.id &&
-        canUserActOnCurrentBudgetRequestStep({
-          requestStatus: r.status,
+        canUserActOnCurrentStep({
+          status: r.status,
           approvalLevels: approvalSchema?.approvalLevels ?? [],
+          histories: historiesByEntity.get(r.id) ?? [],
           userRoleIds,
           requestorId: r.requestorId ?? null,
           actorUserId: session.user.id,
