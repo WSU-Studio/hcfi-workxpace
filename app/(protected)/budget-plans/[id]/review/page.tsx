@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
+import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Select from '@/components/ui/Select';
@@ -443,32 +443,40 @@ export default function ReviewBudgetPlanPage() {
                 </TableHeaderRow>
               </thead>
               <tbody>
-                {plan.approvalSchema.approvalLevels.map((l, i) => {
-                  const stepProgress = getApprovalStepProgress(l.levelType, histories);
-                  return (
-                    <TableBodyRow key={i}>
-                      <TableCell>{l.stepOrder}</TableCell>
-                      <TableCell>{l.role?.roleName}</TableCell>
-                      <TableCell>{l.levelType}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepProgress.statusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed'
-                                ? 'bg-green-100 text-green-800'
-                                : stepProgress.statusLabel === 'Revision'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {stepProgress.statusLabel}
-                        </span>
-                      </TableCell>
-                      <TableCell>{stepProgress.timestampLabel}</TableCell>
-                    </TableBodyRow>
+                {(() => {
+                  const stepProgresses = getMultiStepApprovalProgress(
+                    plan.approvalSchema!.approvalLevels,
+                    histories,
                   );
-                })}
+                  return plan.approvalSchema!.approvalLevels.map((l, i) => {
+                    const stepProgress = stepProgresses[i];
+                    return (
+                      <TableBodyRow key={i}>
+                        <TableCell>{l.stepOrder}</TableCell>
+                        <TableCell>{l.role?.roleName}</TableCell>
+                        <TableCell>{l.levelType}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                              stepProgress.statusLabel === 'Reviewed'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : stepProgress.statusLabel === 'Approved'
+                                  ? 'bg-green-100 text-green-800'
+                                  : stepProgress.statusLabel === 'Revision'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : stepProgress.statusLabel === 'Declined'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {stepProgress.statusLabel}
+                          </span>
+                        </TableCell>
+                        <TableCell>{stepProgress.timestampLabel}</TableCell>
+                      </TableBodyRow>
+                    );
+                  });
+                })()}
               </tbody>
             </Table>
 

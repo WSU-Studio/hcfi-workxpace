@@ -82,31 +82,35 @@ export function getMultiStepApprovalProgress(
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   // The "cycle reset" boundary is the latest moment the requestor (re)submitted
-  // the doc. `update` happens on edit-after-decline / edit-after-revision (BR
-  // and PR PUT handlers force status back to Draft and emit an `update`), and
-  // `create` covers the original submission.
+  // the doc, which always lands the status back on `Draft`. Detection by the
+  // logged *status* (rather than action name) keeps a single rule that works
+  // across BR, PR, and BP — including BP, where the action label `update` is
+  // overloaded for both requestor edits AND reviewer-triggered Revision /
+  // Declined transitions.
   let resetIdx = -1;
   for (let i = sortedAsc.length - 1; i >= 0; i--) {
-    const action = sortedAsc[i].action;
-    if (action === 'update' || action === 'create') {
+    if (getHistoryStatus(sortedAsc[i]) === 'Draft') {
       resetIdx = i;
       break;
     }
   }
   const scoped = resetIdx >= 0 ? sortedAsc.slice(resetIdx + 1) : sortedAsc;
 
+  // Walk the surviving events and classify by resulting status alone. This
+  // avoids hard-coding the action name (`approve` for BR/PR, `review` /
+  // `approve` / `update` for BP) and matches the existing
+  // `getApprovalStepProgress` helper's status-first contract.
   const completedActions: BudgetPlanHistoryEntry[] = [];
   let interruptedAction: BudgetPlanHistoryEntry | null = null;
   for (const history of scoped) {
-    if (history.action !== 'approve') continue;
     const status = getHistoryStatus(history);
     if (status === 'Reviewed' || status === 'Approved') {
       completedActions.push(history);
     } else if (status === 'Revision' || status === 'Declined') {
       interruptedAction = history;
-      // Any further `approve` actions after a revision/decline only make sense
-      // once the requestor resubmits, which moves the reset boundary above
-      // this point — so stop scanning the current cycle here.
+      // Any further completing events after a revision/decline only make
+      // sense once the requestor resubmits, which moves the reset boundary
+      // above this point — so stop scanning the current cycle here.
       break;
     }
   }

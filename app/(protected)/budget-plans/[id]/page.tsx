@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { getApprovalStepProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
+import { getMultiStepApprovalProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
@@ -299,7 +299,21 @@ export default function BudgetPlanDetailPage() {
           <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div className="col-span-2">
             <span className="text-gray-500">Status:</span>{' '}
-            <span className={`px-2 py-0.5 rounded text-sm ${plan.status === 'Approved' ? 'bg-green-100' : plan.status === 'Pending' ? 'bg-yellow-100' : 'bg-gray-100'}`}>{plan.status}</span>
+            <span
+              className={`px-2 py-0.5 rounded text-sm ${
+                plan.status === 'Approved'
+                  ? 'bg-green-100 text-green-800'
+                  : plan.status === 'Reviewed'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : plan.status === 'Revision'
+                      ? 'bg-amber-100 text-amber-800'
+                      : plan.status === 'Declined'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {plan.status === 'Revision' ? 'Waiting for Revision' : plan.status}
+            </span>
             {plan.importedViaBulk ? (
               <span className="ml-2 inline-flex align-middle">
                 <BulkImportBadge />
@@ -428,38 +442,47 @@ export default function BudgetPlanDetailPage() {
                 </TableHeaderRow>
               </thead>
               <tbody>
-                {plan.approvalSchema.approvalLevels.map((l, i) => {
-                  const stepProgress = getApprovalStepProgress(l.levelType, histories);
-                  return (
-                    <TableBodyRow key={i}>
-                      <TableCell>{l.stepOrder}</TableCell>
-                      <TableCell>{l.role?.roleName ?? '-'}</TableCell>
-                      <TableCell>{l.levelType}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepProgress.statusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed'
-                                ? 'bg-green-100 text-green-800'
-                                : stepProgress.statusLabel === 'Revision'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {stepProgress.statusLabel}
-                        </span>
-                      </TableCell>
-                      <TableCell>{stepProgress.timestampLabel}</TableCell>
-                    </TableBodyRow>
+                {(() => {
+                  const stepProgresses = getMultiStepApprovalProgress(
+                    plan.approvalSchema!.approvalLevels,
+                    histories,
                   );
-                })}
+                  return plan.approvalSchema!.approvalLevels.map((l, i) => {
+                    const stepProgress = stepProgresses[i];
+                    return (
+                      <TableBodyRow key={i}>
+                        <TableCell>{l.stepOrder}</TableCell>
+                        <TableCell>{l.role?.roleName ?? '-'}</TableCell>
+                        <TableCell>{l.levelType}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                              stepProgress.statusLabel === 'Reviewed'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : stepProgress.statusLabel === 'Approved'
+                                  ? 'bg-green-100 text-green-800'
+                                  : stepProgress.statusLabel === 'Revision'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : stepProgress.statusLabel === 'Declined'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {stepProgress.statusLabel}
+                          </span>
+                        </TableCell>
+                        <TableCell>{stepProgress.timestampLabel}</TableCell>
+                      </TableBodyRow>
+                    );
+                  });
+                })()}
               </tbody>
             </Table>
 
             <div className="hidden print:block">
               {(() => {
                 const approvalLevels = plan.approvalSchema!.approvalLevels;
+                const stepProgresses = getMultiStepApprovalProgress(approvalLevels, histories);
                 return (
                   <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
                     <div
@@ -469,7 +492,7 @@ export default function BudgetPlanDetailPage() {
                       }}
                     >
                       {approvalLevels.map((l, i) => {
-                        const stepProgress = getApprovalStepProgress(l.levelType, histories);
+                        const stepProgress = stepProgresses[i];
                         const isApproved =
                           stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
                         const isPending = stepProgress.statusLabel === 'Pending';
