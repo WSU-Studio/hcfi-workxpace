@@ -5,27 +5,29 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Capture the entity code at the start of a notification message.
+ *
+ * `\S+` matches any run of non-whitespace characters, which correctly handles
+ * codes that contain slashes (`BR/IT/001`), dashes (`BP-PRIMARY`), or any
+ * future separators we adopt. A stricter character class previously dropped
+ * slash-bearing codes, leaving notifications without a clickable link.
+ */
+const CODE_HEAD = /^(\S+)\s+(was submitted|was updated|status changed)/i;
+
 function extractBudgetPlanCode(title: string, message: string) {
   if (!title.toLowerCase().includes('budget plan')) return null;
-  const match =
-    message.match(/^([A-Za-z0-9-]+)\s+status changed to/i) ||
-    message.match(/^([A-Za-z0-9-]+)\s+(was submitted|was updated)/i);
-  return match?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? null;
 }
 
-/** BR approval / submit messages start with request code. */
 function extractBudgetRequestCode(title: string, message: string) {
   if (!title.toLowerCase().includes('budget request')) return null;
-  const match =
-    message.match(/^([A-Za-z0-9-]+)\s+status changed to/i) ||
-    message.match(/^([A-Za-z0-9-]+)\s+(was submitted|was updated)/i);
-  return match?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? null;
 }
 
 function extractPaymentRequestCode(title: string, message: string) {
   if (!title.toLowerCase().includes('payment request')) return null;
-  const match = message.match(/^([A-Za-z0-9-]+)\s+(was submitted|was updated|status changed)/i);
-  return match?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? null;
 }
 
 export async function GET(request: Request) {
