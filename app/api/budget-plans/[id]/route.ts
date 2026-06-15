@@ -470,6 +470,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
       });
 
+      // For Review / Approve intents we ALWAYS persist the post-action status
+      // in the history entry — even when the DB column didn't actually
+      // change. In a multi-step ladder the same `Reviewed` status can carry
+      // across several reviewer steps (step 2 of a 4-step schema lands on
+      // `Reviewed` just like step 1 did), and the diff-only loop above would
+      // otherwise drop the event entirely. Downstream helpers
+      // (`getMultiStepApprovalProgress`, `countCompletedApprovalSteps`)
+      // detect "this reviewer step is done" by reading status off history
+      // entries; a blank `currentState` would silently freeze the escalation
+      // table on the previous step. See BR/PR `approve/route.ts` for the
+      // equivalent flat `details.status` pattern that has always worked.
+      if (body.status === 'Reviewed' || body.status === 'Approved') {
+        previousState.status = beforeState.status ?? null;
+        currentState.status = afterState.status ?? null;
+      }
+
       if (body.declineReason !== undefined) {
         previousState.declineReason = null;
         currentState.declineReason = body.declineReason ?? null;
