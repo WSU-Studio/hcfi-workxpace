@@ -368,15 +368,13 @@ export default function ReviewPaymentRequestPage() {
                       <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepStatusLabel === 'Reviewed'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : stepStatusLabel === 'Approved'
-                                ? 'bg-green-100 text-green-800'
-                                : stepStatusLabel === 'Revision'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : stepStatusLabel === 'Declined'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-gray-100 text-gray-700'
+                            stepStatusLabel === 'Reviewed' || stepStatusLabel === 'Approved'
+                              ? 'bg-green-100 text-green-800'
+                              : stepStatusLabel === 'Revision'
+                                ? 'bg-amber-100 text-amber-800'
+                                : stepStatusLabel === 'Declined'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-gray-100 text-gray-700'
                           }`}
                         >
                           {stepStatusLabel}

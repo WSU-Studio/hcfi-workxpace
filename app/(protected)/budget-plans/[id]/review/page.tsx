@@ -469,19 +469,17 @@ export default function ReviewBudgetPlanPage() {
                         <TableCell>{l.role?.roleName}</TableCell>
                         <TableCell>{l.levelType}</TableCell>
                         <TableCell>
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                              stepProgress.statusLabel === 'Reviewed'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : stepProgress.statusLabel === 'Approved'
-                                  ? 'bg-green-100 text-green-800'
-                                  : stepProgress.statusLabel === 'Revision'
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : stepProgress.statusLabel === 'Declined'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            stepProgress.statusLabel === 'Reviewed' || stepProgress.statusLabel === 'Approved'
+                              ? 'bg-green-100 text-green-800'
+                              : stepProgress.statusLabel === 'Revision'
+                                ? 'bg-amber-100 text-amber-800'
+                                : stepProgress.statusLabel === 'Declined'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
                             {stepProgress.statusLabel}
                           </span>
                         </TableCell>
