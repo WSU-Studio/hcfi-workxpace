@@ -12,6 +12,7 @@ import RichTextContent from '@/components/ui/RichTextContent';
 import Input from '@/components/ui/Input';
 import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
 import type { AccountOption, ClassificationOption } from '@/lib/classification-options';
+import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 import {
   classificationFromStored,
   emptyRequestClassification,
@@ -61,7 +62,13 @@ export default function ReviewPaymentRequestPage() {
     approvalSchema?: {
       approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
     } | null;
-    histories?: { id: string; action: string; timestamp: string; user: { name: string | null } | null }[];
+    histories?: {
+      id: string;
+      action: string;
+      timestamp: string;
+      details: { status?: string; declineReason?: string | null } | null;
+      user: { name: string | null } | null;
+    }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,28 +146,21 @@ export default function ReviewPaymentRequestPage() {
   if (!data) return <div className="text-gray-600">Not found</div>;
 
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  // The detail API returns histories in DESC order, but the escalation table
-  // and step counter both need them ASC (step 1 → step N).
+  const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
+  // Used only by the Approval History card below to render a flat ASC list.
   const approveHistories = (data.histories || [])
     .filter((h) => h.action === 'approve')
     .slice()
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  // Use the count of `approve` actions in the current cycle as the source of
-  // truth so 3-step and 4-step schemas advance correctly. `status === 'Reviewed'`
-  // can map to 1..N-1 completed steps, so we cap accordingly. Status === 'Approved'
-  // means every step in the schema is done.
-  const completedSteps =
-    data.status === 'Approved'
-      ? orderedLevels.length
-      : data.status === 'Reviewed' && orderedLevels.length > 0
-        ? Math.min(Math.max(approveHistories.length, 1), Math.max(orderedLevels.length - 1, 1))
-        : 0;
-  // "Final approve" only applies to the very last step in the schema (the
-  // `Approver` level, per seed convention). Any earlier reviewer step is
-  // just "Approve", regardless of whether status already reads "Reviewed".
-  const nextApprovalLevel = orderedLevels[completedSteps] ?? null;
+  // The next step the current reviewer is about to act on is the first one
+  // whose progress is still "Pending" (or "Revision"/"Declined" — but those
+  // are blocked until the requestor resubmits, so the button is hidden anyway).
+  // "Final approve" only applies to the very last step in the schema.
+  const nextStepIndex = stepProgresses.findIndex(
+    (step) => step.statusLabel !== 'Reviewed' && step.statusLabel !== 'Approved',
+  );
   const isFinalApprovalStep =
-    nextApprovalLevel != null && completedSteps === orderedLevels.length - 1;
+    orderedLevels.length > 0 && nextStepIndex === orderedLevels.length - 1;
   // PR review only edits the Classification section (no line-item editing
   // here, unlike BR review), so the variable can be folded directly: a user
   // who can review BUT lacks `editClassificationSection` sees the section
@@ -215,10 +215,14 @@ export default function ReviewPaymentRequestPage() {
                   ? 'bg-green-100 text-green-800'
                   : data.status === 'Reviewed'
                     ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-700'
+                    : data.status === 'Revision'
+                      ? 'bg-amber-100 text-amber-800'
+                      : data.status === 'Declined'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-700'
               }`}
             >
-              {data.status}
+              {data.status === 'Revision' ? 'Waiting for Revision' : data.status}
             </span>
           </div>
           <div className="md:col-span-2">
@@ -354,13 +358,8 @@ export default function ReviewPaymentRequestPage() {
               </thead>
               <tbody>
                 {orderedLevels.map((level, index) => {
-                  const isCompleted = index < completedSteps;
-                  const updatedAt = isCompleted ? approveHistories[index]?.timestamp : null;
-                  const stepStatusLabel = !isCompleted
-                    ? 'Pending'
-                    : level.levelType === 'Reviewer'
-                      ? 'Reviewed'
-                      : 'Approved';
+                  const stepProgress = stepProgresses[index];
+                  const stepStatusLabel = stepProgress.statusLabel;
                   return (
                     <TableBodyRow key={level.stepOrder}>
                       <TableCell>{level.stepOrder}</TableCell>
@@ -369,17 +368,21 @@ export default function ReviewPaymentRequestPage() {
                       <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepStatusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepStatusLabel === 'Reviewed'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
+                            stepStatusLabel === 'Reviewed'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : stepStatusLabel === 'Approved'
+                                ? 'bg-green-100 text-green-800'
+                                : stepStatusLabel === 'Revision'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : stepStatusLabel === 'Declined'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-gray-100 text-gray-700'
                           }`}
                         >
                           {stepStatusLabel}
                         </span>
                       </TableCell>
-                      <TableCell>{updatedAt ? formatDateTime(updatedAt) : '-'}</TableCell>
+                      <TableCell>{stepProgress.timestampLabel}</TableCell>
                     </TableBodyRow>
                   );
                 })}

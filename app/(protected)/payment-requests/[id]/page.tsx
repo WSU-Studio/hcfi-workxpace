@@ -12,7 +12,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
+import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
   id: string;
@@ -155,8 +155,11 @@ export default function PaymentRequestDetailPage() {
 
   const canEditAsRequestor = !!session?.user?.id && data.requestorId === session.user.id;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  const completedSteps =
-    data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
+  // Per-step progress reconstructed from activity history. This survives
+  // multi-step schemas correctly: rows already approved stay "Reviewed" even
+  // after a later reviewer asks for revision, and only the requestor's
+  // resubmit (logged as `update`) resets the table back to "Pending".
+  const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
 
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -302,10 +305,14 @@ export default function PaymentRequestDetailPage() {
                   ? 'bg-green-100 text-green-800'
                   : data.status === 'Reviewed'
                     ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-700'
+                    : data.status === 'Revision'
+                      ? 'bg-amber-100 text-amber-800'
+                      : data.status === 'Declined'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-700'
               }`}
             >
-              {data.status}
+              {data.status === 'Revision' ? 'Waiting for Revision' : data.status}
             </span>
           </div>
           <div>
@@ -471,13 +478,8 @@ export default function PaymentRequestDetailPage() {
                 </thead>
                 <tbody>
                   {orderedLevels.map((level, index) => {
-                    const isCompleted = index < completedSteps;
-                    const stepStatusLabel = !isCompleted
-                      ? 'Pending'
-                      : level.levelType === 'Reviewer'
-                        ? 'Reviewed'
-                        : 'Approved';
-                    const stepProgress = getApprovalStepProgress(level.levelType, data.histories ?? []);
+                    const stepProgress = stepProgresses[index];
+                    const stepStatusLabel = stepProgress.statusLabel;
                     return (
                       <TableBodyRow key={level.stepOrder}>
                         <TableCell>{level.stepOrder}</TableCell>
@@ -486,11 +488,15 @@ export default function PaymentRequestDetailPage() {
                         <TableCell>
                           <span
                             className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
-                              stepStatusLabel === 'Pending'
-                                ? 'bg-gray-100 text-gray-700'
-                                : stepStatusLabel === 'Reviewed'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-green-100 text-green-800'
+                              stepStatusLabel === 'Reviewed'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : stepStatusLabel === 'Approved'
+                                  ? 'bg-green-100 text-green-800'
+                                  : stepStatusLabel === 'Revision'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : stepStatusLabel === 'Declined'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-gray-100 text-gray-700'
                             }`}
                           >
                             {stepStatusLabel}
@@ -512,7 +518,7 @@ export default function PaymentRequestDetailPage() {
                     }}
                   >
                     {orderedLevels.map((l, i) => {
-                      const stepProgress = getApprovalStepProgress(l.levelType, data.histories ?? []);
+                      const stepProgress = stepProgresses[i];
                       const isApproved =
                         stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
                       const isPending = stepProgress.statusLabel === 'Pending';

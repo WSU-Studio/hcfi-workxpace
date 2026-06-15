@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { PenSquare } from 'lucide-react';
+import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
   id: string;
@@ -217,28 +218,16 @@ export default function ReviewBudgetRequestPage() {
   );
   const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  // The detail API returns histories in DESC order, but the escalation table
-  // and step counter both need them ASC (step 1 → step N).
-  const approveHistories = (data.histories || [])
-    .filter((h) => h.action === 'approve')
-    .slice()
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  // Use the count of `approve` actions in the current cycle as the source of
-  // truth so 3-step and 4-step schemas advance correctly. `status === 'Reviewed'`
-  // can map to 1..N-1 completed steps, so we cap accordingly. Status === 'Approved'
-  // means every step in the schema is done.
-  const completedSteps =
-    data.status === 'Approved'
-      ? orderedLevels.length
-      : data.status === 'Reviewed' && orderedLevels.length > 0
-        ? Math.min(Math.max(approveHistories.length, 1), Math.max(orderedLevels.length - 1, 1))
-        : 0;
-  // "Final approve" only applies to the very last step in the schema (the
-  // `Approver` level, per seed convention). Any earlier reviewer step is
-  // just "Approve", regardless of whether status already reads "Reviewed".
-  const nextApprovalLevel = orderedLevels[completedSteps] ?? null;
+  const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
+  // The next step the current reviewer is about to act on is the first one
+  // whose progress is still "Pending" (or "Revision"/"Declined" — but those
+  // are blocked until the requestor resubmits, so the button is hidden anyway).
+  // "Final approve" only applies to the very last step in the schema.
+  const nextStepIndex = stepProgresses.findIndex(
+    (step) => step.statusLabel !== 'Reviewed' && step.statusLabel !== 'Approved',
+  );
   const isFinalApprovalStep =
-    nextApprovalLevel != null && completedSteps === orderedLevels.length - 1;
+    orderedLevels.length > 0 && nextStepIndex === orderedLevels.length - 1;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -263,8 +252,20 @@ export default function ReviewBudgetRequestPage() {
           <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
-            <span className={`rounded px-2 py-0.5 text-sm ${data.status === 'Approved' ? 'bg-green-100 text-green-800' : data.status === 'Reviewed' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>
-              {data.status}
+            <span
+              className={`rounded px-2 py-0.5 text-sm ${
+                data.status === 'Approved'
+                  ? 'bg-green-100 text-green-800'
+                  : data.status === 'Reviewed'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : data.status === 'Revision'
+                      ? 'bg-amber-100 text-amber-800'
+                      : data.status === 'Declined'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {data.status === 'Revision' ? 'Waiting for Revision' : data.status}
             </span>
           </div>
           <div className="md:col-span-2">
@@ -540,13 +541,8 @@ export default function ReviewBudgetRequestPage() {
               </thead>
               <tbody>
                 {orderedLevels.map((level, index) => {
-                  const isCompleted = index < completedSteps;
-                  const updatedAt = isCompleted ? approveHistories[index]?.timestamp : null;
-                  const stepStatusLabel = !isCompleted
-                    ? 'Pending'
-                    : level.levelType === 'Reviewer'
-                      ? 'Reviewed'
-                      : 'Approved';
+                  const stepProgress = stepProgresses[index];
+                  const stepStatusLabel = stepProgress.statusLabel;
                   return (
                     <TableBodyRow key={level.stepOrder}>
                       <TableCell>{level.stepOrder}</TableCell>
@@ -555,17 +551,21 @@ export default function ReviewBudgetRequestPage() {
                       <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepStatusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepStatusLabel === 'Reviewed'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
+                            stepStatusLabel === 'Reviewed'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : stepStatusLabel === 'Approved'
+                                ? 'bg-green-100 text-green-800'
+                                : stepStatusLabel === 'Revision'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : stepStatusLabel === 'Declined'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-gray-100 text-gray-700'
                           }`}
                         >
                           {stepStatusLabel}
                         </span>
                       </TableCell>
-                      <TableCell>{updatedAt ? formatDateTime(updatedAt) : '-'}</TableCell>
+                      <TableCell>{stepProgress.timestampLabel}</TableCell>
                     </TableBodyRow>
                   );
                 })}

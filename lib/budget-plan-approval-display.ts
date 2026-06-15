@@ -14,6 +14,14 @@ export type BudgetPlanHistoryEntry = {
   user: { name: string | null } | null;
 };
 
+export type ApprovalStepStatus =
+  | 'Pending'
+  | 'Reviewed'
+  | 'Approved'
+  | 'Revision'
+  | 'Declined'
+  | 'Processed';
+
 function getHistoryStatus(history: BudgetPlanHistoryEntry): string | null {
   if (!history.details) return null;
   if (typeof history.details.status === 'string' && history.details.status.length > 0) return history.details.status;
@@ -41,10 +49,88 @@ export function formatBudgetPlanHistoryDateTime(date: string): string {
 }
 
 export type ApprovalStepProgress = {
-  statusLabel: string;
+  statusLabel: ApprovalStepStatus | string;
   timestampLabel: string;
   actorName: string | null;
 };
+
+/**
+ * Derive per-step approval state for a multi-step schema (e.g. 3-step or
+ * 4-step ladders) from the entity's activity history.
+ *
+ * Behaviour we care about:
+ *   - Each completed Reviewer/Approver step is matched to the n-th `approve`
+ *     action that resulted in `Reviewed` / `Approved` — so step 1 keeps its
+ *     "Reviewed" stamp even after step 2 also gets approved.
+ *   - If the request is currently in `Revision` / `Declined`, the step where
+ *     that happened keeps the "Revision" / "Declined" label (instead of
+ *     reverting to "Pending"). Previously completed steps stay completed.
+ *   - When the requestor resubmits, a new `create` / `update` activity is
+ *     logged. Anything strictly before that boundary is considered a prior
+ *     cycle and the table resets to a blank slate.
+ */
+export function getMultiStepApprovalProgress(
+  orderedLevels: { stepOrder: number; levelType: string }[],
+  histories: BudgetPlanHistoryEntry[]
+): ApprovalStepProgress[] {
+  const pending: ApprovalStepProgress = { statusLabel: 'Pending', timestampLabel: '-', actorName: null };
+  const empty = orderedLevels.map(() => ({ ...pending }));
+  if (!orderedLevels.length) return empty;
+
+  const sortedAsc = histories
+    .slice()
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  // The "cycle reset" boundary is the latest moment the requestor (re)submitted
+  // the doc. `update` happens on edit-after-decline / edit-after-revision (BR
+  // and PR PUT handlers force status back to Draft and emit an `update`), and
+  // `create` covers the original submission.
+  let resetIdx = -1;
+  for (let i = sortedAsc.length - 1; i >= 0; i--) {
+    const action = sortedAsc[i].action;
+    if (action === 'update' || action === 'create') {
+      resetIdx = i;
+      break;
+    }
+  }
+  const scoped = resetIdx >= 0 ? sortedAsc.slice(resetIdx + 1) : sortedAsc;
+
+  const completedActions: BudgetPlanHistoryEntry[] = [];
+  let interruptedAction: BudgetPlanHistoryEntry | null = null;
+  for (const history of scoped) {
+    if (history.action !== 'approve') continue;
+    const status = getHistoryStatus(history);
+    if (status === 'Reviewed' || status === 'Approved') {
+      completedActions.push(history);
+    } else if (status === 'Revision' || status === 'Declined') {
+      interruptedAction = history;
+      // Any further `approve` actions after a revision/decline only make sense
+      // once the requestor resubmits, which moves the reset boundary above
+      // this point — so stop scanning the current cycle here.
+      break;
+    }
+  }
+
+  return orderedLevels.map((level, index) => {
+    const completed = completedActions[index];
+    if (completed) {
+      return {
+        statusLabel: level.levelType === 'Reviewer' ? 'Reviewed' : 'Approved',
+        timestampLabel: formatBudgetPlanHistoryDateTime(completed.timestamp),
+        actorName: completed.user?.name ?? null,
+      };
+    }
+    if (interruptedAction && index === completedActions.length) {
+      const status = (getHistoryStatus(interruptedAction) || 'Processed') as ApprovalStepStatus;
+      return {
+        statusLabel: status,
+        timestampLabel: formatBudgetPlanHistoryDateTime(interruptedAction.timestamp),
+        actorName: interruptedAction.user?.name ?? null,
+      };
+    }
+    return { ...pending };
+  });
+}
 
 /** Derives per-step status for the approval escalation table from activity history. */
 export function getApprovalStepProgress(
