@@ -490,7 +490,7 @@ export default function NewBudgetRequestPage() {
               }}
             />
           </div>
-          {allocationPreview.length > 0 && (
+          {/* {allocationPreview.length > 0 && (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 hidden debug">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Allocation Preview (Transaction Amount)</h3>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -502,7 +502,7 @@ export default function NewBudgetRequestPage() {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
           <div ref={approvalSchemaFieldRef}>
             <label className="block mb-1.5 font-medium">Approval Schema *</label>

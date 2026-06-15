@@ -350,7 +350,7 @@ export default function EditBudgetRequestPage() {
               }}
             />
           </div>
-          {allocationPreview.length > 0 && (
+          {/* {allocationPreview.length > 0 && (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-700">
                 Allocation Preview (Transaction Amount)
@@ -367,7 +367,7 @@ export default function EditBudgetRequestPage() {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
           <div className="flex justify-end gap-3 border-t pt-4">
             <Link
               href={`/budget-requests/${id}`}
