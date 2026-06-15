@@ -6,7 +6,11 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { getMultiStepApprovalProgress, type BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
+import {
+  getMultiStepApprovalProgress,
+  getRequestStatusDisplay,
+  type BudgetPlanHistoryEntry,
+} from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
@@ -299,21 +303,14 @@ export default function BudgetPlanDetailPage() {
           <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
           <div className="col-span-2">
             <span className="text-gray-500">Status:</span>{' '}
-            <span
-              className={`px-2 py-0.5 rounded text-sm ${
-                plan.status === 'Approved'
-                  ? 'bg-green-100 text-green-800'
-                  : plan.status === 'Reviewed'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : plan.status === 'Revision'
-                      ? 'bg-amber-100 text-amber-800'
-                      : plan.status === 'Declined'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              {plan.status === 'Revision' ? 'Waiting for Revision' : plan.status}
-            </span>
+            {(() => {
+              const display = getRequestStatusDisplay(plan.status);
+              return (
+                <span className={`px-2 py-0.5 rounded text-sm ${display.chipClass}`}>
+                  {display.label}
+                </span>
+              );
+            })()}
             {plan.importedViaBulk ? (
               <span className="ml-2 inline-flex align-middle">
                 <BulkImportBadge />

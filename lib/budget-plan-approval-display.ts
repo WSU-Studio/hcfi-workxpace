@@ -54,6 +54,47 @@ export type ApprovalStepProgress = {
   actorName: string | null;
 };
 
+export type RequestStatusDisplay = {
+  /** User-facing label, e.g. "On Progress", "Need Revision". */
+  label: string;
+  /** Tailwind classes for the chip background + text color. */
+  chipClass: string;
+};
+
+/**
+ * Map the raw DB request status (BR/PR/BP share the same vocabulary) to a
+ * user-friendly chip label + tone. Used wherever an entity's *overall*
+ * status chip is rendered — listings, detail headers, review pages.
+ *
+ * Semantics:
+ *   - Draft     → "Draft" (gray)          — not yet submitted
+ *   - Pending   → "On Progress" (blue)    — submitted, system processing
+ *   - Reviewed  → "On Progress" (blue)    — partially through approval ladder
+ *   - Revision  → "Need Revision" (amber) — requestor needs to edit & resubmit
+ *   - Declined  → "Declined" (red)        — terminal-negative
+ *   - Approved  → "Approved" (green)      — terminal-positive
+ *
+ * Unknown statuses fall back to gray + the raw string so we never silently
+ * hide a status the UI doesn't recognise yet.
+ */
+export function getRequestStatusDisplay(status: string): RequestStatusDisplay {
+  switch (status) {
+    case 'Approved':
+      return { label: 'Approved', chipClass: 'bg-green-100 text-green-800' };
+    case 'Pending':
+    case 'Reviewed':
+      return { label: 'On Progress', chipClass: 'bg-blue-100 text-blue-800' };
+    case 'Revision':
+      return { label: 'Need Revision', chipClass: 'bg-amber-100 text-amber-800' };
+    case 'Declined':
+      return { label: 'Declined', chipClass: 'bg-red-100 text-red-800' };
+    case 'Draft':
+      return { label: 'Draft', chipClass: 'bg-gray-100 text-gray-700' };
+    default:
+      return { label: status || '-', chipClass: 'bg-gray-100 text-gray-700' };
+  }
+}
+
 type ScannedCycle = {
   /** Histories that completed an approval step (Reviewed / Approved), in ASC order. */
   completedActions: BudgetPlanHistoryEntry[];

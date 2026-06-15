@@ -11,6 +11,7 @@ import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
 import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
+import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
 import {
   ALL_FISCAL_YEARS,
   type FiscalYearFilterValue,
@@ -239,18 +240,15 @@ export default function BudgetRequestsPage() {
                   <TableCell>{r.subject}</TableCell>
                   <TableCell>{r.requestorName ?? '-'}</TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap items-center gap-2"> 
-                      <span
-                        className={`rounded px-2 py-0.5 text-sm ${
-                          r.status === 'Approved'
-                            ? 'bg-green-100 text-green-800'
-                            : r.status === 'Reviewed'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {r.status}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(() => {
+                        const display = getRequestStatusDisplay(r.status);
+                        return (
+                          <span className={`rounded px-2 py-0.5 text-sm whitespace-nowrap ${display.chipClass}`}>
+                            {display.label}
+                          </span>
+                        );
+                      })()}
                       {!r.approvalSchemaId ? (
                         <Tooltip content="No approval schema">
                           <span

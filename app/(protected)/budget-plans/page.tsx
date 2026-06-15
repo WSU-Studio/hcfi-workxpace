@@ -21,6 +21,7 @@ import {
   serializeFiscalYearParam,
 } from '@/lib/fiscal-year';
 import { validateXlsxFile } from '@/lib/xlsx-validation';
+import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
 
 interface Plan {
   id: string;
@@ -427,13 +428,14 @@ const handleImportRows = async () => {
                   <TableCell>{p.subject}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-sm 
-                      ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : 
-                      p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                      p.status === 'Revision' ? 'bg-amber-100 text-amber-800' :
-                      p.status === 'Declined' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
-                        {p.status}
-                      </span>
+                      {(() => {
+                        const display = getRequestStatusDisplay(p.status);
+                        return (
+                          <span className={`px-2 py-0.5 rounded text-sm whitespace-nowrap ${display.chipClass}`}>
+                            {display.label}
+                          </span>
+                        );
+                      })()}
                       {p.importedViaBulk ? <BulkImportBadge /> : null}
                       {!p.approvalSchemaId ? (
                         <Tooltip content="No approval schema">

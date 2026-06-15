@@ -12,7 +12,10 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
+import {
+  getMultiStepApprovalProgress,
+  getRequestStatusDisplay,
+} from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
   id: string;
@@ -299,21 +302,14 @@ export default function PaymentRequestDetailPage() {
           </div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
-            <span
-              className={`rounded px-2 py-0.5 text-sm ${
-                data.status === 'Approved'
-                  ? 'bg-green-100 text-green-800'
-                  : data.status === 'Reviewed'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : data.status === 'Revision'
-                      ? 'bg-amber-100 text-amber-800'
-                      : data.status === 'Declined'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              {data.status === 'Revision' ? 'Waiting for Revision' : data.status}
-            </span>
+            {(() => {
+              const display = getRequestStatusDisplay(data.status);
+              return (
+                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
+                  {display.label}
+                </span>
+              );
+            })()}
           </div>
           <div>
             <span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}
