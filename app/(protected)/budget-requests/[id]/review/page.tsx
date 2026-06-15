@@ -217,8 +217,28 @@ export default function ReviewBudgetRequestPage() {
   );
   const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  const completedSteps = data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
-  const approveHistories = (data.histories || []).filter((h) => h.action === 'approve');
+  // The detail API returns histories in DESC order, but the escalation table
+  // and step counter both need them ASC (step 1 → step N).
+  const approveHistories = (data.histories || [])
+    .filter((h) => h.action === 'approve')
+    .slice()
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  // Use the count of `approve` actions in the current cycle as the source of
+  // truth so 3-step and 4-step schemas advance correctly. `status === 'Reviewed'`
+  // can map to 1..N-1 completed steps, so we cap accordingly. Status === 'Approved'
+  // means every step in the schema is done.
+  const completedSteps =
+    data.status === 'Approved'
+      ? orderedLevels.length
+      : data.status === 'Reviewed' && orderedLevels.length > 0
+        ? Math.min(Math.max(approveHistories.length, 1), Math.max(orderedLevels.length - 1, 1))
+        : 0;
+  // "Final approve" only applies to the very last step in the schema (the
+  // `Approver` level, per seed convention). Any earlier reviewer step is
+  // just "Approve", regardless of whether status already reads "Reviewed".
+  const nextApprovalLevel = orderedLevels[completedSteps] ?? null;
+  const isFinalApprovalStep =
+    nextApprovalLevel != null && completedSteps === orderedLevels.length - 1;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -573,7 +593,7 @@ export default function ReviewBudgetRequestPage() {
                   className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
                 >
-                  {isSubmitting ? 'Submitting...' : data.status === 'Reviewed' ? 'Final approve' : 'Approve'}
+                  {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
                 </button>
               </div>
             ) : null}
