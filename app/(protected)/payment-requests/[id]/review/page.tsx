@@ -76,6 +76,7 @@ export default function ReviewPaymentRequestPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const [classification, setClassification] = useState<RequestClassificationValue>(emptyRequestClassification());
   const [categoryOptions, setCategoryOptions] = useState<ClassificationOption[]>([]);
@@ -100,6 +101,24 @@ export default function ReviewPaymentRequestPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (isDeclineModalOpen) {
+        setIsDeclineModalOpen(false);
+        setDeclineReason('');
+      } else {
+        setIsApproveModalOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+
   const classificationPayload = {
     costCenterId: classification.costCenterId || null,
     categoryId: classification.categoryId || null,
@@ -117,8 +136,10 @@ export default function ReviewPaymentRequestPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(classificationPayload),
       });
-      if (res.ok) router.push(`/payment-requests/${id}`);
-      else alert('Failed');
+      if (res.ok) {
+        setIsApproveModalOpen(false);
+        router.push(`/payment-requests/${id}`);
+      } else alert('Failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -402,7 +423,7 @@ export default function ReviewPaymentRequestPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleApprove}
+                  onClick={() => setIsApproveModalOpen(true)}
                   disabled={isSubmitting || !data.canReview}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   title={!data.canReview ? 'You are not in the current review step for this approval schema' : undefined}
@@ -462,6 +483,35 @@ export default function ReviewPaymentRequestPage() {
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-60"
               >
                 Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isApproveModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">Approval Confirmation</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to approve this payment request?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsApproveModalOpen(false)}
+                className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApprove}
+                className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
           </div>
