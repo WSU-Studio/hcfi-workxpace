@@ -85,6 +85,7 @@ export default function ReviewBudgetRequestPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const [classification, setClassification] = useState({
     costCenterId: '',
@@ -124,6 +125,24 @@ export default function ReviewBudgetRequestPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (isDeclineModalOpen) {
+        setIsDeclineModalOpen(false);
+        setDeclineReason('');
+      } else {
+        setIsApproveModalOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
@@ -145,8 +164,10 @@ export default function ReviewBudgetRequestPage() {
           })),
         }),
       });
-      if (res.ok) router.push(`/budget-requests/${id}`);
-      else alert('Failed');
+      if (res.ok) {
+        setIsApproveModalOpen(false);
+        router.push(`/budget-requests/${id}`);
+      } else alert('Failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -575,16 +596,16 @@ export default function ReviewBudgetRequestPage() {
                   type="button"
                   onClick={() => setIsDeclineModalOpen(true)}
                   disabled={isSubmitting || !data.canReview}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
                 >
                   Decline
                 </button>
                 <button
                   type="button"
-                  onClick={handleApprove}
+                  onClick={() => setIsApproveModalOpen(true)}
                   disabled={isSubmitting || !data.canReview}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
                 >
                   {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
@@ -658,6 +679,35 @@ export default function ReviewBudgetRequestPage() {
                 disabled={isSubmitting}
               >
                 Yes, I Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isApproveModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">Approval Confirmation</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to approve this budget request?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsApproveModalOpen(false)}
+                className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApprove}
+                className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
           </div>
