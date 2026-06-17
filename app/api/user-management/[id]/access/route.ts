@@ -27,7 +27,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     } as typeof defaultMenuAccess;
     const mergedActivityAccess = {
       ...defaultActivityAccess,
-      ...((user.access?.activityAccess as Record<string, unknown>) ?? {}),
+      ...mergeWithDefaultActivityAccess(
+        user.access?.activityAccess,
+        user.access?.menuAccess,
+      ),
     } as typeof defaultActivityAccess;
 
     return NextResponse.json({

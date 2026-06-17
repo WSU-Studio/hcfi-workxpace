@@ -194,7 +194,7 @@ export default function BudgetPlanDetailPage() {
 
   const total = plan.allocations?.reduce((s, a) => s + Number(a.allocation ?? 0), 0) ?? 0;
   const canViewRealization = Boolean(
-    session?.user?.access?.menuAccess?.viewBudgetPlanRealization,
+    session?.user?.access?.activityAccess?.viewBudgetPlanRealization,
   );
   const totalRealization =
     plan.allocations?.reduce((s, a) => s + Number(a.realization ?? 0), 0) ?? 0;

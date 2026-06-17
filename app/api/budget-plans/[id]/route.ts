@@ -132,11 +132,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         : null;
 
     // Realization & Outstanding are sensitive financial figures gated by the
-    // `viewBudgetPlanRealization` menu permission. If the caller lacks it, we
+    // `viewBudgetPlanRealization` activity permission. If the caller lacks it, we
     // skip both the BR query (saves a roundtrip) and the enrichment, and ship
     // the plain allocation rows only — defence-in-depth alongside the UI gate.
     const canViewRealization = Boolean(
-      session?.user?.access?.menuAccess?.viewBudgetPlanRealization,
+      session?.user?.access?.activityAccess?.viewBudgetPlanRealization,
     );
     const enrichedAllocations = canViewRealization
       ? enrichAllocationsWithRealization(

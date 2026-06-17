@@ -156,7 +156,10 @@ export const authOptions: AuthOptions = {
       if (raw) {
         token.access = {
           menuAccess: mergeWithDefaultMenuAccess(raw.menuAccess),
-          activityAccess: mergeWithDefaultActivityAccess(raw.activityAccess),
+          activityAccess: mergeWithDefaultActivityAccess(
+            raw.activityAccess,
+            raw.menuAccess,
+          ),
         };
       }
       return token;

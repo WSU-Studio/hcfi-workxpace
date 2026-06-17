@@ -59,7 +59,6 @@ export const menuAccessItems: Array<{ key: string; label: string }> = [
   { key: 'viewRole', label: 'View Role Page' },
   { key: 'viewApprovalSchema', label: 'View Approval Schema Page' },
   { key: 'viewActivityHistory', label: 'View Activity History Page' },
-  { key: 'viewBudgetPlanRealization', label: 'View Budget Plan Realization (Realization & Outstanding columns)' },
 ];
 
 export const activityAccessItems: Array<{ key: string; label: string }> = [
@@ -82,6 +81,7 @@ export const activityAccessItems: Array<{ key: string; label: string }> = [
   { key: 'createForOtherDepartment', label: 'Create BP/BR/PR for Other Departments (Cross-Department)' },
   { key: 'viewOtherDepartmentDocuments', label: 'View BP/BR/PR from Other Departments (Cross-Department)' },
   { key: 'editClassificationSection', label: 'Edit Classification Section on BR/BP/PR' },
+  { key: 'viewBudgetPlanRealization', label: 'View Budget Plan Realization (Realization & Outstanding columns)' },
   { key: 'viewBudgetPlanSnapshotOnBudgetRequestReview', label: 'View BP Snapshot & Outstanding Budget on Budget Request Review' },
 ];
 

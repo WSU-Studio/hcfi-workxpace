@@ -18,8 +18,6 @@ export const defaultMenuAccess: MenuAccess = {
   viewRole: true,
   viewApprovalSchema: true,
   viewActivityHistory: true,
-  // Sensitive financial column — opt-in. Admin & users explicitly granted only.
-  viewBudgetPlanRealization: false,
 };
 
 /**
@@ -50,7 +48,6 @@ export const restrictedMenuAccess: MenuAccess = {
   viewRole: false,
   viewApprovalSchema: false,
   viewActivityHistory: false,
-  viewBudgetPlanRealization: false,
 };
 
 export const defaultActivityAccess: ActivityAccess = {
@@ -110,6 +107,8 @@ export const defaultActivityAccess: ActivityAccess = {
   // Financial snapshot (Plan total / Realized / Outstanding) on BR review page
   // is sensitive and should be explicitly granted.
   viewBudgetPlanSnapshotOnBudgetRequestReview: false,
+  // Sensitive financial column — opt-in. Admin & users explicitly granted only.
+  viewBudgetPlanRealization: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -131,7 +130,6 @@ export const fullMenuAccess: MenuAccess = {
   viewRole: true,
   viewApprovalSchema: true,
   viewActivityHistory: true,
-  viewBudgetPlanRealization: true,
 };
 
 export const fullActivityAccess: ActivityAccess = {
@@ -178,6 +176,7 @@ export const fullActivityAccess: ActivityAccess = {
   createForOtherDepartment: true,
   viewOtherDepartmentDocuments: true,
   editClassificationSection: true,
+  viewBudgetPlanRealization: true,
   viewBudgetPlanSnapshotOnBudgetRequestReview: true,
 };
 
@@ -190,10 +189,29 @@ export function mergeWithDefaultMenuAccess(stored: unknown): MenuAccess {
   return { ...defaultMenuAccess, ...partial };
 }
 
-export function mergeWithDefaultActivityAccess(stored: unknown): ActivityAccess {
+export function mergeWithDefaultActivityAccess(
+  stored: unknown,
+  legacyMenuAccess?: unknown,
+): ActivityAccess {
   const partial =
     stored && typeof stored === 'object' && !Array.isArray(stored)
       ? (stored as Partial<ActivityAccess>)
       : {};
-  return { ...defaultActivityAccess, ...partial };
+  const legacy =
+    legacyMenuAccess && typeof legacyMenuAccess === 'object' && !Array.isArray(legacyMenuAccess)
+      ? (legacyMenuAccess as Partial<{ viewBudgetPlanRealization: boolean }>)
+      : {};
+
+  // Backward compatibility: older records stored this flag in menuAccess.
+  // Preserve that grant during the transition to ActivityAccess.
+  const migratedFromLegacy =
+    partial.viewBudgetPlanRealization ?? legacy.viewBudgetPlanRealization;
+
+  return {
+    ...defaultActivityAccess,
+    ...partial,
+    ...(migratedFromLegacy === undefined
+      ? {}
+      : { viewBudgetPlanRealization: migratedFromLegacy }),
+  };
 }

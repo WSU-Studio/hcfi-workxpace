@@ -19,8 +19,6 @@ export interface MenuAccess {
   viewRole: boolean;
   viewApprovalSchema: boolean;
   viewActivityHistory: boolean;
-  /** Lihat kolom Realization & Outstanding di Budget Plan (data finansial sensitif). */
-  viewBudgetPlanRealization: boolean;
 }
 
 export interface ActivityAccess {
@@ -95,6 +93,8 @@ export interface ActivityAccess {
    * dokumen ke akun & cost center tertentu tanpa mencabut hak review.
    */
   editClassificationSection: boolean;
+  /** Lihat kolom Realization & Outstanding di Budget Plan (data finansial sensitif). */
+  viewBudgetPlanRealization: boolean;
   /**
    * Melihat kartu "Budget Plan Status" pada halaman review Budget Request,
    * termasuk nilai Plan total, Realized, Outstanding, dan proyeksi
