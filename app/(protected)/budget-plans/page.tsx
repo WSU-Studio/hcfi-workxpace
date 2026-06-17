@@ -100,7 +100,7 @@ interface ImportPreviewRow {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Revision', 'Declined'] as const;
+const STATUS_FILTERS = ['All', 'Draft', 'On Progress', 'Need Revision', 'Approved', 'Declined'] as const;
 const SORT_OPTIONS = [
   { value: 'createdAt-desc', label: 'Newest first' },
   { value: 'createdAt-asc', label: 'Oldest first' },
@@ -184,7 +184,8 @@ export default function BudgetPlansPage() {
           p.subject?.toLowerCase().includes(kw) ||
           p.code?.toLowerCase().includes(kw) ||
           p.department?.name?.toLowerCase().includes(kw);
-        const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+        const statusLabel = getRequestStatusDisplay(p.status).label;
+        const matchesStatus = statusFilter === 'All' || statusLabel === statusFilter;
         return matchesKeyword && matchesStatus;
       })
       .sort((a, b) => {
