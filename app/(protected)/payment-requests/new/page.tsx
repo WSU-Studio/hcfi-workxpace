@@ -102,6 +102,7 @@ export default function NewPaymentRequestPage() {
     projectId: '',
     currency: 'IDR',
     payeeName: '',
+    bankAccount: '',
     paymentPurpose: '',
   });
   const [error, setError] = useState('');
@@ -205,6 +206,7 @@ export default function NewPaymentRequestPage() {
         notes: '',
         approvalSchemaId: '',
         payeeName: '',
+        bankAccount: '',
         paymentPurpose: '',
         currency: 'IDR',
         fiscalYear: fiscalYears[0]?.year ?? new Date().getFullYear(),
@@ -314,6 +316,7 @@ export default function NewPaymentRequestPage() {
             })),
           currency: formData.currency,
           payeeName: formData.payeeName.trim(),
+          bankAccount: formData.bankAccount.trim() || null,
           paymentPurpose: formData.paymentPurpose || null,
           costCenterId: classification.costCenterId || null,
           categoryId: classification.categoryId || null,
@@ -501,8 +504,8 @@ export default function NewPaymentRequestPage() {
           </div>
 
           {/* <h2 className="text-base font-semibold text-gray-900">Payment details</h2> */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="col-span-2">
               <label className="mb-1.5 block font-medium">Payee *</label>
               <Input
                 type="text"
@@ -510,6 +513,16 @@ export default function NewPaymentRequestPage() {
                 onChange={(e) => setFormData((p) => ({ ...p, payeeName: e.target.value }))}
                 placeholder="Vendor or beneficiary name"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block font-medium">Bank Account</label>
+              <Input
+                type="text"
+                value={formData.bankAccount}
+                onChange={(e) => setFormData((p) => ({ ...p, bankAccount: e.target.value }))}
+                placeholder="Bank account number"
               />
             </div>
 

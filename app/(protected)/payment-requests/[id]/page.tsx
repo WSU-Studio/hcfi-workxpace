@@ -113,6 +113,7 @@ export default function PaymentRequestDetailPage() {
       total: number;
     }[];
     payeeName: string;
+    bankAccount?: string | null;
     paymentPurpose: string | null;
     requestorId?: string | null;
     requestorName?: string | null;
@@ -329,6 +330,12 @@ export default function PaymentRequestDetailPage() {
             <span className="font-medium">
               {formatCurrency(data.amount)} {data.currency}
             </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Payee:</span> {data.payeeName}
+          </div>
+          <div>
+            <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
           </div>
         </div>
 

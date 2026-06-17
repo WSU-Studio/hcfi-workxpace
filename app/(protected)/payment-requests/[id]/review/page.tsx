@@ -52,6 +52,7 @@ export default function ReviewPaymentRequestPage() {
       total: number;
     }[];
     payeeName: string;
+    bankAccount?: string | null;
     paymentPurpose: string | null;
     canReview?: boolean;
     project?: { code: string; name: string } | null;
@@ -254,6 +255,9 @@ export default function ReviewPaymentRequestPage() {
           </div>
           <div>
             <span className="text-gray-500">Payee:</span> {data.payeeName}
+          </div>
+          <div>
+            <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
           </div>
           {data.paymentPurpose ? (
             <div className="md:col-span-2">

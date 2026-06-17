@@ -159,6 +159,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       budgetRequestId,
       currency,
       payeeName,
+      bankAccount,
       paymentPurpose,
       departmentId,
       fiscalYear: bodyFiscalYear,
@@ -292,7 +293,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.paymentRequestLineItem.deleteMany({ where: { paymentRequestId: id } });
-      return tx.paymentRequest.update({
+      return (tx.paymentRequest as unknown as {
+        update: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+      }).update({
         where: { id },
         data: {
           subject: subject.trim(),
@@ -315,6 +318,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           currency:
             typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'IDR',
           payeeName: payeeName.trim(),
+          bankAccount: typeof bankAccount === 'string' && bankAccount.trim() ? bankAccount.trim() : null,
           paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
           category: classification.category,
           categoryKeyIndex: classification.categoryKeyIndex,
@@ -348,7 +352,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       userId: session.user.id,
       entityType: 'PaymentRequest',
       entityId: id,
-      entityCode: updated.code,
+      entityCode: String(updated.code ?? ''),
       action: 'update',
       details: {
         subject: updated.subject,
@@ -357,14 +361,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         note: 'Payment request updated by requestor. Approval restarted.',
         amount: normalizedGrandTotal,
         totalAmount,
-        lineItemCount: updated.lineItems.length,
+        lineItemCount: Array.isArray((updated as { lineItems?: unknown[] }).lineItems)
+          ? (updated as { lineItems: unknown[] }).lineItems.length
+          : 0,
       },
     });
 
     await notifyPaymentRequestAwaitingReview({
       requestId: id,
       actorUserId: session.user.id,
-      requestCode: updated.code,
+      requestCode: String(updated.code ?? ''),
       event: 'updated',
     });
 

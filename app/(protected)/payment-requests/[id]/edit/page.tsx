@@ -104,6 +104,7 @@ export default function EditPaymentRequestPage() {
     projectId: '',
     currency: 'IDR',
     payeeName: '',
+    bankAccount: '',
     paymentPurpose: '',
   });
   const [error, setError] = useState('');
@@ -165,6 +166,7 @@ export default function EditPaymentRequestPage() {
           projectId: row.projectId ?? '',
           currency: row.currency ?? 'IDR',
           payeeName: row.payeeName ?? '',
+          bankAccount: row.bankAccount ?? '',
           paymentPurpose: row.paymentPurpose ?? '',
         });
         setLineItems(
@@ -195,6 +197,7 @@ export default function EditPaymentRequestPage() {
         notes: '',
         approvalSchemaId: '',
         payeeName: '',
+        bankAccount: '',
         paymentPurpose: '',
         currency: 'IDR',
         fiscalYear: fiscalYears[0]?.year ?? new Date().getFullYear(),
@@ -300,6 +303,7 @@ export default function EditPaymentRequestPage() {
             })),
           currency: formData.currency,
           payeeName: formData.payeeName.trim(),
+          bankAccount: formData.bankAccount.trim() || null,
           paymentPurpose: formData.paymentPurpose || null,
         }),
       });
@@ -477,6 +481,15 @@ export default function EditPaymentRequestPage() {
                 value={formData.payeeName}
                 onChange={(e) => setFormData((p) => ({ ...p, payeeName: e.target.value }))}
                 required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block font-medium">Bank Account</label>
+              <Input
+                type="text"
+                value={formData.bankAccount}
+                onChange={(e) => setFormData((p) => ({ ...p, bankAccount: e.target.value }))}
+                placeholder="Bank account number"
               />
             </div>
             <div>
