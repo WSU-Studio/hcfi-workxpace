@@ -107,6 +107,9 @@ export const defaultActivityAccess: ActivityAccess = {
   // approve/decline; the classification fields render read-only unless this
   // permission is granted. Admin role gets it via fullActivityAccess.
   editClassificationSection: false,
+  // Financial snapshot (Plan total / Realized / Outstanding) on BR review page
+  // is sensitive and should be explicitly granted.
+  viewBudgetPlanSnapshotOnBudgetRequestReview: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -175,6 +178,7 @@ export const fullActivityAccess: ActivityAccess = {
   createForOtherDepartment: true,
   viewOtherDepartmentDocuments: true,
   editClassificationSection: true,
+  viewBudgetPlanSnapshotOnBudgetRequestReview: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */

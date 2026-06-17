@@ -82,6 +82,7 @@ export const activityAccessItems: Array<{ key: string; label: string }> = [
   { key: 'createForOtherDepartment', label: 'Create BP/BR/PR for Other Departments (Cross-Department)' },
   { key: 'viewOtherDepartmentDocuments', label: 'View BP/BR/PR from Other Departments (Cross-Department)' },
   { key: 'editClassificationSection', label: 'Edit Classification Section on BR/BP/PR' },
+  { key: 'viewBudgetPlanSnapshotOnBudgetRequestReview', label: 'View BP Snapshot & Outstanding Budget on Budget Request Review' },
 ];
 
 export const workspaceManagementAccessItems: Array<{ key: string; label: string }> = [

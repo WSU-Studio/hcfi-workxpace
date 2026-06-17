@@ -240,6 +240,9 @@ export default function ReviewBudgetRequestPage() {
   const hasEditClassificationPermission = Boolean(
     session?.user?.access?.activityAccess?.editClassificationSection,
   );
+  const canViewBudgetPlanSnapshot = Boolean(
+    session?.user?.access?.activityAccess?.viewBudgetPlanSnapshotOnBudgetRequestReview,
+  );
   const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
@@ -383,60 +386,62 @@ export default function ReviewBudgetRequestPage() {
         </Table>
       </Card>
 
-      <Card
-        className="space-y-3"
-        header={<h3 className="font-medium">Budget Plan Status</h3>}
-      >
-        <p className="text-sm text-gray-500">
-          Snapshot of plan <span className="font-medium text-gray-700">{data.budgetPlan?.code}</span>{' '}
-        </p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
-            <span className="text-sm text-gray-600">Plan total</span>
-            <span className="font-medium tabular-nums">{formatCurrency(planAllocationTotal)}</span>
+      {canViewBudgetPlanSnapshot ? (
+        <Card
+          className="space-y-3"
+          header={<h3 className="font-medium">Budget Plan Status</h3>}
+        >
+          <p className="text-sm text-gray-500">
+            Snapshot of plan <span className="font-medium text-gray-700">{data.budgetPlan?.code}</span>{' '}
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+              <span className="text-sm text-gray-600">Plan total</span>
+              <span className="font-medium tabular-nums">{formatCurrency(planAllocationTotal)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+              <span className="text-sm text-gray-600">Realized (other approved BRs)</span>
+              <span className="font-medium tabular-nums">{formatCurrency(planRealization)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 ring-1 ring-blue-200">
+              <span className="text-sm font-medium text-blue-700">Outstanding (available)</span>
+              <span className="font-semibold tabular-nums text-blue-800">
+                {formatCurrency(planOutstanding)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+              <span className="text-sm text-gray-600">This request grand total</span>
+              <span className="font-medium tabular-nums">{formatCurrency(grandTotal)}</span>
+            </div>
           </div>
-          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
-            <span className="text-sm text-gray-600">Realized (other approved BRs)</span>
-            <span className="font-medium tabular-nums">{formatCurrency(planRealization)}</span>
-          </div>
-          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 ring-1 ring-blue-200">
-            <span className="text-sm font-medium text-blue-700">Outstanding (available)</span>
-            <span className="font-semibold tabular-nums text-blue-800">
-              {formatCurrency(planOutstanding)}
+          <div
+            className={`flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 ${
+              isOverbudget
+                ? 'bg-red-50 ring-1 ring-red-300'
+                : 'bg-emerald-50 ring-1 ring-emerald-200'
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              className={`text-sm font-medium ${
+                isOverbudget ? 'text-red-700' : 'text-emerald-700'
+              }`}
+            >
+              {isOverbudget
+                ? 'Outstanding after approval — over budget!'
+                : 'Outstanding after approval'}
+            </span>
+            <span
+              className={`font-semibold tabular-nums ${
+                isOverbudget ? 'text-red-800' : 'text-emerald-800'
+              }`}
+            >
+              {formatCurrency(projectedOutstanding)}
             </span>
           </div>
-          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
-            <span className="text-sm text-gray-600">This request grand total</span>
-            <span className="font-medium tabular-nums">{formatCurrency(grandTotal)}</span>
-          </div>
-        </div>
-        <div
-          className={`flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 ${
-            isOverbudget
-              ? 'bg-red-50 ring-1 ring-red-300'
-              : 'bg-emerald-50 ring-1 ring-emerald-200'
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          <span
-            className={`text-sm font-medium ${
-              isOverbudget ? 'text-red-700' : 'text-emerald-700'
-            }`}
-          >
-            {isOverbudget
-              ? 'Outstanding after approval — over budget!'
-              : 'Outstanding after approval'}
-          </span>
-          <span
-            className={`font-semibold tabular-nums ${
-              isOverbudget ? 'text-red-800' : 'text-emerald-800'
-            }`}
-          >
-            {formatCurrency(projectedOutstanding)}
-          </span>
-        </div>
-      </Card>
+        </Card>
+      ) : null}
 
       <Card collapsible header={<h3 className="font-medium">Classification</h3>}>
         <div className="space-y-3">
