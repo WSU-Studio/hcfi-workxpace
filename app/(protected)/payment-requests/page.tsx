@@ -73,7 +73,7 @@ const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: Edit
   );
 };
 
-const STATUS_FILTERS = ['All', 'Approved', 'Reviewed', 'Pending', 'Draft', 'Revision', 'Declined'] as const;
+const STATUS_FILTERS = ['All', 'Draft', 'On Progress', 'Need Revision', 'Approved', 'Declined'] as const;
 const SORT_OPTIONS = [
   { value: 'subject-asc', label: 'Subject (A-Z)' },
   { value: 'subject-desc', label: 'Subject (Z-A)' },
@@ -146,7 +146,8 @@ export default function PaymentRequestsPage() {
           r.department?.name?.toLowerCase().includes(kw) ||
           r.budgetRequest?.code?.toLowerCase().includes(kw) ||
           r.budgetRequest?.subject?.toLowerCase().includes(kw);
-        const matchesStatus = statusFilter === 'All' || r.status === statusFilter;
+        const statusLabel = getRequestStatusDisplay(r.status).label;
+        const matchesStatus = statusFilter === 'All' || statusLabel === statusFilter;
         return matchesKeyword && matchesStatus;
       })
       .sort((a, b) => {
