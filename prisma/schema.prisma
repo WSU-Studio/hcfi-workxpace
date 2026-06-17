@@ -443,6 +443,7 @@ model PaymentRequest {
   invoiceAmount    Decimal          @default(0) @db.Decimal(18, 2)
   currency         String           @default("IDR")
   payeeName        String
+  bankAccount      String?
   paymentPurpose   String?          @db.Text
   notes            String?          @db.Text
   supportingDocs   Json?
