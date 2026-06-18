@@ -261,7 +261,7 @@ export default function PaymentRequestsPage() {
               </TableEmptyRow>
             ) : (
               currentRequests.map((r, i) => (
-                <TableBodyRow key={r.id} className="[&_td]:align-top">
+                <TableBodyRow key={r.id}>
                   <TableCell>{startIndex + i + 1}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex flex-col">

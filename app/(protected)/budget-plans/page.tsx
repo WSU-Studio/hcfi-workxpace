@@ -431,7 +431,7 @@ const handleImportRows = async () => {
               </TableEmptyRow>
             ) : (
               currentPlans.map((p, i) => (
-                <TableBodyRow key={p.id} className="[&_td]:align-top">
+                <TableBodyRow key={p.id}>
                   <TableCell>{startIndex + i + 1}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex flex-col">

@@ -6,11 +6,11 @@ export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>)
 }
 
 export function TableHeaderRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('border-b border-gray-400', className)} {...props} />;
+  return <tr className={cn('border-b border-gray-400 [&_th]:align-top', className)} {...props} />;
 }
 
 export function TableBodyRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('border-b border-gray-400 hover:bg-gray-50', className)} {...props} />;
+  return <tr className={cn('border-b border-gray-400 hover:bg-gray-50 [&_td]:align-top', className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
