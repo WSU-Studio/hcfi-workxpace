@@ -123,7 +123,7 @@ export default function ReconciliationTable({
             return (
               <TableBodyRow key={payment.id} className="border-gray-200">
                 <TableCell>{renderRequestDate(payment)}</TableCell>
-                <TableCell>{payment.source}</TableCell>
+                <TableCell>{payment.dataInterfaceSource ?? '-'}</TableCell>
                 <TableCell>{row.matchedRequest?.code ?? '-'}</TableCell>
                 <TableCell className="font-medium text-gray-700">{payment.incomingReferenceId}</TableCell>
                 <TableCell>{payment.description}</TableCell>

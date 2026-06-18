@@ -280,7 +280,7 @@ export default function ReconciliationPage() {
           departmentId: r.payment.departmentId,
           voucherNumber: r.payment.voucherNumber,
           paymentDescription: r.payment.description,
-          paymentSource: r.payment.source,
+          paymentSource: r.payment.dataInterfaceSource ?? r.payment.source,
           glAccountCode: r.payment.glAccountCode,
           glAccountName: r.payment.glAccountName,
           confinsSnapshot:
@@ -385,7 +385,7 @@ export default function ReconciliationPage() {
               month: payment.month,
               departmentId: payment.departmentId ?? null,
               departmentName: null,
-              paymentSource: payment.source,
+              paymentSource: payment.dataInterfaceSource ?? payment.source,
               paidAmount: toNumber(payment.amount),
               currency: payment.currency,
               glAccountCode: payment.glAccountCode ?? null,

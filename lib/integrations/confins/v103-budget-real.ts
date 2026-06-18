@@ -206,6 +206,22 @@ export function extractBudgetRequestRef(row: ConfinsBudgetRealApiRow): string {
   return '';
 }
 
+/** Rekonsiliasi hanya memproses baris credit (`DC` = `C`) dari Confins/EGL. */
+export function isCreditBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
+  return String(row.DC ?? '')
+    .trim()
+    .toUpperCase() === 'C';
+}
+
+export function filterCreditBudgetRealRows(rows: ConfinsBudgetRealApiRow[]): ConfinsBudgetRealApiRow[] {
+  return rows.filter(isCreditBudgetRealRow);
+}
+
+export function resolveDataInterfaceSource(row: ConfinsBudgetRealApiRow): string | null {
+  const raw = String(row.DataInterfaceSource ?? row.Source ?? '').trim();
+  return raw || null;
+}
+
 function resolveSource(row: ConfinsBudgetRealApiRow): ConfinsPaymentSource {
   const iface = String(row.DataInterfaceSource ?? row.Source ?? '').toUpperCase();
   if (iface.includes('EGL')) return 'E-GL';
@@ -300,6 +316,7 @@ export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): Co
       fiscalYear,
       month,
       source: resolveSource(row),
+      dataInterfaceSource: resolveDataInterfaceSource(row),
       ebudgetPlanId: null,
       ebudgetPlanCode: null,
       ebudgetRequestId: null,
