@@ -8,11 +8,11 @@ export default function BulkImportBadge({ className }: BulkImportBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800 ring-1 ring-inset ring-violet-200',
+        'px-1.5 py-0.5 rounded-lg text-xs whitespace-nowrap border bg-violet-100 text-violet-800 border-violet-200',
         className,
       )}
     >
-      Bulk import
+      Imported
     </span>
   );
 }

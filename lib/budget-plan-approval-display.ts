@@ -80,18 +80,18 @@ export type RequestStatusDisplay = {
 export function getRequestStatusDisplay(status: string): RequestStatusDisplay {
   switch (status) {
     case 'Approved':
-      return { label: 'Approved', chipClass: 'bg-green-100 text-green-800' };
+      return { label: 'Approved', chipClass: 'bg-green-100 text-green-800 border-green-200' };
     case 'Pending':
     case 'Reviewed':
-      return { label: 'On Progress', chipClass: 'bg-blue-100 text-blue-800' };
+      return { label: 'On Progress', chipClass: 'bg-blue-100 text-blue-800 border-blue-200' };
     case 'Revision':
-      return { label: 'Need Revision', chipClass: 'bg-amber-100 text-amber-800' };
+      return { label: 'Need Revision', chipClass: 'bg-amber-100 text-amber-800 border-amber-200' };
     case 'Declined':
-      return { label: 'Declined', chipClass: 'bg-red-100 text-red-800' };
+      return { label: 'Declined', chipClass: 'bg-red-100 text-red-800 border-red-200' };
     case 'Draft':
-      return { label: 'Draft', chipClass: 'bg-gray-100 text-gray-700' };
+      return { label: 'Draft', chipClass: 'bg-gray-100 text-gray-700 border-gray-200' };
     default:
-      return { label: status || '-', chipClass: 'bg-gray-100 text-gray-700' };
+      return { label: status || '-', chipClass: 'bg-gray-100 text-gray-700 border-gray-200' };
   }
 }
 

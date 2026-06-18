@@ -280,11 +280,11 @@ export default function PaymentRequestsPage() {
                     }).format(Number(r.amount ?? 0))}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1">
                       {(() => {
                         const display = getRequestStatusDisplay(r.status);
                         return (
-                          <span className={`rounded px-2 py-0.5 text-sm whitespace-nowrap ${display.chipClass}`}>
+                          <span className={`px-1.5 py-0.5 rounded-lg text-xs whitespace-nowrap border ${display.chipClass}`}>
                             {display.label}
                           </span>
                         );
