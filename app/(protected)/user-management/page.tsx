@@ -200,9 +200,9 @@ export default function UserManagementPage() {
                 <TableBodyRow key={user.id}>
                   <TableCell>{startIndex + index + 1}</TableCell>
                   <TableCell>
-                    <div className="space-y-0.5">
+                    <div className="flex flex-col">
                       <p className="font-medium text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
+                      <p className="text-xs text-gray-700 -mt-1">{user.email}</p>
                     </div>
                   </TableCell>
                   <TableCell>{user.employeeId}</TableCell>
