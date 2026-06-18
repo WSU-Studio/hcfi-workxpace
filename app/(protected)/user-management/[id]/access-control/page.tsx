@@ -104,7 +104,7 @@ export default function UserAccessControlPage() {
         <div className="space-y-1">
           <button
             type="button"
-            className="mb-1 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            className="mb-1 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-900 cursor-pointer"
             onClick={() => router.push('/user-management')}
           >
             <ArrowLeft className="h-4 w-4" />

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Import, X, Lock } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -27,6 +27,7 @@ interface Plan {
   id: string;
   code: string;
   subject: string;
+  createdAt: string;
   status: string;
   importedViaBulk?: boolean;
   canEdit?: boolean;
@@ -191,12 +192,18 @@ export default function BudgetPlansPage() {
       .sort((a, b) => {
         let compare = 0;
 
-        if (sortField === 'subject') {
+        if (sortField === 'createdAt') {
+          compare = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        } else if (sortField === 'subject') {
           compare = (a.subject ?? '').localeCompare(b.subject ?? '');
         } else if (sortField === 'code') {
           compare = (a.code ?? '').localeCompare(b.code ?? '');
         } else if (sortField === 'total') {
           compare = getPlanTotal(a) - getPlanTotal(b);
+        }
+
+        if (compare === 0) {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
         }
 
         return sortDirection === 'asc' ? compare : -compare;
@@ -407,6 +414,7 @@ const handleImportRows = async () => {
           <thead>
             <TableHeaderRow>
               <TableHead>#</TableHead>
+              <TableHead>Created At</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Status</TableHead>
@@ -423,8 +431,14 @@ const handleImportRows = async () => {
               </TableEmptyRow>
             ) : (
               currentPlans.map((p, i) => (
-                <TableBodyRow key={p.id}>
+                <TableBodyRow key={p.id} className="[&_td]:align-top">
                   <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span>{formatDate(p.createdAt)}</span>
+                      <span className="text-xs text-gray-500 -mt-1">at {formatTime(p.createdAt)}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{p.code}</TableCell>
                   <TableCell>{p.subject}</TableCell>
                   <TableCell>
