@@ -188,13 +188,13 @@ export function parseConfinsShortDate(raw?: string): Date | null {
 }
 
 /**
- * Satu kolom `ReturnObject` untuk kode Budget Request (Incoming ID / auto-match).
- * Setelah kesepakatan dengan Confins, ubah env `CONFINS_INCOMING_REF_FIELD` (default: FormCode).
+ * Kolom `ReturnObject` untuk Incoming ID rekonsiliasi (default: `Description`).
+ * Format kesepakatan di Description: `{KODE_BR}-{deskripsi invoice}` — parsing di
+ * `lib/reconciliation/incoming-ref.ts`. Override via env `CONFINS_INCOMING_REF_FIELD`.
  *
  * Jangan pakai InterfaceID — itu ID batch integrasi (sama untuk banyak baris), bukan kode BR.
  */
 export function getConfinsIncomingRefFieldName(): string {
-  // return process.env.CONFINS_INCOMING_REF_FIELD?.trim() || 'FormCode';
   return process.env.CONFINS_INCOMING_REF_FIELD?.trim() || 'Description';
 }
 

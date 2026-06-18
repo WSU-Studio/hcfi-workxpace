@@ -140,7 +140,7 @@ export default function ReconciliationTable({
                     <div className="font-semibold capitalize">{row.matchType === 'unmatched' ? 'Unmatched' : 'Matched'}</div>
                     {row.matchType !== 'unmatched' && (
                       <div className="text-xs text-gray-500">
-                        {row.matchType === 'manual' ? 'Manual override' : 'Auto (exact request ref)'}
+                        {row.matchType === 'manual' ? 'Manual override' : 'Auto (BR ref from Description)'}
                       </div>
                     )}
                   </div>

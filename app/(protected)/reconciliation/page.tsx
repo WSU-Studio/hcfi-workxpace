@@ -10,6 +10,7 @@ import type {
   ConfinsMockListMeta,
 } from '@/lib/integrations/confins-mock/types';
 import { buildPaymentSignature } from '@/lib/integrations/confins/payment-signature';
+import { isAutoMatchedByIncomingRef } from '@/lib/reconciliation/incoming-ref';
 import { formatDate } from '@/lib/utils';
 import type { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 import { useSession } from 'next-auth/react';
@@ -41,14 +42,6 @@ function toNumber(val: string | number | null | undefined): number {
   if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
   const n = Number(val);
   return Number.isFinite(n) ? n : 0;
-}
-
-function normalizeRefCode(v: string): string {
-  return v.trim().toUpperCase().replace(/[^A-Z0-9/]/g, '');
-}
-
-function isAutoMatchedByIncomingRef(requestCode: string, incomingRef: string): boolean {
-  return normalizeRefCode(requestCode) === normalizeRefCode(incomingRef);
 }
 
 export default function ReconciliationPage() {
@@ -446,7 +439,10 @@ export default function ReconciliationPage() {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Reconciliation</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Reconciliation based on Budget Request. Auto-match if Incoming ID is the same as Form ID request. Save the matched results to complete the rows; saved rows will no longer appear in the work list and can be viewed in the Reports menu.
+          Reconciliation based on Budget Request. Auto-match when the Description starts with a Budget Request code in the format{' '}
+          <code className="rounded bg-gray-100 px-1 text-xs">{'{KODE_BR}-{deskripsi}'}</code> (hyphen without spaces, e.g.{' '}
+          <code className="rounded bg-gray-100 px-1 text-xs">BRNOP202606004-INVOICE KJH...</code>). Save matched results to
+          complete the rows; saved rows will no longer appear in the work list and can be viewed in the Reports menu.
         </p>
       </div>
 
