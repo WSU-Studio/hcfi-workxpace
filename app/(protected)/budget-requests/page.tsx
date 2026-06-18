@@ -12,6 +12,7 @@ import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRo
 import Tooltip from '@/components/ui/Tooltip';
 import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
 import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
+import { formatDate, formatTime } from '@/lib/utils';
 import {
   ALL_FISCAL_YEARS,
   type FiscalYearFilterValue,
@@ -23,6 +24,7 @@ interface BudgetRequest {
   id: string;
   code: string;
   subject: string;
+  createdAt: string;
   status: string;
   requestorName?: string | null;
   canEdit?: boolean;
@@ -75,6 +77,8 @@ const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: Edit
 
 const STATUS_FILTERS = ['All', 'Draft', 'On Progress', 'Need Revision', 'Approved', 'Declined'] as const;
 const SORT_OPTIONS = [
+  { value: 'createdAt-desc', label: 'Newest first' },
+  { value: 'createdAt-asc', label: 'Oldest first' },
   { value: 'subject-asc', label: 'Subject (A-Z)' },
   { value: 'subject-desc', label: 'Subject (Z-A)' },
   { value: 'code-asc', label: 'Code (A-Z)' },
@@ -93,7 +97,7 @@ export default function BudgetRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
-  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
   const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
   const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<BudgetRequest | null>(null);
@@ -149,7 +153,9 @@ export default function BudgetRequestsPage() {
       .sort((a, b) => {
         let compare = 0;
 
-        if (sortField === 'subject') {
+        if (sortField === 'createdAt') {
+          compare = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        } else if (sortField === 'subject') {
           compare = (a.subject ?? '').localeCompare(b.subject ?? '');
         } else if (sortField === 'code') {
           compare = (a.code ?? '').localeCompare(b.code ?? '');
@@ -157,6 +163,10 @@ export default function BudgetRequestsPage() {
           compare = (a.department?.name ?? '').localeCompare(b.department?.name ?? '');
         } else if (sortField === 'status') {
           compare = (a.status ?? '').localeCompare(b.status ?? '');
+        }
+
+        if (compare === 0) {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
         }
 
         return sortDirection === 'asc' ? compare : -compare;
@@ -219,6 +229,7 @@ export default function BudgetRequestsPage() {
           <thead>
             <TableHeaderRow>
               <TableHead>#</TableHead>
+              <TableHead>Created At</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Requested By</TableHead>
@@ -230,13 +241,19 @@ export default function BudgetRequestsPage() {
           </thead>
           <tbody>
             {currentRequests.length === 0 ? (
-              <TableEmptyRow colSpan={8}>
+              <TableEmptyRow colSpan={9}>
                 No budget requests. <Link href="/budget-requests/new" className="text-blue-600 hover:underline">Create one</Link> from an approved budget plan.
               </TableEmptyRow>
             ) : (
               currentRequests.map((r, i) => (
-                <TableBodyRow key={r.id}>
+                <TableBodyRow key={r.id} className="[&_td]:align-top">
                   <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span>{formatDate(r.createdAt)}</span>
+                      <span className="text-xs text-gray-500 -mt-1">at {formatTime(r.createdAt)}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{r.code}</TableCell>
                   <TableCell>{r.subject}</TableCell>
                   <TableCell>{r.requestorName ?? '-'}</TableCell>
