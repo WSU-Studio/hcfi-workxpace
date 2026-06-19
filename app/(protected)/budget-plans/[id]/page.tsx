@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { normalizeSupportingDocs } from '@/lib/budget-plans/form';
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
@@ -95,19 +96,6 @@ const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWar
   );
 };
 
-function normalizeSupportingDocs(input: unknown) {
-  if (!Array.isArray(input)) return [];
-
-  return input
-    .map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'string') {
-        return item.url;
-      }
-      return null;
-    })
-    .filter((url): url is string => typeof url === 'string' && url.length > 0);
-}
 
 // function ReadonlyField({ label, value }: { label: string; value: string }) {
 //   return (
