@@ -9,6 +9,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import RichTextContent from '@/components/ui/RichTextContent';
 import Input from '@/components/ui/Input';
 import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
@@ -71,7 +72,7 @@ export default function ReviewPaymentRequestPage() {
       id: string;
       action: string;
       timestamp: string;
-      details: { status?: string; declineReason?: string | null } | null;
+      details: { status?: string; declineReason?: string | null; approvalNote?: string | null } | null;
       user: { name: string | null } | null;
     }[];
   } | null>(null);
@@ -80,6 +81,7 @@ export default function ReviewPaymentRequestPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [classification, setClassification] = useState<RequestClassificationValue>(emptyRequestClassification());
   const [categoryOptions, setCategoryOptions] = useState<ClassificationOption[]>([]);
   const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<ClassificationOption[]>([]);
@@ -108,6 +110,11 @@ export default function ReviewPaymentRequestPage() {
     setDeclineReason('');
   };
 
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
+
   const classificationPayload = {
     costCenterId: classification.costCenterId || null,
     categoryId: classification.categoryId || null,
@@ -123,10 +130,13 @@ export default function ReviewPaymentRequestPage() {
       const res = await fetch(`/api/payment-requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(classificationPayload),
+        body: JSON.stringify({
+          approvalNote: approvalNote.trim() || null,
+          ...classificationPayload,
+        }),
       });
       if (res.ok) {
-        setIsApproveModalOpen(false);
+        closeApproveModal();
         router.push(`/payment-requests/${id}`);
       } else alert('Failed');
     } finally {
@@ -396,6 +406,8 @@ export default function ReviewPaymentRequestPage() {
               </tbody>
             </Table>
 
+            <ApprovalStepNotesList levels={orderedLevels} stepProgresses={stepProgresses} />
+
             {data.status !== 'Approved' ? (
               <div className="flex justify-end gap-3 pt-4">
                 <Link
@@ -485,19 +497,25 @@ export default function ReviewPaymentRequestPage() {
 
       <Modal
         isOpen={isApproveModalOpen}
-        onClose={() => setIsApproveModalOpen(false)}
+        onClose={closeApproveModal}
         closeOnEscape={!isSubmitting}
         overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
-        panelClassName="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
       >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this payment request?
             </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsApproveModalOpen(false)}
+                onClick={closeApproveModal}
                 className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >

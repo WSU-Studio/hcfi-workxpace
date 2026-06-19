@@ -13,6 +13,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
@@ -28,6 +29,7 @@ type HistoryEntry = {
     fromStatus?: string;
     previousStatus?: string;
     declineReason?: string | null;
+    approvalNote?: string | null;
     note?: string | null;
     qtyUnitPriceAdjustmentNote?: string | null;
   } | null;
@@ -475,6 +477,12 @@ export default function PaymentRequestDetailPage() {
                 </tbody>
               </Table>
 
+              <ApprovalStepNotesList
+                levels={orderedLevels}
+                stepProgresses={stepProgresses}
+                className="print:hidden"
+              />
+
               <div className="hidden print:block">
                 <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
                   <div
@@ -580,7 +588,9 @@ export default function PaymentRequestDetailPage() {
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
                 ) : null}
-                {history.details?.note ? <p className="text-gray-600">{String(history.details.note)}</p> : null}
+                {history.details?.approvalNote ? (
+                  <p className="text-gray-600">Note: {history.details.approvalNote}</p>
+                ) : null}
                 {history.details?.qtyUnitPriceAdjustmentNote ? (
                   <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
                 ) : null}
