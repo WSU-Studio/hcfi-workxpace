@@ -230,6 +230,27 @@ export default function BudgetPlanDetailPage() {
             <Download className="h-4 w-4" aria-hidden />
             {isExporting ? 'Generating PDF...' : 'Download PDF'}
           </Button>
+          {canEdit ? (
+            requiresEditConfirmation(plan.status) ? (
+              <button
+                type="button"
+                onClick={() => setIsEditWarningOpen(true)}
+                disabled={isExporting}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </button>
+            ) : (
+              <Link
+                href={`/budget-plans/${id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Link>
+            )
+          ) : null}
         </div>
       </div>
 
