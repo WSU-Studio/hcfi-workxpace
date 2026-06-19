@@ -319,7 +319,9 @@ export default function BudgetPlanDetailPage() {
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
-            <RichTextContent value={plan.description} className="mt-1" />
+            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-100">
+              <RichTextContent value={plan.description} />
+            </div>
           </div>
           <div className="col-span-2 print:hidden">
             <span className="text-gray-500">Supporting Documents:</span>
