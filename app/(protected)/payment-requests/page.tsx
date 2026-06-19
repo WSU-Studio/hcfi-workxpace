@@ -17,7 +17,8 @@ import {
   getCurrentFiscalYear,
   serializeFiscalYearParam,
 } from '@/lib/fiscal-year';
-import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
+import EditWarningModal from '@/components/ui/EditWarningModal';
+import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
 import { formatDate, formatTime } from '@/lib/utils';
 
 interface PaymentRequestRow {
@@ -34,46 +35,6 @@ interface PaymentRequestRow {
   department: { name: string };
   approvalSchemaId?: string;
 }
-
-interface EditWarningModalProps {
-  isOpen: boolean;
-  requestSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit payment request?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the payment request
-          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''} will be
-          reverted to the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const STATUS_FILTERS = ['All', 'Draft', 'On Progress', 'Need Revision', 'Approved', 'Declined'] as const;
 const SORT_OPTIONS = [
@@ -310,7 +271,7 @@ export default function PaymentRequestsPage() {
                     {r.canEdit ? (
                       <>
                         {' | '}
-                        {r.status === 'Approved' ? (
+                        {requiresEditConfirmation(r.status) ? (
                           <button
                             type="button"
                             onClick={() => setRequestToConfirmEdit(r)}
@@ -349,7 +310,8 @@ export default function PaymentRequestsPage() {
       />
       <EditWarningModal
         isOpen={Boolean(requestToConfirmEdit)}
-        requestSubject={requestToConfirmEdit?.subject}
+        entityType="payment-request"
+        subject={requestToConfirmEdit?.subject}
         onCancel={() => setRequestToConfirmEdit(null)}
         onContinue={() => {
           if (!requestToConfirmEdit) return;

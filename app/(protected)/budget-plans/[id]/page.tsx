@@ -10,8 +10,10 @@ import { normalizeSupportingDocs } from '@/lib/budget-plans/form';
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
+  requiresEditConfirmation,
   type BudgetPlanHistoryEntry,
 } from '@/lib/budget-plan-approval-display';
+import EditWarningModal from '@/components/ui/EditWarningModal';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
@@ -54,46 +56,6 @@ type OriginOfficeOption = {
   code: string;
   name: string;
   isActive: boolean;
-};
-
-interface EditWarningModalProps {
-  isOpen: boolean;
-  planSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the budget plan
-          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
-          the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 
@@ -548,7 +510,7 @@ export default function BudgetPlanDetailPage() {
 
                 <div className="flex flex-wrap items-center gap-3">
                   {canEdit ? (
-                    plan.status === 'Approved' ? (
+                    requiresEditConfirmation(plan.status) ? (
                       <button
                         type="button"
                         onClick={() => setIsEditWarningOpen(true)}
@@ -607,7 +569,8 @@ export default function BudgetPlanDetailPage() {
       </div>
       <EditWarningModal
         isOpen={isEditWarningOpen}
-        planSubject={plan.subject}
+        entityType="budget-plan"
+        subject={plan.subject}
         onCancel={() => setIsEditWarningOpen(false)}
         onContinue={() => {
           setIsEditWarningOpen(false);

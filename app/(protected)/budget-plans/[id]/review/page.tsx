@@ -8,6 +8,7 @@ import { formatDate, formatCurrency } from '@/lib/utils';
 import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
@@ -135,23 +136,10 @@ export default function ReviewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  useEffect(() => {
-    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      if (isDeclineModalOpen) {
-        setIsDeclineModalOpen(false);
-        setDeclineReason('');
-      } else {
-        setIsApproveModalOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+  const closeDeclineModal = () => {
+    setIsDeclineModalOpen(false);
+    setDeclineReason('');
+  };
 
   const handleApprove = async () => {
     setIsSubmitting(true);
@@ -518,9 +506,13 @@ export default function ReviewBudgetPlanPage() {
         ) : null}
       </div>
 
-      {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Decline Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Do you want to decline this budget plan? You may ask for revision.
@@ -534,10 +526,7 @@ export default function ReviewBudgetPlanPage() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setIsDeclineModalOpen(false);
-                  setDeclineReason('');
-                }}
+                onClick={closeDeclineModal}
                 className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -561,13 +550,15 @@ export default function ReviewBudgetPlanPage() {
                 Yes, I Decline
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
-      {isApproveModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={() => setIsApproveModalOpen(false)}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this budget plan?
@@ -590,9 +581,7 @@ export default function ReviewBudgetPlanPage() {
                 {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
       <Card
         collapsible

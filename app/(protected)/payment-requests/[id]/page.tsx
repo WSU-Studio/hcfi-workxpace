@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import EditWarningModal from '@/components/ui/EditWarningModal';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -15,6 +16,7 @@ import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/com
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
+  requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
@@ -30,45 +32,6 @@ type HistoryEntry = {
     qtyUnitPriceAdjustmentNote?: string | null;
   } | null;
   user: { name: string | null } | null;
-};
-
-interface EditWarningModalProps {
-  isOpen: boolean;
-  requestSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Edit payment request?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Status akan dikembalikan dan approval dimulai ulang.
-          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''}
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Lanjutkan
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // function ReadonlyField({ label, value }: { label: string; value: string }) {
@@ -258,7 +221,7 @@ export default function PaymentRequestDetailPage() {
             {isExporting ? 'Generating PDF...' : 'Download PDF'}
           </Button>
           {canEditAsRequestor ? (
-            data.status === 'Approved' ? (
+            requiresEditConfirmation(data.status) ? (
               <button
                 type="button"
                 onClick={() => setIsEditWarningOpen(true)}
@@ -632,7 +595,8 @@ export default function PaymentRequestDetailPage() {
 
       <EditWarningModal
         isOpen={isEditWarningOpen}
-        requestSubject={data.subject}
+        entityType="payment-request"
+        subject={data.subject}
         onCancel={() => setIsEditWarningOpen(false)}
         onContinue={() => {
           setIsEditWarningOpen(false);

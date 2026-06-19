@@ -21,7 +21,9 @@ import {
   serializeFiscalYearParam,
 } from '@/lib/fiscal-year';
 import { validateXlsxFile } from '@/lib/xlsx-validation';
-import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
+import Modal from '@/components/ui/Modal';
+import EditWarningModal from '@/components/ui/EditWarningModal';
+import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
 
 interface Plan {
   id: string;
@@ -37,46 +39,6 @@ interface Plan {
   approvalSchemaId?: string;
   budgetRequestCount?: number;
 }
-
-interface EditWarningModalProps {
-  isOpen: boolean;
-  planSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the budget plan
-          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
-          the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 interface ImportPreviewRow {
   fiscalYear: number;
@@ -485,7 +447,7 @@ const handleImportRows = async () => {
                     {p.canEdit ? (
                       <>
                         {' | '}
-                        {p.status === 'Approved' ? (
+                        {requiresEditConfirmation(p.status) ? (
                           <button
                             type="button"
                             onClick={() => setPlanToConfirmEdit(p)}
@@ -522,7 +484,8 @@ const handleImportRows = async () => {
       />
       <EditWarningModal
         isOpen={Boolean(planToConfirmEdit)}
-        planSubject={planToConfirmEdit?.subject}
+        entityType="budget-plan"
+        subject={planToConfirmEdit?.subject}
         onCancel={() => setPlanToConfirmEdit(null)}
         onContinue={() => {
           if (!planToConfirmEdit) return;
@@ -532,9 +495,12 @@ const handleImportRows = async () => {
         }}
       />
     
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-xl">
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        panelClassName="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-xl"
+      >
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Import Bulk Budget Plan</h2>
@@ -680,9 +646,7 @@ const handleImportRows = async () => {
                 {isImporting ? 'Importing...' : 'Import Data'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

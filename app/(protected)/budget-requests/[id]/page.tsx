@@ -9,6 +9,7 @@ import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import EditWarningModal from '@/components/ui/EditWarningModal';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
@@ -16,6 +17,7 @@ import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/com
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
+  requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -26,46 +28,6 @@ type HistoryEntry = {
   timestamp: string;
   details: { status?: string; declineReason?: string; qtyUnitPriceAdjustmentNote?: string | null } | null;
   user: { name: string | null } | null;
-};
-
-interface EditWarningModalProps {
-  isOpen: boolean;
-  requestSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget request?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the budget request
-          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''} will be
-          reverted to the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // function ReadonlyField({ label, value }: { label: string; value: string }) {
@@ -239,7 +201,7 @@ export default function BudgetRequestDetailPage() {
             {isExporting ? 'Generating PDF...' : 'Download PDF'}
           </Button>
           {canEditAsRequestor ? (
-            data.status === 'Approved' ? (
+            requiresEditConfirmation(data.status) ? (
               <button
                 type="button"
                 onClick={() => setIsEditWarningOpen(true)}
@@ -535,7 +497,7 @@ export default function BudgetRequestDetailPage() {
           {canEditAsRequestor || data.canReview ? (
             <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4 print:hidden">
               {canEditAsRequestor ? (
-                data.status === 'Approved' ? (
+                requiresEditConfirmation(data.status) ? (
                   <button
                     type="button"
                     onClick={() => setIsEditWarningOpen(true)}
@@ -598,7 +560,8 @@ export default function BudgetRequestDetailPage() {
       </div>
       <EditWarningModal
         isOpen={isEditWarningOpen}
-        requestSubject={data.subject}
+        entityType="budget-request"
+        subject={data.subject}
         onCancel={() => setIsEditWarningOpen(false)}
         onContinue={() => {
           setIsEditWarningOpen(false);
