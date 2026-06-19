@@ -5,7 +5,7 @@ import type { ConfinsMockListMeta } from '@/lib/integrations/confins-mock/types'
 import {
   CONFINS_BUDGET_REAL_PATH,
   departmentNameMatchesPayment,
-  filterCreditBudgetRealRows,
+  filterDebitBudgetRealRows,
   mapBudgetRealRowsToPayments,
   paymentMatchesRequestMonth,
   type ConfinsBudgetRealApiRow,
@@ -78,7 +78,7 @@ export async function fetchReconciliationPayments(
   });
 
   const rawRowCount = apiRows.length;
-  const rawRows = filterCreditBudgetRealRows(apiRows);
+  const rawRows = filterDebitBudgetRealRows(apiRows);
 
   let payments = mapBudgetRealRowsToPayments(rawRows);
 

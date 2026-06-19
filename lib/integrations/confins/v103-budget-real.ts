@@ -206,15 +206,15 @@ export function extractBudgetRequestRef(row: ConfinsBudgetRealApiRow): string {
   return '';
 }
 
-/** Rekonsiliasi hanya memproses baris credit (`DC` = `C`) dari Confins/EGL. */
-export function isCreditBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
+/** Rekonsiliasi hanya memproses baris debit (`DC` = `D`) dari Confins/EGL. */
+export function isDebitBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
   return String(row.DC ?? '')
     .trim()
-    .toUpperCase() === 'C';
+    .toUpperCase() === 'D';
 }
 
-export function filterCreditBudgetRealRows(rows: ConfinsBudgetRealApiRow[]): ConfinsBudgetRealApiRow[] {
-  return rows.filter(isCreditBudgetRealRow);
+export function filterDebitBudgetRealRows(rows: ConfinsBudgetRealApiRow[]): ConfinsBudgetRealApiRow[] {
+  return rows.filter(isDebitBudgetRealRow);
 }
 
 export function resolveDataInterfaceSource(row: ConfinsBudgetRealApiRow): string | null {

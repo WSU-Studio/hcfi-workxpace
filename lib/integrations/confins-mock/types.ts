@@ -20,7 +20,7 @@ export type ConfinsCashDisbursement = {
   /** Bulan kalender 1–12 (derivasi dari InvoiceDate untuk filter). */
   month: number;
   source: ConfinsPaymentSource;
-  /** Nilai mentah `DataInterfaceSource` dari API Confins (mis. `EGL`, `CONFINS`). */
+  /** Nilai mentah `DataInterfaceSource` dari API Confins (mis. `EGL`, `CONFINS`, `Other Receive`). */
   dataInterfaceSource?: string | null;
   ebudgetPlanId: string | null;
   ebudgetPlanCode?: string | null;
