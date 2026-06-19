@@ -67,6 +67,88 @@ const MOCK_DEPARTMENTS: ConfinsDepartment[] = [
   { BizUnitCode: 'NOP', BizUnitName: 'NATIONAL OP PLANNING & SUPPORT', IsActive: true },
 ];
 
+type ConfinsEmployee = {
+  Username: string;
+  EmpNo: string;
+  EmpName: string;
+  IsActive: boolean;
+  Roles: {
+    BusinessUnitName: string;
+    SupervisorName: string | null;
+    JobTitleName: string;
+    OfficeName: string;
+    RoleName: string;
+    IsActive: boolean;
+  }[];
+};
+
+const MOCK_EMPLOYEES: ConfinsEmployee[] = [
+  {
+    Username: 'admin@workxpace.com',
+    EmpNo: 'EMP001',
+    EmpName: 'Admin User',
+    IsActive: true,
+    Roles: [
+      {
+        BusinessUnitName: 'IT & INFO SEC',
+        SupervisorName: null,
+        JobTitleName: 'ADMINISTRATOR',
+        OfficeName: 'HEAD OFFICE',
+        RoleName: 'ADMIN',
+        IsActive: true,
+      },
+    ],
+  },
+  {
+    Username: 'reviewer.spv@workxpace.com',
+    EmpNo: 'EMP012',
+    EmpName: 'Reviewer SPV',
+    IsActive: true,
+    Roles: [
+      {
+        BusinessUnitName: 'IT & INFO SEC',
+        SupervisorName: null,
+        JobTitleName: 'SUPERVISOR',
+        OfficeName: 'HEAD OFFICE',
+        RoleName: 'SPV',
+        IsActive: true,
+      },
+    ],
+  },
+  {
+    Username: 'requestor@workxpace.com',
+    EmpNo: 'EMP002',
+    EmpName: 'Requestor IT',
+    IsActive: true,
+    Roles: [
+      {
+        BusinessUnitName: 'IT & INFO SEC',
+        SupervisorName: null,
+        JobTitleName: 'REQUESTOR',
+        OfficeName: 'HEAD OFFICE',
+        RoleName: 'REQUESTOR',
+        IsActive: true,
+      },
+    ],
+  },
+  {
+    Username: 'irwanphan@wsustudio.com',
+    EmpNo: 'EM-000X',
+    EmpName: 'Irwan Phan',
+    IsActive: true,
+    Roles: [
+      {
+        BusinessUnitName: 'IT & INFO SEC',
+        SupervisorName: null,
+        JobTitleName: 'CONSULTANT',
+        OfficeName: 'HEAD OFFICE',
+        RoleName: 'GUEST',
+        IsActive: true,
+      },
+    ],
+  },
+];
+
 const MOCK_OFFICES: ConfinsOffice[] = [
   {
     OfficeCode: '99',
@@ -118,6 +200,13 @@ export async function getConfinsMockData(path: string): Promise<unknown[]> {
     path === '/v1/IntegrationEBudgetingX/GetListRefOfficeByIsActiveX'
   ) {
     return MOCK_OFFICES;
+  }
+
+  if (
+    path === '/v1/RefEmpX/GetListRefEmpByIsActiveX' ||
+    path === '/v1/IntegrationEBudgetingX/GetListRefEmpByIsActiveX'
+  ) {
+    return MOCK_EMPLOYEES;
   }
 
   if (path === CONFINS_BUDGET_REAL_PATH || path.endsWith(BUDGET_REAL_PATH_SUFFIX)) {

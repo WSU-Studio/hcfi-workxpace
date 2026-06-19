@@ -10,6 +10,7 @@ import {
   loadSessionUserByEmail,
   type SessionUser,
 } from '@/lib/auth/session-user';
+import { lookupConfinsEmployeeByEmail } from '@/lib/confins/employee-lookup';
 
 /**
  * Codes used for the placeholder role / department that auto-provisioned
@@ -146,8 +147,11 @@ interface ProvisionInput {
  * Flow:
  *   1. Look up by email. If found → return existing session payload
  *      (admin may have changed role/access since first provision).
- *   2. Otherwise auto-provision with placeholder role/department, empty
- *      access flags, active=true, and a random unguessable password.
+ *   2. Otherwise auto-provision:
+ *      - name + email from Entra (input)
+ *      - employeeId (`EmpNo`) + department (`BusinessUnitName`) from Confins
+ *        Organization Master API when available
+ *      - placeholder GUEST role, empty access flags, active=true
  *
  * Returns `null` only if we cannot resolve the new user back into a session
  * payload — should not happen in practice but guarded for safety.
@@ -161,13 +165,31 @@ export async function provisionOrLoadAzureAdUser(
   const existing = await loadSessionUserByEmail(email);
   if (existing) return existing;
 
+  const confinsProfile = await lookupConfinsEmployeeByEmail(email);
+
   const [guestRoleId, unassignedDeptId, passwordHash] = await Promise.all([
     ensureGuestRoleId(),
     ensureUnassignedDepartmentId(),
     generatePlaceholderPasswordHash(),
   ]);
 
-  const employeeId = buildEmployeeId(input.oid, email);
+  const employeeId = await resolveEmployeeId(
+    confinsProfile.empNo,
+    input.oid,
+    email,
+  );
+  const departmentId = confinsProfile.departmentId ?? unassignedDeptId;
+
+  if (process.env.SSO_DEBUG === 'true') {
+    console.log('[SSO] Confins profile', {
+      email,
+      confinsFound: confinsProfile.found,
+      empNo: confinsProfile.empNo,
+      businessUnitName: confinsProfile.businessUnitName,
+      departmentResolved: Boolean(confinsProfile.departmentId),
+      employeeId,
+    });
+  }
 
   await prisma.user.create({
     data: {
@@ -176,7 +198,7 @@ export async function provisionOrLoadAzureAdUser(
       password: passwordHash,
       employeeId,
       roleId: guestRoleId,
-      departmentId: unassignedDeptId,
+      departmentId,
       isActive: true,
       userRoles: {
         create: { roleId: guestRoleId },
@@ -212,6 +234,35 @@ function buildEmployeeId(
 ): string {
   if (oid) return `SSO-${oid}`;
   return `SSO-${Buffer.from(email).toString('base64url').slice(0, 24)}`;
+}
+
+async function resolveEmployeeId(
+  confinsEmpNo: string | null,
+  oid: string | null | undefined,
+  email: string,
+): Promise<string> {
+  const candidate = confinsEmpNo?.trim();
+  if (!candidate) return buildEmployeeId(oid, email);
+
+  const taken = await prisma.user.findUnique({
+    where: { employeeId: candidate },
+    select: { email: true },
+  });
+  if (taken && normalizeEmail(taken.email) !== normalizeEmail(email)) {
+    if (process.env.SSO_DEBUG === 'true') {
+      console.warn('[SSO] Confins EmpNo already assigned to another user', {
+        empNo: candidate,
+        email,
+      });
+    }
+    return buildEmployeeId(oid, email);
+  }
+
+  return candidate;
+}
+
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 /** Re-exported so other modules don't need to import constants separately. */
