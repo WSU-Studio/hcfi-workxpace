@@ -3,7 +3,7 @@ import {
   getItemSubtotal,
   getItemTotal,
   type BudgetRequestLineItemInput,
-} from '@/components/budget-request/BudgetRequestItemsEditor';
+} from '@/components/budget-requests/BudgetRequestItemsEditor';
 
 export const DESCRIPTION_MAX_BYTES = 200 * 1024;
 

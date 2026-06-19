@@ -11,7 +11,7 @@ import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
-} from '@/components/budget-request/BudgetRequestItemsEditor';
+} from '@/components/budget-requests/BudgetRequestItemsEditor';
 import {
   BudgetRequestFormOptions,
   BudgetRequestFormValues,

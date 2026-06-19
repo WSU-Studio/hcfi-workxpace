@@ -19,8 +19,8 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
-import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
-import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
 

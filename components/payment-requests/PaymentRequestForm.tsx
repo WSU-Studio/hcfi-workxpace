@@ -10,7 +10,7 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
-} from '@/components/budget-request/BudgetRequestItemsEditor';
+} from '@/components/budget-requests/BudgetRequestItemsEditor';
 import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
 import type { RequestClassificationValue } from '@/lib/request-classification';
 import {

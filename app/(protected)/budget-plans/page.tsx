@@ -11,8 +11,8 @@ import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
-import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
-import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
 import {
   ALL_FISCAL_YEARS,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { BudgetRequestLineItemInput } from '@/components/budget-request/BudgetRequestItemsEditor';
+import type { BudgetRequestLineItemInput } from '@/components/budget-requests/BudgetRequestItemsEditor';
 import {
   emptyRequestClassification,
   classificationFromStored,

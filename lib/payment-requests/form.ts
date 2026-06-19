@@ -3,7 +3,7 @@ import {
   getItemSubtotal,
   getItemTotal,
   type BudgetRequestLineItemInput,
-} from '@/components/budget-request/BudgetRequestItemsEditor';
+} from '@/components/budget-requests/BudgetRequestItemsEditor';
 import type { AccountOption, ClassificationOption } from '@/lib/classification-options';
 import {
   classificationFromStored,
