@@ -53,9 +53,8 @@ jobs:
 
       - name: Apply Database Migrations
         run: |
-          npm run db:migrate
-          npm run seed
           npm run db:migrate:deploy
+          npm run seed
 
       - name: Restart App with PM2
         run: |

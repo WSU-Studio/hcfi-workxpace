@@ -38,24 +38,49 @@ interface UserSeed {
 
 /**
  * Upsert a user, attach their primary role to the userRole join table, and
- * grant them full menu/activity access. Single helper so seed entries don't
- * drift on which side-effects they perform.
+ * grant them full menu/activity access. Resolves by email first, then employeeId,
+ * so re-seed on production DB (Azure SSO / email changes) does not hit unique
+ * constraint on `employeeId`.
  */
 async function upsertUserWithAccess(seed: UserSeed, hashedPassword: string) {
-  const user = await prisma.user.upsert({
-    where: { email: seed.email },
-    update: {
-      name: seed.name,
-      password: hashedPassword,
-      roleId: seed.roleId,
-      departmentId: seed.departmentId,
-      isActive: true,
-    },
-    create: {
-      ...seed,
-      password: hashedPassword,
-    },
-  });
+  const byEmail = await prisma.user.findUnique({ where: { email: seed.email } });
+  const byEmployeeId = await prisma.user.findUnique({ where: { employeeId: seed.employeeId } });
+
+  const sharedData = {
+    name: seed.name,
+    password: hashedPassword,
+    roleId: seed.roleId,
+    departmentId: seed.departmentId,
+    isActive: true,
+  };
+
+  let user;
+  if (byEmail) {
+    const canSyncEmployeeId =
+      byEmail.employeeId === seed.employeeId || !byEmployeeId || byEmployeeId.id === byEmail.id;
+    user = await prisma.user.update({
+      where: { id: byEmail.id },
+      data: {
+        ...sharedData,
+        ...(canSyncEmployeeId ? { employeeId: seed.employeeId } : {}),
+      },
+    });
+  } else if (byEmployeeId) {
+    user = await prisma.user.update({
+      where: { id: byEmployeeId.id },
+      data: {
+        ...sharedData,
+        email: seed.email,
+      },
+    });
+  } else {
+    user = await prisma.user.create({
+      data: {
+        ...seed,
+        password: hashedPassword,
+      },
+    });
+  }
 
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: user.id, roleId: seed.roleId } },
