@@ -6,6 +6,7 @@ import { TableBodyRow, TableCell } from '@/components/ui/Table';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import UtilizationBar from './UtilizationBar';
+import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import type { BudgetRealizationRow as BudgetRealizationRowType } from '@/types/budget-realization';
 
 export interface BudgetRealizationRowProps {
@@ -74,13 +75,7 @@ export default function BudgetRealizationRow({
           </div>
         </TableCell>
         <TableCell>
-          {row.hasRequest ? (
-            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
-              {row.requestCount} request{row.requestCount > 1 ? 's' : ''}
-            </span>
-          ) : (
-            <span className="text-xs text-gray-400">No request</span>
-          )}
+          <RequestCountBadge count={row.requestCount} showEmpty />
         </TableCell>
         <TableCell className="text-right tabular-nums">{formatCurrency(planTotal)}</TableCell>
         <TableCell

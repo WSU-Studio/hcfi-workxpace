@@ -32,13 +32,14 @@ export default function NewApprovalSchemaPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    code: '',
     name: '',
     type: 'BudgetPlan',
     period: 'Unlimited',
     departmentId: '',
   });
   const [levels, setLevels] = useState<Level[]>([{ levelType: 'Reviewer', roleId: '' }]);
-  const [errors, setErrors] = useState<{ name?: string; type?: string; period?: string; departmentId?: string; levels?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ code?: string; name?: string; type?: string; period?: string; departmentId?: string; levels?: string; general?: string }>({});
 
   useEffect(() => {
     fetch('/api/workspace-management/approval-schema')
@@ -58,6 +59,10 @@ export default function NewApprovalSchemaPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    if (!formData.code.trim()) {
+      setErrors((p) => ({ ...p, code: 'Code is required' }));
+      return;
+    }
     if (!formData.departmentId) {
       setErrors((p) => ({ ...p, departmentId: 'Select department' }));
       return;
@@ -92,6 +97,26 @@ export default function NewApprovalSchemaPage() {
       {errors.general && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block mb-1.5 font-medium">
+              Code <span className="text-red-500">*</span>
+            </label>
+            <Input
+              name="code"
+              value={formData.code}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, code: e.target.value.toUpperCase() }))
+              }
+              placeholder="BP-PRIMARY"
+              maxLength={64}
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Short, unique identifier (letters, digits, dash, underscore, dot). Used by the
+              Budget Plan bulk-import template.
+            </p>
+            {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+          </div>
           <div>
             <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
             <Input

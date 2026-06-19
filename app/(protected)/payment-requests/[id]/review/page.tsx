@@ -3,14 +3,21 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import RichTextContent from '@/components/ui/RichTextContent';
 import Input from '@/components/ui/Input';
 import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
 import type { AccountOption, ClassificationOption } from '@/lib/classification-options';
+import {
+  getMultiStepApprovalProgress,
+  getRequestStatusDisplay,
+} from '@/lib/budget-plan-approval-display';
 import {
   classificationFromStored,
   emptyRequestClassification,
@@ -20,6 +27,7 @@ import {
 export default function ReviewPaymentRequestPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const id = params.id as string;
   const [data, setData] = useState<{
     id: string;
@@ -46,6 +54,7 @@ export default function ReviewPaymentRequestPage() {
       total: number;
     }[];
     payeeName: string;
+    bankAccount?: string | null;
     paymentPurpose: string | null;
     canReview?: boolean;
     project?: { code: string; name: string } | null;
@@ -59,12 +68,20 @@ export default function ReviewPaymentRequestPage() {
     approvalSchema?: {
       approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
     } | null;
-    histories?: { id: string; action: string; timestamp: string; user: { name: string | null } | null }[];
+    histories?: {
+      id: string;
+      action: string;
+      timestamp: string;
+      details: { status?: string; declineReason?: string | null; approvalNote?: string | null } | null;
+      user: { name: string | null } | null;
+    }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [classification, setClassification] = useState<RequestClassificationValue>(emptyRequestClassification());
   const [categoryOptions, setCategoryOptions] = useState<ClassificationOption[]>([]);
   const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<ClassificationOption[]>([]);
@@ -88,6 +105,16 @@ export default function ReviewPaymentRequestPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
+  const closeDeclineModal = () => {
+    setIsDeclineModalOpen(false);
+    setDeclineReason('');
+  };
+
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
+
   const classificationPayload = {
     costCenterId: classification.costCenterId || null,
     categoryId: classification.categoryId || null,
@@ -103,10 +130,15 @@ export default function ReviewPaymentRequestPage() {
       const res = await fetch(`/api/payment-requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(classificationPayload),
+        body: JSON.stringify({
+          approvalNote: approvalNote.trim() || null,
+          ...classificationPayload,
+        }),
       });
-      if (res.ok) router.push(`/payment-requests/${id}`);
-      else alert('Failed');
+      if (res.ok) {
+        closeApproveModal();
+        router.push(`/payment-requests/${id}`);
+      } else alert('Failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -137,10 +169,29 @@ export default function ReviewPaymentRequestPage() {
   if (!data) return <div className="text-gray-600">Not found</div>;
 
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  const completedSteps =
-    data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
-  const approveHistories = (data.histories || []).filter((h) => h.action === 'approve');
-  const canEditClassification = Boolean(data.canReview);
+  const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
+  // Used only by the Approval History card below to render a flat ASC list.
+  const approveHistories = (data.histories || [])
+    .filter((h) => h.action === 'approve')
+    .slice()
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  // The next step the current reviewer is about to act on is the first one
+  // whose progress is still "Pending" (or "Revision"/"Declined" — but those
+  // are blocked until the requestor resubmits, so the button is hidden anyway).
+  // "Final approve" only applies to the very last step in the schema.
+  const nextStepIndex = stepProgresses.findIndex(
+    (step) => step.statusLabel !== 'Reviewed' && step.statusLabel !== 'Approved',
+  );
+  const isFinalApprovalStep =
+    orderedLevels.length > 0 && nextStepIndex === orderedLevels.length - 1;
+  // PR review only edits the Classification section (no line-item editing
+  // here, unlike BR review), so the variable can be folded directly: a user
+  // who can review BUT lacks `editClassificationSection` sees the section
+  // read-only and the underlying `RequestClassificationFields` honors that.
+  const hasEditClassificationPermission = Boolean(
+    session?.user?.access?.activityAccess?.editClassificationSection,
+  );
+  const canEditClassification = Boolean(data.canReview) && hasEditClassificationPermission;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -157,13 +208,9 @@ export default function ReviewPaymentRequestPage() {
       </Link>
       <h1 className="text-2xl font-semibold">Review Payment Request</h1>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        Approval here only records status in Workxpace. Finance executes payment and journal in Confins according to their procedures.
-      </div>
-
-      <Card className="space-y-4">
-        <h3 className="font-medium">Request information</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <Card className="space-y-4"
+      header={<h3 className="font-medium">Request information</h3>}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <span className="text-gray-500">ID:</span> {data.code}
           </div>
@@ -185,17 +232,14 @@ export default function ReviewPaymentRequestPage() {
           </div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
-            <span
-              className={`rounded px-2 py-0.5 text-sm ${
-                data.status === 'Approved'
-                  ? 'bg-green-100 text-green-800'
-                  : data.status === 'Reviewed'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              {data.status}
-            </span>
+            {(() => {
+              const display = getRequestStatusDisplay(data.status);
+              return (
+                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
+                  {display.label}
+                </span>
+              );
+            })()}
           </div>
           <div className="md:col-span-2">
             <span className="text-gray-500">Subject:</span>
@@ -209,6 +253,9 @@ export default function ReviewPaymentRequestPage() {
           </div>
           <div>
             <span className="text-gray-500">Payee:</span> {data.payeeName}
+          </div>
+          <div>
+            <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
           </div>
           {data.paymentPurpose ? (
             <div className="md:col-span-2">
@@ -241,8 +288,9 @@ export default function ReviewPaymentRequestPage() {
         </div>
       </Card>
 
-      <Card className="space-y-3">
-        <h3 className="font-medium">Request Allocation</h3>
+      <Card className="space-y-3" 
+      collapsible
+      header={<h3 className="font-medium">Request Allocation</h3>}>
         {data.lineItems && data.lineItems.length > 0 ? (
           <Table>
             <thead>
@@ -329,13 +377,8 @@ export default function ReviewPaymentRequestPage() {
               </thead>
               <tbody>
                 {orderedLevels.map((level, index) => {
-                  const isCompleted = index < completedSteps;
-                  const updatedAt = isCompleted ? approveHistories[index]?.timestamp : null;
-                  const stepStatusLabel = !isCompleted
-                    ? 'Pending'
-                    : level.levelType === 'Reviewer'
-                      ? 'Reviewed'
-                      : 'Approved';
+                  const stepProgress = stepProgresses[index];
+                  const stepStatusLabel = stepProgress.statusLabel;
                   return (
                     <TableBodyRow key={level.stepOrder}>
                       <TableCell>{level.stepOrder}</TableCell>
@@ -344,22 +387,26 @@ export default function ReviewPaymentRequestPage() {
                       <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepStatusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepStatusLabel === 'Reviewed'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
+                            stepStatusLabel === 'Reviewed' || stepStatusLabel === 'Approved'
+                              ? 'bg-green-100 text-green-800'
+                              : stepStatusLabel === 'Revision'
+                                ? 'bg-amber-100 text-amber-800'
+                                : stepStatusLabel === 'Declined'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-gray-100 text-gray-700'
                           }`}
                         >
                           {stepStatusLabel}
                         </span>
                       </TableCell>
-                      <TableCell>{updatedAt ? formatDateTime(updatedAt) : '-'}</TableCell>
+                      <TableCell>{stepProgress.timestampLabel}</TableCell>
                     </TableBodyRow>
                   );
                 })}
               </tbody>
             </Table>
+
+            <ApprovalStepNotesList levels={orderedLevels} stepProgresses={stepProgresses} />
 
             {data.status !== 'Approved' ? (
               <div className="flex justify-end gap-3 pt-4">
@@ -380,12 +427,12 @@ export default function ReviewPaymentRequestPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleApprove}
+                  onClick={() => setIsApproveModalOpen(true)}
                   disabled={isSubmitting || !data.canReview}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   title={!data.canReview ? 'You are not in the current review step for this approval schema' : undefined}
                 >
-                  {isSubmitting ? 'Processing…' : data.status === 'Reviewed' ? 'Final approve' : 'Approve'}
+                  {isSubmitting ? 'Processing…' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
                 </button>
               </div>
             ) : null}
@@ -406,9 +453,13 @@ export default function ReviewPaymentRequestPage() {
         </Card>
       ) : null}
 
-      {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+        panelClassName="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200"
+      >
             <h2 className="text-lg font-semibold text-slate-900">Revision or Decline</h2>
             <p className="mt-2 text-sm text-slate-600">Provide a reason (optional but recommended).</p>
             <Input
@@ -420,7 +471,7 @@ export default function ReviewPaymentRequestPage() {
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsDeclineModalOpen(false)}
+                onClick={closeDeclineModal}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
               >
                 Cancel
@@ -442,9 +493,44 @@ export default function ReviewPaymentRequestPage() {
                 Decline
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
+
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={closeApproveModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
+            <h3 className="text-lg font-semibold">Approval Confirmation</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to approve this payment request?
+            </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeApproveModal}
+                className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApprove}
+                className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Confirm Approval'}
+              </button>
+            </div>
+      </Modal>
     </div>
   );
 }

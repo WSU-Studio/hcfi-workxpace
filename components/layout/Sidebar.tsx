@@ -21,26 +21,7 @@ import {
 import Logo from '@/public/workxpace-logo.svg';
 import FullLogo from '@/public/workxpace-full-logo.svg';
 import { MenuAccess } from '@/types/access-control';
-
-const restrictedMenuAccess: MenuAccess = {
-  dashboard: false,
-  budgetPlans: false,
-  budgetRequests: false,
-  paymentRequests: false,
-  reconciliation: false,
-  reports: false,
-  userManagement: false,
-  workspaceManagement: false,
-  viewDepartment: false,
-  viewOriginOffice: false,
-  viewProject: false,
-  viewCategory: false,
-  viewCategoryKeyIndex: false,
-  viewCostCenter: false,
-  viewRole: false,
-  viewApprovalSchema: false,
-  viewActivityHistory: false,
-};
+import { restrictedMenuAccess } from '@/lib/default-access';
 
 const Sidebar = () => {
   const pathname = usePathname();

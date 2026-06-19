@@ -3,21 +3,25 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { getApprovalStepProgress } from '@/lib/budget-plan-approval-display';
+import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { PenSquare } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function ReviewBudgetPlanPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const id = params.id as string;
   const [plan, setPlan] = useState<{
     code: string;
@@ -54,6 +58,7 @@ export default function ReviewBudgetPlanPage() {
     details: {
       status?: string;
       declineReason?: string | null;
+      approvalNote?: string | null;
       allocationAdjustmentNote?: string | null;
     } | null;
     timestamp: string;
@@ -75,6 +80,7 @@ export default function ReviewBudgetPlanPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -133,33 +139,28 @@ export default function ReviewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  useEffect(() => {
-    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+  const closeDeclineModal = () => {
+    setIsDeclineModalOpen(false);
+    setDeclineReason('');
+  };
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      if (isDeclineModalOpen) {
-        setIsDeclineModalOpen(false);
-        setDeclineReason('');
-      } else {
-        setIsApproveModalOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
 
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      const targetStatus = plan?.status === 'Draft' ? 'Reviewed' : 'Approved';
+      // We always send `Approved` as the approve *intent*; the backend
+      // resolves it to `Reviewed` for intermediate steps in a multi-step
+      // schema (3-step / 4-step) and to `Approved` only on the final step.
       const res = await fetch(`/api/budget-plans/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: targetStatus,
+          status: 'Approved',
+          approvalNote: approvalNote.trim() || null,
           coaId: classification.coaId || null,
           categoryId: classification.categoryId || null,
           categoryKeyIndexId: classification.categoryKeyIndexId || null,
@@ -174,7 +175,7 @@ export default function ReviewBudgetPlanPage() {
         }),
       });
       if (res.ok) {
-        setIsApproveModalOpen(false);
+        closeApproveModal();
         router.push(`/budget-plans/${id}`);
       }
     } finally {
@@ -230,7 +231,27 @@ export default function ReviewBudgetPlanPage() {
     ? `${selectedOriginOffice.code} - ${selectedOriginOffice.name}`
     : (plan.originOffice || '-');
   const canTakeAction = (plan.status === 'Draft' || plan.status === 'Reviewed') && reviewMeta.canReview;
+  // "Final approve" only applies to the very last step in a multi-step
+  // schema, mirroring BR/PR. For BP we lean on `reviewMeta.nextStepOrder`
+  // returned by the API — the API itself already accounts for completed
+  // approve events in the current cycle.
+  const orderedApprovalLevels = [...(plan.approvalSchema?.approvalLevels || [])].sort(
+    (a, b) => a.stepOrder - b.stepOrder,
+  );
+  const isFinalApprovalStep =
+    orderedApprovalLevels.length > 0 &&
+    reviewMeta.nextStepOrder !== null &&
+    reviewMeta.nextStepOrder === orderedApprovalLevels[orderedApprovalLevels.length - 1]!.stepOrder;
+  // Drives the Allocation grid editability (review-eligibility only).
   const canEditClassification = canTakeAction;
+  // Classification section is additionally gated by the dedicated permission
+  // `editClassificationSection`. Reviewers without this permission still see
+  // the section but as read-only — they can approve/decline but cannot
+  // re-tag the document's COA / cost center / category.
+  const hasEditClassificationPermission = Boolean(
+    session?.user?.access?.activityAccess?.editClassificationSection,
+  );
+  const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
       day: '2-digit',
@@ -317,7 +338,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Cost Center</label>
               <Select
                 value={classification.costCenterId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, costCenterId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -332,7 +353,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Category</label>
               <Select
                 value={classification.categoryId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -347,7 +368,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Category Key Index</label>
               <Select
                 value={classification.categoryKeyIndexId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, categoryKeyIndexId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -364,7 +385,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
               <Select
                 value={classification.coaId}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
               >
                 <option value="">-</option>
@@ -381,7 +402,7 @@ export default function ReviewBudgetPlanPage() {
               <label className="block mb-1.5 text-sm font-medium">Type</label>
               <Select
                 value={classification.opexType}
-                disabled={!canEditClassification}
+                disabled={!canEditClassificationFields}
                 onChange={(e) =>
                   setClassification((p) => ({
                     ...p,
@@ -399,7 +420,7 @@ export default function ReviewBudgetPlanPage() {
                 <label className="block mb-1.5 text-sm font-medium">Opex Allocation</label>
                 <Select
                   value={classification.opexAllocationId}
-                  disabled={!canEditClassification}
+                  disabled={!canEditClassificationFields}
                   onChange={(e) => setClassification((p) => ({ ...p, opexAllocationId: e.target.value }))}
                 >
                   <option value="">-</option>
@@ -432,34 +453,53 @@ export default function ReviewBudgetPlanPage() {
                 </TableHeaderRow>
               </thead>
               <tbody>
-                {plan.approvalSchema.approvalLevels.map((l, i) => {
-                  const stepProgress = getApprovalStepProgress(l.levelType, histories);
-                  return (
-                    <TableBodyRow key={i}>
-                      <TableCell>{l.stepOrder}</TableCell>
-                      <TableCell>{l.role?.roleName}</TableCell>
-                      <TableCell>{l.levelType}</TableCell>
-                      <TableCell>
+                {(() => {
+                  const stepProgresses = getMultiStepApprovalProgress(
+                    plan.approvalSchema!.approvalLevels,
+                    histories,
+                  );
+                  return plan.approvalSchema!.approvalLevels.map((l, i) => {
+                    const stepProgress = stepProgresses[i];
+                    return (
+                      <TableBodyRow key={i}>
+                        <TableCell>{l.stepOrder}</TableCell>
+                        <TableCell>{l.role?.roleName}</TableCell>
+                        <TableCell>{l.levelType}</TableCell>
+                        <TableCell>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            stepProgress.statusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed'
-                                ? 'bg-green-100 text-green-800'
-                                : stepProgress.statusLabel === 'Revision'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-red-100 text-red-800'
+                            stepProgress.statusLabel === 'Reviewed' || stepProgress.statusLabel === 'Approved'
+                              ? 'bg-green-100 text-green-800'
+                              : stepProgress.statusLabel === 'Revision'
+                                ? 'bg-amber-100 text-amber-800'
+                                : stepProgress.statusLabel === 'Declined'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-gray-100 text-gray-700'
                           }`}
                         >
-                          {stepProgress.statusLabel}
-                        </span>
-                      </TableCell>
-                      <TableCell>{stepProgress.timestampLabel}</TableCell>
-                    </TableBodyRow>
-                  );
-                })}
+                            {stepProgress.statusLabel}
+                          </span>
+                        </TableCell>
+                        <TableCell>{stepProgress.timestampLabel}</TableCell>
+                      </TableBodyRow>
+                    );
+                  });
+                })()}
               </tbody>
             </Table>
+
+            {(() => {
+              const stepProgresses = getMultiStepApprovalProgress(
+                plan.approvalSchema!.approvalLevels,
+                histories,
+              );
+              return (
+                <ApprovalStepNotesList
+                  levels={plan.approvalSchema!.approvalLevels}
+                  stepProgresses={stepProgresses}
+                />
+              );
+            })()}
 
             {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
               <div className="flex justify-end gap-3 pt-4">
@@ -480,7 +520,7 @@ export default function ReviewBudgetPlanPage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                   title={!canTakeAction ? 'You are not in current review step of this approval schema' : undefined}
                 >
-                  {isSubmitting ? 'Processing...' : 'Approve'}
+                  {isSubmitting ? 'Processing...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
                 </button>
               </div>
             )}
@@ -488,9 +528,13 @@ export default function ReviewBudgetPlanPage() {
         ) : null}
       </div>
 
-      {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Decline Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Do you want to decline this budget plan? You may ask for revision.
@@ -504,10 +548,7 @@ export default function ReviewBudgetPlanPage() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setIsDeclineModalOpen(false);
-                  setDeclineReason('');
-                }}
+                onClick={closeDeclineModal}
                 className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -531,21 +572,29 @@ export default function ReviewBudgetPlanPage() {
                 Yes, I Decline
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
-      {isApproveModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={closeApproveModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this budget plan?
             </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsApproveModalOpen(false)}
+                onClick={closeApproveModal}
                 className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -560,9 +609,7 @@ export default function ReviewBudgetPlanPage() {
                 {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
       <Card
         collapsible
@@ -584,6 +631,9 @@ export default function ReviewBudgetPlanPage() {
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {history.details?.approvalNote ? (
+                  <p className="text-gray-600">Note: {history.details.approvalNote}</p>
                 ) : null}
                 {history.details?.allocationAdjustmentNote ? (
                   <p className="text-amber-700">

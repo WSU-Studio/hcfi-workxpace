@@ -6,19 +6,19 @@ export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>)
 }
 
 export function TableHeaderRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('border-b border-gray-400', className)} {...props} />;
+  return <tr className={cn('border-b border-gray-400 [&_th]:align-top', className)} {...props} />;
 }
 
 export function TableBodyRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('border-b border-gray-400 hover:bg-gray-50', className)} {...props} />;
+  return <tr className={cn('border-b border-gray-400 hover:bg-gray-50 [&_td]:align-top', className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn('px-4 py-3 text-left font-medium text-gray-900', className)} {...props} />;
+  return <th className={cn('px-4 py-3 print:py-2 text-left font-medium text-gray-900', className)} {...props} />;
 }
 
 export function TableCell({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-4 py-3', className)} {...props} />;
+  return <td className={cn('px-4 py-3 print:py-2', className)} {...props} />;
 }
 
 /** Baris kosong / pesan “tidak ada data” */

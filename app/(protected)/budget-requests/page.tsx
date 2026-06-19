@@ -9,62 +9,37 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import Tooltip from '@/components/ui/Tooltip';
+import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
+import EditWarningModal from '@/components/ui/EditWarningModal';
+import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
+import { formatDate, formatTime } from '@/lib/utils';
+import {
+  ALL_FISCAL_YEARS,
+  type FiscalYearFilterValue,
+  getCurrentFiscalYear,
+  serializeFiscalYearParam,
+} from '@/lib/fiscal-year';
 
 interface BudgetRequest {
   id: string;
   code: string;
   subject: string;
+  createdAt: string;
   status: string;
   requestorName?: string | null;
   canEdit?: boolean;
   canReview?: boolean;
   budgetPlan: { code: string; subject: string };
+  approvalSchemaId?: string;
   department: { name: string };
   lineItems?: { total: unknown }[];
 }
 
-interface EditWarningModalProps {
-  isOpen: boolean;
-  requestSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget request?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the budget request
-          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''} will be
-          reverted to the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const STATUS_FILTERS = ['All', 'Approved', 'Reviewed', 'Pending', 'Revision', 'Declined'] as const;
+const STATUS_FILTERS = ['All', 'Draft', 'On Progress', 'Need Revision', 'Approved', 'Declined'] as const;
 const SORT_OPTIONS = [
+  { value: 'createdAt-desc', label: 'Newest first' },
+  { value: 'createdAt-asc', label: 'Oldest first' },
   { value: 'subject-asc', label: 'Subject (A-Z)' },
   { value: 'subject-desc', label: 'Subject (Z-A)' },
   { value: 'code-asc', label: 'Code (A-Z)' },
@@ -83,7 +58,9 @@ export default function BudgetRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
-  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('subject-asc');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
+  const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
+  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<BudgetRequest | null>(null);
 
   const itemsPerPage = 10;
@@ -91,7 +68,22 @@ export default function BudgetRequestsPage() {
   const currentRequests = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
-    fetch('/api/budget-requests', { credentials: 'include' })
+    fetch('/api/fiscal-years', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
+      .then((data: { fiscalYears?: { year: number }[] }) => {
+        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
+      })
+      .catch(() => setAvailableFiscalYears([]));
+  }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (fiscalYearFilter !== ALL_FISCAL_YEARS) {
+      params.set('fiscalYear', serializeFiscalYearParam(fiscalYearFilter));
+    }
+    const query = params.toString();
+    fetch(`/api/budget-requests${query ? `?${query}` : ''}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { requests: [] }))
       .then((data) => {
         const list = data.requests || [];
@@ -99,7 +91,7 @@ export default function BudgetRequestsPage() {
         setFiltered(list);
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [fiscalYearFilter]);
 
   useEffect(() => {
     const kw = searchKeyword.trim().toLowerCase();
@@ -115,13 +107,16 @@ export default function BudgetRequestsPage() {
           r.department?.name?.toLowerCase().includes(kw) ||
           r.budgetPlan?.code?.toLowerCase().includes(kw) ||
           r.budgetPlan?.subject?.toLowerCase().includes(kw);
-        const matchesStatus = statusFilter === 'All' || r.status === statusFilter;
+        const statusLabel = getRequestStatusDisplay(r.status).label;
+        const matchesStatus = statusFilter === 'All' || statusLabel === statusFilter;
         return matchesKeyword && matchesStatus;
       })
       .sort((a, b) => {
         let compare = 0;
 
-        if (sortField === 'subject') {
+        if (sortField === 'createdAt') {
+          compare = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        } else if (sortField === 'subject') {
           compare = (a.subject ?? '').localeCompare(b.subject ?? '');
         } else if (sortField === 'code') {
           compare = (a.code ?? '').localeCompare(b.code ?? '');
@@ -129,6 +124,10 @@ export default function BudgetRequestsPage() {
           compare = (a.department?.name ?? '').localeCompare(b.department?.name ?? '');
         } else if (sortField === 'status') {
           compare = (a.status ?? '').localeCompare(b.status ?? '');
+        }
+
+        if (compare === 0) {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
         }
 
         return sortDirection === 'asc' ? compare : -compare;
@@ -149,6 +148,11 @@ export default function BudgetRequestsPage() {
             placeholder="Search..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <FiscalYearFilter
+            value={fiscalYearFilter}
+            onChange={setFiscalYearFilter}
+            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}
@@ -186,6 +190,7 @@ export default function BudgetRequestsPage() {
           <thead>
             <TableHeaderRow>
               <TableHead>#</TableHead>
+              <TableHead>Created At</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Requested By</TableHead>
@@ -197,28 +202,43 @@ export default function BudgetRequestsPage() {
           </thead>
           <tbody>
             {currentRequests.length === 0 ? (
-              <TableEmptyRow colSpan={8}>
+              <TableEmptyRow colSpan={9}>
                 No budget requests. <Link href="/budget-requests/new" className="text-blue-600 hover:underline">Create one</Link> from an approved budget plan.
               </TableEmptyRow>
             ) : (
               currentRequests.map((r, i) => (
                 <TableBodyRow key={r.id}>
                   <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span>{formatDate(r.createdAt)}</span>
+                      <span className="text-xs text-gray-500 -mt-1">at {formatTime(r.createdAt)}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{r.code}</TableCell>
                   <TableCell>{r.subject}</TableCell>
                   <TableCell>{r.requestorName ?? '-'}</TableCell>
                   <TableCell>
-                    <span
-                      className={`rounded px-2 py-0.5 text-sm ${
-                        r.status === 'Approved'
-                          ? 'bg-green-100 text-green-800'
-                          : r.status === 'Reviewed'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {r.status}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(() => {
+                        const display = getRequestStatusDisplay(r.status);
+                        return (
+                          <span className={`px-1.5 py-0.5 rounded-lg text-xs whitespace-nowrap border ${display.chipClass}`}>
+                            {display.label}
+                          </span>
+                        );
+                      })()}
+                      {!r.approvalSchemaId ? (
+                        <Tooltip content="No approval schema">
+                          <span
+                            aria-label="No approval schema"
+                            className="rounded-lg border border-red-300 bg-red-100 px-2 text-sm font-bold text-red-800"
+                          >
+                            !
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell>{r.department?.name ?? '-'}</TableCell>
                   <TableCell>{r.budgetPlan?.code ?? '-'}</TableCell>
@@ -227,7 +247,7 @@ export default function BudgetRequestsPage() {
                     {r.canEdit ? (
                       <>
                         {' | '}
-                        {r.status === 'Approved' ? (
+                        {requiresEditConfirmation(r.status) ? (
                           <button
                             type="button"
                             onClick={() => setRequestToConfirmEdit(r)}
@@ -257,10 +277,17 @@ export default function BudgetRequestsPage() {
           </tbody>
         </Table>
       </Card>
-      <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        itemNoun="budget requests"
+      />
       <EditWarningModal
         isOpen={Boolean(requestToConfirmEdit)}
-        requestSubject={requestToConfirmEdit?.subject}
+        entityType="budget-request"
+        subject={requestToConfirmEdit?.subject}
         onCancel={() => setRequestToConfirmEdit(null)}
         onContinue={() => {
           if (!requestToConfirmEdit) return;

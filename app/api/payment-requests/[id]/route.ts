@@ -6,9 +6,10 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
 import { loadClassificationOptions } from '@/lib/classification-options';
 import {
@@ -91,9 +92,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
     const canReview =
       !!session?.user?.id &&
-      canUserActOnCurrentBudgetRequestStep({
-        requestStatus: row.status,
+      canUserActOnCurrentStep({
+        status: row.status,
         approvalLevels: row.approvalSchema?.approvalLevels ?? [],
+        histories: histories as unknown as BudgetPlanHistoryEntry[],
         userRoleIds,
         requestorId: row.requestorId ?? null,
         actorUserId: session.user.id,
@@ -157,6 +159,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       budgetRequestId,
       currency,
       payeeName,
+      bankAccount,
       paymentPurpose,
       departmentId,
       fiscalYear: bodyFiscalYear,
@@ -166,6 +169,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     if (!subject || typeof subject !== 'string' || !payeeName || typeof payeeName !== 'string') {
       return NextResponse.json({ error: 'Subject and payee are required' }, { status: 400 });
+    }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
@@ -287,7 +293,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.paymentRequestLineItem.deleteMany({ where: { paymentRequestId: id } });
-      return tx.paymentRequest.update({
+      return (tx.paymentRequest as unknown as {
+        update: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+      }).update({
         where: { id },
         data: {
           subject: subject.trim(),
@@ -310,6 +318,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           currency:
             typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'IDR',
           payeeName: payeeName.trim(),
+          bankAccount: typeof bankAccount === 'string' && bankAccount.trim() ? bankAccount.trim() : null,
           paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
           category: classification.category,
           categoryKeyIndex: classification.categoryKeyIndex,
@@ -343,7 +352,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       userId: session.user.id,
       entityType: 'PaymentRequest',
       entityId: id,
-      entityCode: updated.code,
+      entityCode: String(updated.code ?? ''),
       action: 'update',
       details: {
         subject: updated.subject,
@@ -352,14 +361,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         note: 'Payment request updated by requestor. Approval restarted.',
         amount: normalizedGrandTotal,
         totalAmount,
-        lineItemCount: updated.lineItems.length,
+        lineItemCount: Array.isArray((updated as { lineItems?: unknown[] }).lineItems)
+          ? (updated as { lineItems: unknown[] }).lineItems.length
+          : 0,
       },
     });
 
     await notifyPaymentRequestAwaitingReview({
       requestId: id,
       actorUserId: session.user.id,
-      requestCode: updated.code,
+      requestCode: String(updated.code ?? ''),
       event: 'updated',
     });
 

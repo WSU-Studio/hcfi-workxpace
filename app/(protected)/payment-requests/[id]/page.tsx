@@ -1,15 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Pencil, ScanSearch } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import EditWarningModal from '@/components/ui/EditWarningModal';
+import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import {
+  getMultiStepApprovalProgress,
+  getRequestStatusDisplay,
+  requiresEditConfirmation,
+} from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
   id: string;
@@ -20,61 +29,23 @@ type HistoryEntry = {
     fromStatus?: string;
     previousStatus?: string;
     declineReason?: string | null;
+    approvalNote?: string | null;
     note?: string | null;
     qtyUnitPriceAdjustmentNote?: string | null;
   } | null;
   user: { name: string | null } | null;
 };
 
-interface EditWarningModalProps {
-  isOpen: boolean;
-  requestSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, requestSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Edit payment request?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Status akan dikembalikan dan approval dimulai ulang.
-          {requestSubject ? <span className="font-medium text-slate-800"> &quot;{requestSubject}&quot;</span> : ''}
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Lanjutkan
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
-      <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
-        {value || '-'}
-      </p>
-    </div>
-  );
-}
+// function ReadonlyField({ label, value }: { label: string; value: string }) {
+//   return (
+//     <div>
+//       <p className="mb-1.5 text-sm font-medium text-gray-700">{label}</p>
+//       <p className="min-h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+//         {value || '-'}
+//       </p>
+//     </div>
+//   );
+// }
 
 export default function PaymentRequestDetailPage() {
   const params = useParams();
@@ -107,6 +78,7 @@ export default function PaymentRequestDetailPage() {
       total: number;
     }[];
     payeeName: string;
+    bankAccount?: string | null;
     paymentPurpose: string | null;
     requestorId?: string | null;
     requestorName?: string | null;
@@ -137,6 +109,8 @@ export default function PaymentRequestDetailPage() {
     accountOptions?: { id: string; accountCode: string; accountName: string }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const printableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch(`/api/payment-requests/${id}`, { credentials: 'include' })
@@ -150,8 +124,11 @@ export default function PaymentRequestDetailPage() {
 
   const canEditAsRequestor = !!session?.user?.id && data.requestorId === session.user.id;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
-  const completedSteps =
-    data.status === 'Approved' ? orderedLevels.length : data.status === 'Reviewed' ? 1 : 0;
+  // Per-step progress reconstructed from activity history. This survives
+  // multi-step schemas correctly: rows already approved stay "Reviewed" even
+  // after a later reviewer asks for revision, and only the requestor's
+  // resubmit (logged as `update`) resets the table back to "Pending".
+  const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
 
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -169,34 +146,89 @@ export default function PaymentRequestDetailPage() {
     return account ? `${account.accountCode} - ${account.accountName}` : coaId;
   })();
   const opexType = data.opexType || data.type || '-';
-  const costCenterLabel =
-    data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
-  const categoryLabel =
-    data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
-  const categoryKeyIndexLabel =
-    data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
-    data.categoryKeyIndex ??
-    '-';
-  const opexAllocationLabel =
-    data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
-    data.opexAllocation ??
-    '-';
+  // const costCenterLabel =
+  //   data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-';
+  // const categoryLabel =
+  //   data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-';
+  // const categoryKeyIndexLabel =
+  //   data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ??
+  //   data.categoryKeyIndex ??
+  //   '-';
+  // const opexAllocationLabel =
+  //   data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ??
+  //   data.opexAllocation ??
+  //   '-';
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
+  const slugify = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+
+  const handleDownloadPdf = async () => {
+    if (!printableRef.current || isExporting) return;
+    setIsExporting(true);
+    document.documentElement.setAttribute('data-exporting', 'pdf');
+    const toastId = toast.loading('Menyiapkan PDF...');
+
+    const safetyTimer = window.setTimeout(() => {
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+      toast.error('Generate PDF timeout. Coba lagi.', { id: toastId });
+    }, 70_000);
+
+    try {
+      const { renderPdfFromElement } = await import('@/lib/pdf/inline-computed-colors');
+      const filename = `${data.code}_${slugify(data.subject) || 'payment-request'}.pdf`;
+      await renderPdfFromElement(printableRef.current, { filename, timeoutMs: 60_000 });
+      toast.success('PDF berhasil di-download.', { id: toastId });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal membuat PDF';
+      toast.error(msg, { id: toastId });
+    } finally {
+      window.clearTimeout(safetyTimer);
+      document.documentElement.removeAttribute('data-exporting');
+      setIsExporting(false);
+    }
+  };
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <Link href="/payment-requests" className="text-blue-600 hover:underline">
-        ← Back
-      </Link>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{data.subject}</h1>
+    <div className="max-w-4xl space-y-6 print:max-w-none">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link href="/payment-requests" className="text-blue-600 hover:underline">
+          ← Back
+        </Link>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2"
+            aria-label="Print payment request detail"
+            disabled={isExporting}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Print
+          </Button>
+          <Button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Download payment request detail as PDF"
+            aria-busy={isExporting}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            {isExporting ? 'Generating PDF...' : 'Download PDF'}
+          </Button>
           {canEditAsRequestor ? (
-            data.status === 'Approved' ? (
+            requiresEditConfirmation(data.status) ? (
               <button
                 type="button"
                 onClick={() => setIsEditWarningOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                disabled={isExporting}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Pencil className="h-4 w-4" />
                 Edit
@@ -214,6 +246,15 @@ export default function PaymentRequestDetailPage() {
         </div>
       </div>
 
+      <div ref={printableRef} className="space-y-6">
+      <div className="min-w-0">
+        <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Payment Request</p>
+        <h1 className="text-2xl font-semibold">{data.subject}</h1>
+        <p className="hidden text-sm text-gray-600 print:block">
+          {data.code} · FY {data.fiscalYear ?? '-'} · {data.department?.name}
+        </p>
+      </div>
+
       <Card className="space-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
@@ -227,17 +268,14 @@ export default function PaymentRequestDetailPage() {
           </div>
           <div>
             <span className="text-gray-500">Status:</span>{' '}
-            <span
-              className={`rounded px-2 py-0.5 text-sm ${
-                data.status === 'Approved'
-                  ? 'bg-green-100 text-green-800'
-                  : data.status === 'Reviewed'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              {data.status}
-            </span>
+            {(() => {
+              const display = getRequestStatusDisplay(data.status);
+              return (
+                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
+                  {display.label}
+                </span>
+              );
+            })()}
           </div>
           <div>
             <span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}
@@ -258,6 +296,12 @@ export default function PaymentRequestDetailPage() {
               {formatCurrency(data.amount)} {data.currency}
             </span>
           </div>
+          <div>
+            <span className="text-gray-500">Payee:</span> {data.payeeName}
+          </div>
+          <div>
+            <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
+          </div>
         </div>
 
         {data.budgetRequest ? (
@@ -277,7 +321,9 @@ export default function PaymentRequestDetailPage() {
         {data.description ? (
           <div>
             <span className="text-gray-500">Description:</span>{' '}
-            <RichTextContent value={data.description} className="mt-1" />
+            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-100">
+              <RichTextContent value={data.description} />
+            </div>
           </div>
         ) : null}
 
@@ -349,7 +395,17 @@ export default function PaymentRequestDetailPage() {
 
         <div className="space-y-3 border-t border-gray-100 mt-6">
           <h3 className="font-medium">Classification</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+          <div className="grid grid-cols-2 gap-4">
+            <div><span className="text-gray-500">Cost Center:</span> {data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-'}</div>
+            <div><span className="text-gray-500">Category:</span> {data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-'}</div>
+            <div><span className="text-gray-500">Category Key Index:</span> {data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ?? data.categoryKeyIndex ?? '-'}</div>
+            <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
+            <div><span className="text-gray-500">Type:</span> {opexType}</div>
+            <div><span className="text-gray-500">Opex Allocation:</span> {data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ?? data.opexAllocation ?? '-'}</div>
+          </div>
+          
+          {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <ReadonlyField label="Cost Center" value={costCenterLabel} />
             <ReadonlyField label="Category" value={categoryLabel} />
             <ReadonlyField label="Category Key Index" value={categoryKeyIndexLabel} />
@@ -367,60 +423,132 @@ export default function PaymentRequestDetailPage() {
           <ReadonlyField label="Payee" value={data.payeeName} />
           {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
           
-          {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null}
+          {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null} */}
         </div>
 
       </Card>
 
-      <Card collapsible header={<h3 className="font-medium">Approval escalation</h3>}>
-        <div className="space-y-4">
+      <div className="print:break-before-page print:text-sm">
+        <Card
+          collapsible
+          collapsed={!orderedLevels.length}
+          header={<h3 className="font-medium">Approval Escalation</h3>}
+        >
           {orderedLevels.length ? (
-            <Table>
-              <thead>
-                <TableHeaderRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableHeaderRow>
-              </thead>
-              <tbody>
-                {orderedLevels.map((level, index) => {
-                  const isCompleted = index < completedSteps;
-                  const stepStatusLabel = !isCompleted
-                    ? 'Pending'
-                    : level.levelType === 'Reviewer'
-                      ? 'Reviewed'
-                      : 'Approved';
-                  return (
-                    <TableBodyRow key={level.stepOrder}>
-                      <TableCell>{level.stepOrder}</TableCell>
-                      <TableCell>{level.role?.roleName ?? '-'}</TableCell>
-                      <TableCell>{level.levelType}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
-                            stepStatusLabel === 'Pending'
-                              ? 'bg-gray-100 text-gray-700'
-                              : stepStatusLabel === 'Reviewed'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
-                          }`}
+            <>
+              <Table className="print:hidden">
+                <thead>
+                  <TableHeaderRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Updated At</TableHead>
+                  </TableHeaderRow>
+                </thead>
+                <tbody>
+                  {orderedLevels.map((level, index) => {
+                    const stepProgress = stepProgresses[index];
+                    const stepStatusLabel = stepProgress.statusLabel;
+                    return (
+                      <TableBodyRow key={level.stepOrder}>
+                        <TableCell>{level.stepOrder}</TableCell>
+                        <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                        <TableCell>{level.levelType}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
+                              stepStatusLabel === 'Reviewed' || stepStatusLabel === 'Approved'
+                                ? 'bg-green-100 text-green-800'
+                                : stepStatusLabel === 'Revision'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : stepStatusLabel === 'Declined'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {stepStatusLabel}
+                          </span>
+                        </TableCell>
+                        <TableCell>{stepProgress.timestampLabel}</TableCell>
+                      </TableBodyRow>
+                    );
+                  })}
+                </tbody>
+              </Table>
+
+              <ApprovalStepNotesList
+                levels={orderedLevels}
+                stepProgresses={stepProgresses}
+                className="print:hidden"
+              />
+
+              <div className="hidden print:block">
+                <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
+                  <div
+                    className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
+                    style={{
+                      gridTemplateColumns: `repeat(${orderedLevels.length}, minmax(140px, 1fr))`,
+                    }}
+                  >
+                    {orderedLevels.map((l, i) => {
+                      const stepProgress = stepProgresses[i];
+                      const isApproved =
+                        stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
+                      const isPending = stepProgress.statusLabel === 'Pending';
+                      const isRevision = stepProgress.statusLabel === 'Revision';
+                      const stampLabel = isApproved
+                        ? stepProgress.statusLabel === 'Reviewed'
+                          ? 'Accept'
+                          : 'Accept'
+                        : isPending
+                          ? ''
+                          : isRevision
+                            ? ''
+                            : '';
+                      const stampToneClass = isApproved
+                        ? 'border-2 border-blue-400 text-blue-500'
+                        : isPending
+                          ? ''
+                          : isRevision
+                            ? ''
+                            : '';
+                      const isLastCol = i === orderedLevels.length - 1;
+                      const colBorder = isLastCol ? '' : 'border-r border-gray-300';
+                      return (
+                        <div
+                          key={l.stepOrder}
+                          className={`flex flex-col text-center text-sm print:break-inside-avoid ${colBorder}`}
                         >
-                          {stepStatusLabel}
-                        </span>
-                      </TableCell>
-                    </TableBodyRow>
-                  );
-                })}
-              </tbody>
-            </Table>
+                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
+                            {l.role?.roleName ?? '-'}
+                          </div>
+                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
+                            {stepProgress.actorName ?? <span className="text-gray-300">—</span>}
+                          </div>
+                          <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
+                            <span
+                              className={`inline-flex items-center rounded-full h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
+                            >
+                              {stampLabel}
+                            </span>
+                          </div>
+                          <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
+                            {stepProgress.timestampLabel}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-gray-500">No approval schema — approval by non-requestor.</p>
           )}
 
-          <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
-            {data.canReview ? (
+          {data.canReview ? (
+            <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4 print:hidden">
               <Link
                 href={`/payment-requests/${id}/review`}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
@@ -428,16 +556,18 @@ export default function PaymentRequestDetailPage() {
                 <ScanSearch className="h-4 w-4" />
                 Review
               </Link>
-            ) : null}
-          </div>
-        </div>
-      </Card>
+            </div>
+          ) : null}
+        </Card>
+      </div>
 
-      <Card collapsible collapsed header={<h3 className="font-medium">Activity History</h3>}>
+      <Card collapsible collapsed 
+        className="print:hidden"
+        header={<h3 className="font-medium">Activity History</h3>}>
         {data.histories?.length ? (
           <div className="space-y-2">
             {data.histories.map((history) => (
-              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm print:px-0 print:pt-0 print:pb-2 print:bg-transparent print:border-b print:border-gray-200">
                 <p>
                   <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
                   <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
@@ -458,7 +588,9 @@ export default function PaymentRequestDetailPage() {
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
                 ) : null}
-                {history.details?.note ? <p className="text-gray-600">{String(history.details.note)}</p> : null}
+                {history.details?.approvalNote ? (
+                  <p className="text-gray-600">Note: {history.details.approvalNote}</p>
+                ) : null}
                 {history.details?.qtyUnitPriceAdjustmentNote ? (
                   <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
                 ) : null}
@@ -469,10 +601,12 @@ export default function PaymentRequestDetailPage() {
           <p className="text-sm text-gray-500">No history yet.</p>
         )}
       </Card>
+      </div>
 
       <EditWarningModal
         isOpen={isEditWarningOpen}
-        requestSubject={data.subject}
+        entityType="payment-request"
+        subject={data.subject}
         onCancel={() => setIsEditWarningOpen(false)}
         onContinue={() => {
           setIsEditWarningOpen(false);

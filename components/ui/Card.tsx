@@ -38,19 +38,21 @@ const Card = ({
   const hasBody = Children.count(bodyContent) > 0;
 
   return (
-    <div className={cn(baseCardClass, className)}>
-      <div className="flex min-h-6 items-center justify-between gap-3">
+    <div className={cn(baseCardClass, 'print:border-gray-300 print:hover:shadow-none print:rounded-md', className)}>
+      <button 
+        type="button"
+        aria-label={isCollapsed ? 'Expand card' : 'Collapse card'}
+        className="flex min-h-6 items-center justify-between gap-3 cursor-pointer hover:text-blue-500 transition-colors duration-200 w-full group"
+        onClick={ collapsible ? () => setIsCollapsed((prev) => !prev) : undefined }
+        aria-expanded={collapsible ? !isCollapsed : undefined}
+      >
         <div className="min-h-6 min-w-0 flex-1 flex items-center">{headerContent}</div>
-        <button
-          type="button"
+        <div
           className={cn(
-            'shrink-0 rounded-md p-1 text-gray-500 transition-colors',
-            'hover:bg-blue-100/70 hover:text-gray-800',
+            'shrink-0 rounded-md p-1 text-gray-500 transition-colors print:hidden',
+            'group-hover:bg-blue-100/50 group-hover:text-blue-500',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 cursor-pointer',
           )}
-          aria-expanded={!isCollapsed}
-          aria-label={isCollapsed ? 'Expand card' : 'Collapse card'}
-          onClick={() => setIsCollapsed((prev) => !prev)}
         >
           <ChevronDown
             className={cn(
@@ -59,8 +61,8 @@ const Card = ({
             )}
             aria-hidden
           />
-        </button>
-      </div>
+        </div>
+      </button>
       {hasBody && (
         <div
           className={cn(
@@ -68,10 +70,12 @@ const Card = ({
             isCollapsed
               ? 'pointer-events-none mt-0 grid-rows-[0fr] opacity-0'
               : 'mt-4 grid-rows-[1fr] opacity-100',
+            // Saat print, paksa body card terbuka penuh tanpa peduli state collapsed
+            'print:pointer-events-auto print:mt-4 print:!grid-rows-[1fr] print:!opacity-100',
           )}
           aria-hidden={isCollapsed}
         >
-          <div className="overflow-hidden">{bodyContent}</div>
+          <div className="overflow-hidden print:overflow-visible">{bodyContent}</div>
         </div>
       )}
     </div>

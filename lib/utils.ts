@@ -13,6 +13,25 @@ export const formatDate = (date: Date | string): string => {
   return `${day} ${month} ${year}`;
 };
 
+export const formatDateTime = (date: Date | string): string => {
+  if (!date) return '-';
+  return new Date(date).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+export const formatTime = (date: Date | string): string => {
+  if (!date) return '-';
+  return new Date(date).toLocaleString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 export const formatISODate = (date: string | Date | null): string => {
   if (!date) return '';
   const d = new Date(date);

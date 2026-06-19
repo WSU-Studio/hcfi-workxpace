@@ -9,9 +9,12 @@ import type {
   ConfinsCashDisbursement,
   ConfinsMockListMeta,
 } from '@/lib/integrations/confins-mock/types';
+import { buildPaymentSignature } from '@/lib/integrations/confins/payment-signature';
+import { isAutoMatchedByIncomingRef } from '@/lib/reconciliation/incoming-ref';
 import { formatDate } from '@/lib/utils';
 import type { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -41,14 +44,6 @@ function toNumber(val: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function normalizeRefCode(v: string): string {
-  return v.trim().toUpperCase().replace(/[^A-Z0-9/]/g, '');
-}
-
-function isAutoMatchedByIncomingRef(requestCode: string, incomingRef: string): boolean {
-  return normalizeRefCode(requestCode) === normalizeRefCode(incomingRef);
-}
-
 export default function ReconciliationPage() {
   const { data: session, status } = useSession();
   const now = new Date();
@@ -69,6 +64,9 @@ export default function ReconciliationPage() {
   const [departments, setDepartments] = useState<DepartmentApiItem[]>([]);
 
   const [savedPaymentIds, setSavedPaymentIds] = useState<Set<string>>(new Set());
+  const [unusedPaymentIds, setUnusedPaymentIds] = useState<Set<string>>(new Set());
+  const [unusedSignatures, setUnusedSignatures] = useState<Set<string>>(new Set());
+  const [markingUnusedId, setMarkingUnusedId] = useState<string | null>(null);
 
   const [manualMap, setManualMap] = useState<Record<string, string>>({});
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
@@ -92,9 +90,24 @@ export default function ReconciliationPage() {
     }
   }, []);
 
+  const loadUnusedPaymentIds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/reconciliation/unused-ids');
+      if (!res.ok) return;
+      const data = (await res.json()) as { ids?: string[]; signatures?: string[] };
+      setUnusedPaymentIds(new Set(data.ids ?? []));
+      setUnusedSignatures(new Set(data.signatures ?? []));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
-    if (status === 'authenticated') loadSavedPaymentIds();
-  }, [status, loadSavedPaymentIds]);
+    if (status === 'authenticated') {
+      loadSavedPaymentIds();
+      loadUnusedPaymentIds();
+    }
+  }, [status, loadSavedPaymentIds, loadUnusedPaymentIds]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -110,19 +123,35 @@ export default function ReconciliationPage() {
     })();
   }, [status]);
 
-  const paymentsVisible = useMemo(
-    () => payments.filter((p) => !savedPaymentIds.has(p.id)),
-    [payments, savedPaymentIds]
-  );
+  const paymentsVisible = useMemo(() => {
+    return payments.filter((p) => {
+      if (savedPaymentIds.has(p.id)) return false;
+      if (unusedPaymentIds.has(p.id)) return false;
+      if (unusedSignatures.size > 0) {
+        const sig = buildPaymentSignature({
+          paymentRequestNo: p.paymentRequestNo,
+          journalNo: p.journalNo,
+          glAccountCode: p.glAccountCode,
+          paidAmount: p.amount,
+        });
+        if (unusedSignatures.has(sig)) return false;
+      }
+      return true;
+    });
+  }, [payments, savedPaymentIds, unusedPaymentIds, unusedSignatures]);
+
+  const interactionsLocked = syncing || saving;
 
   const runSync = async () => {
-    if (!canSync) return;
+    if (!canSync || syncing) return;
     setSyncing(true);
     setSyncMessage(null);
+    setActivePaymentId(null);
+    setSelectedManualRequestId('');
 
     try {
       const requestsUrl = new URL('/api/budget-requests', window.location.origin);
-      const paymentsUrl = new URL('/api/integrations/mock/confins/payments', window.location.origin);
+      const paymentsUrl = new URL('/api/integrations/confins/payments', window.location.origin);
       const planUrl = new URL('/api/budget-plans', window.location.origin);
 
       paymentsUrl.searchParams.set('fiscalYear', fiscalYear);
@@ -144,7 +173,13 @@ export default function ReconciliationPage() {
       const reqData = (await reqRes.json()) as { requests: BudgetRequestApiItem[] };
       const payData = (await payRes.json()) as {
         payments: ConfinsCashDisbursement[];
-        meta: ConfinsMockListMeta;
+        meta: ConfinsMockListMeta & {
+          rawRowCount?: number;
+          filteredRowCount?: number;
+          edgeCaseCount?: number;
+          confinsMockEnabled?: boolean;
+          dataSource?: string;
+        };
       };
       const planData = (await planRes.json()) as { departments: DepartmentApiItem[] };
 
@@ -170,8 +205,24 @@ export default function ReconciliationPage() {
       setPayments(payData.payments ?? []);
       setDepartments(planData.departments ?? []);
       setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
+      // const rawCount = payData.meta?.rawRowCount ?? 0;
+      const matchedRequest = payData.meta?.filteredRowCount ?? 0;
+      const shown = payData.meta?.recordCount ?? 0;
+      // const edgeCases = payData.meta?.edgeCaseCount ?? 0;
+      const sourceHint =
+        payData.meta?.dataSource === 'confins-api'
+          ? 'Confins API'
+          : payData.meta?.dataSource === 'confins-mock-fixture'
+            ? 'fixture/mock Confins'
+            : 'mock lokal';
+      // const edgeHint =
+      //   edgeCases > 0
+      //     ? ` Termasuk ${edgeCases} baris contoh QA (Mock API aktif).`
+      //     : matchedRequest === 0 && rawCount > 0
+      //       ? ' Tidak ada RequestDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
+      //       : '';
       setSyncMessage(
-        `Sync berhasil: ${payData.meta?.recordCount ?? 0} payment ditarik, ${normalizedRequests.length} budget request tersedia.`
+        `Synced from ${sourceHint}: ${shown} rows shown (RequestDate ${month}/${fiscalYear}) ${matchedRequest} matched filter request.`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
@@ -209,7 +260,7 @@ export default function ReconciliationPage() {
   );
 
   const saveMatched = async () => {
-    if (!canSave || matchedRowsToSave.length === 0) return;
+    if (!canSave || interactionsLocked || matchedRowsToSave.length === 0) return;
     setSaving(true);
     setSaveMessageType('info');
     setSaveMessage('Menyimpan hasil rekonsiliasi...');
@@ -229,7 +280,7 @@ export default function ReconciliationPage() {
           departmentId: r.payment.departmentId,
           voucherNumber: r.payment.voucherNumber,
           paymentDescription: r.payment.description,
-          paymentSource: r.payment.source,
+          paymentSource: r.payment.dataInterfaceSource ?? r.payment.source,
           glAccountCode: r.payment.glAccountCode,
           glAccountName: r.payment.glAccountName,
           confinsSnapshot:
@@ -302,9 +353,71 @@ export default function ReconciliationPage() {
   }, [activeRow, departmentId, requests]);
 
   const openManualMatch = (paymentId: string) => {
-    if (!canManualMatch) return;
+    if (!canManualMatch || interactionsLocked) return;
     setSelectedManualRequestId(manualMap[paymentId] ?? '');
     setActivePaymentId(paymentId);
+  };
+
+  const markPaymentAsUnused = async (paymentId: string) => {
+    if (!canManualMatch || interactionsLocked || markingUnusedId) return;
+    const payment = payments.find((p) => p.id === paymentId);
+    if (!payment) return;
+    const ok = window.confirm(
+      `Tandai pembayaran ini sebagai "Marked Unused"?\n\nBaris ini akan disembunyikan dari daftar rekonsiliasi pada sync berikutnya. Anda bisa mengembalikannya dari halaman Marked Unused.`
+    );
+    if (!ok) return;
+
+    setMarkingUnusedId(paymentId);
+    try {
+      const res = await fetch('/api/reconciliation/unused', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rows: [
+            {
+              confinsPaymentDocId: payment.id,
+              interfaceId: payment.interfaceId ?? null,
+              paymentRequestNo: payment.paymentRequestNo ?? null,
+              journalNo: payment.journalNo ?? null,
+              invoiceNo: payment.invoiceNo ?? null,
+              invoiceDate: payment.invoiceDate ?? null,
+              fiscalYear: payment.fiscalYear,
+              month: payment.month,
+              departmentId: payment.departmentId ?? null,
+              departmentName: null,
+              paymentSource: payment.dataInterfaceSource ?? payment.source,
+              paidAmount: toNumber(payment.amount),
+              currency: payment.currency,
+              glAccountCode: payment.glAccountCode ?? null,
+              glAccountName: payment.glAccountName ?? null,
+              vendorName: payment.vendorName ?? null,
+              description: payment.description,
+              reason: null,
+            },
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Gagal menandai sebagai unused');
+      setUnusedPaymentIds((prev) => new Set([...prev, payment.id]));
+      setUnusedSignatures((prev) =>
+        new Set([
+          ...prev,
+          buildPaymentSignature({
+            paymentRequestNo: payment.paymentRequestNo,
+            journalNo: payment.journalNo,
+            glAccountCode: payment.glAccountCode,
+            paidAmount: payment.amount,
+          }),
+        ])
+      );
+      toast.success('Pembayaran ditandai sebagai unused.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal menandai sebagai unused';
+      toast.error(msg);
+    } finally {
+      setMarkingUnusedId(null);
+    }
   };
 
   const saveManualMatch = () => {
@@ -326,7 +439,10 @@ export default function ReconciliationPage() {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Reconciliation</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Reconciliation based on Budget Request. Auto-match if Incoming ID is the same as Form ID request. Save the matched results to complete the rows; saved rows will no longer appear in the work list and can be viewed in the Reports menu.
+          Reconciliation based on Budget Request. Auto-match when the Description starts with a Budget Request code in the format{' '}
+          <code className="rounded bg-gray-100 px-1 text-xs">{'{KODE_BR}-{deskripsi}'}</code> (hyphen without spaces, e.g.{' '}
+          <code className="rounded bg-gray-100 px-1 text-xs">BRNOP202606004-INVOICE KJH...</code>). Save matched results to
+          complete the rows; saved rows will no longer appear in the work list and can be viewed in the Reports menu.
         </p>
       </div>
 
@@ -334,7 +450,11 @@ export default function ReconciliationPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Department</span>
-            <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+            <Select
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+              disabled={syncing}
+            >
               <option value="">All Departments</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>
@@ -345,7 +465,7 @@ export default function ReconciliationPage() {
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Fiscal Year</span>
-            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}>
+            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} disabled={syncing}>
               {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((year) => (
                 <option key={year} value={String(year)}>
                   {year}
@@ -355,7 +475,7 @@ export default function ReconciliationPage() {
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Month</span>
-            <Select value={month} onChange={(e) => setMonth(e.target.value)}>
+            <Select value={month} onChange={(e) => setMonth(e.target.value)} disabled={syncing}>
               {Array.from({ length: 12 }, (_, idx) => idx + 1).map((m) => (
                 <option key={m} value={String(m)}>
                   {new Date(2026, m - 1, 1).toLocaleString('en-US', { month: 'long' })}
@@ -364,17 +484,23 @@ export default function ReconciliationPage() {
             </Select>
           </label>
           <div className="flex flex-wrap items-end gap-2">
-            <Button type="button" onClick={runSync} disabled={!canSync || syncing}>
+            <Button
+              type="button"
+              onClick={runSync}
+              disabled={!canSync || syncing}
+              className="disabled:cursor-not-allowed disabled:opacity-60"
+              aria-busy={syncing}
+            >
               {syncing ? 'Running sync...' : 'Run Integration Process'}
             </Button>
           </div>
           <div className="flex items-end text-sm text-gray-500">
-            {lastSyncedAt ? `Last synced ${formatDate(lastSyncedAt)}` : 'Belum pernah sync'}
+            {lastSyncedAt ? `Last synced ${formatDate(lastSyncedAt)}` : 'Not synced yet'}
           </div>
         </div>
         {!canSync && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Anda tidak memiliki izin menjalankan sinkronisasi.
+            You don&apos;t have permission to run the synchronization.
           </p>
         )}
         {syncMessage && <p className="text-sm text-gray-700">{syncMessage}</p>}
@@ -393,11 +519,24 @@ export default function ReconciliationPage() {
               <span className="font-semibold text-rose-700">
                 {rows.filter((row) => row.matchType === 'unmatched').length}
               </span>
+              {unusedPaymentIds.size > 0 && (
+                <>
+                  {' '}
+                  | Marked Unused:{' '}
+                  <span className="font-semibold text-gray-700">{unusedPaymentIds.size}</span>
+                </>
+              )}
             </div>
+            <Link
+              href="/reconciliation/unused"
+              className="inline-flex h-9 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Marked Unused
+            </Link>
             <Button
               type="button"
               onClick={saveMatched}
-              disabled={!canSave || saving || matchedRowsToSave.length === 0}
+              disabled={!canSave || interactionsLocked || matchedRowsToSave.length === 0}
               className="disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? 'Saving...' : 'Save reconciliation results'}
@@ -425,7 +564,26 @@ export default function ReconciliationPage() {
         {!canSave && (
           <p className="text-xs text-gray-500">Allow &quot;Save Reconciliation Results&quot; in Access Control to save the results.</p>
         )}
-        <ReconciliationTable rows={rows} canEditManual={canManualMatch} onManualMatch={openManualMatch} />
+        <div className="relative min-h-[8rem]">
+          {interactionsLocked && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/75 backdrop-blur-[1px]"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
+                {syncing ? 'Reloading reconciliation data…' : 'Saving reconciliation results…'}
+              </span>
+            </div>
+          )}
+          <ReconciliationTable
+            rows={rows}
+            canEditManual={canManualMatch}
+            interactionsDisabled={interactionsLocked || Boolean(markingUnusedId)}
+            onManualMatch={openManualMatch}
+            onMarkUnused={markPaymentAsUnused}
+          />
+        </div>
       </Card>
 
       {canSave && (
@@ -438,10 +596,9 @@ export default function ReconciliationPage() {
             ). Setelah reset, klik <strong>Run Integration Process</strong> untuk memuat ulang mock payment.
           </p>
           <p className="text-xs text-amber-950/85">
-            Contoh mock bawaan: pembayaran dari <strong>Budget Request Approved</strong> (ID{' '}
-            <code className="rounded bg-white/80 px-1">CFN-REQ-…</code>), plus edge case{' '}
-            <code className="rounded bg-white/80 px-1">BR/IT/00X</code> (typo → manual match) dan{' '}
-            <code className="rounded bg-white/80 px-1">CFN-EDGE-VARIANCE</code> (nominal beda).
+            Contoh <code className="rounded bg-white/80 px-1">BR/IT/00X</code> / variance hanya muncul jika{' '}
+            <strong>Activate Mock API</strong> di Settings aktif. Saat Mock nonaktif, hanya data Confins API (filter
+            RequestDate) yang ditampilkan.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button

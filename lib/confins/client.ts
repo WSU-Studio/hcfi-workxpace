@@ -35,7 +35,7 @@ export class ConfinsClient {
     const mockEnabled = await this.isMockEnabled();
     if (mockEnabled) {
       const { getConfinsMockData } = await import('./mock-data');
-      return getConfinsMockData(options.path) as T[];
+      return (await getConfinsMockData(options.path)) as T[];
     }
 
     if (!this.baseUrl) {
@@ -78,7 +78,7 @@ export class ConfinsClient {
       }
       if (isMockFallbackEnabled()) {
         const { getConfinsMockData } = await import('./mock-data');
-        return getConfinsMockData(options.path) as T[];
+        return (await getConfinsMockData(options.path)) as T[];
       }
       throw error;
     } finally {
@@ -87,16 +87,30 @@ export class ConfinsClient {
   }
 
   private async isMockEnabled(): Promise<boolean> {
-    if (process.env.NODE_ENV === 'production' && process.env.CONFINS_USE_MOCK !== 'true') {
-      return false;
-    }
+    return isConfinsMockEnabled();
+  }
+}
 
-    try {
-      const { getApplicationSettings } = await import('@/lib/app-settings');
-      const settings = await getApplicationSettings();
-      return settings.confinsUseMock;
-    } catch {
-      return isMockEnabledFromEnv();
-    }
+/**
+ * Single source of truth: toggle "Activate Mock API" di Application Settings
+ * (DB) menentukan perilaku — di environment manapun (dev / preview / prod).
+ *
+ * Env `CONFINS_USE_MOCK` tetap dipakai sebagai fallback **hanya** kalau DB
+ * settings tidak bisa dibaca (mis. saat build static, atau Prisma belum siap).
+ *
+ * Catatan keamanan:
+ *   Sebelumnya ada production gate yang memaksa mock = false di NODE_ENV
+ *   production kecuali env explicit. Itu membuat toggle UI tidak fungsional di
+ *   Vercel deployment. Karena akses Settings sudah dibatasi role admin dan
+ *   toggle-nya visible, gate tersebut dihapus — admin yang sengaja toggle
+ *   dianggap tahu konsekuensinya.
+ */
+export async function isConfinsMockEnabled(): Promise<boolean> {
+  try {
+    const { getApplicationSettings } = await import('@/lib/app-settings');
+    const settings = await getApplicationSettings();
+    return settings.confinsUseMock;
+  } catch {
+    return isMockEnabledFromEnv();
   }
 }

@@ -4,7 +4,14 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { defaultActivityAccess, defaultMenuAccess } from '@/lib/default-access';
+import {
+  defaultActivityAccess,
+  defaultMenuAccess,
+  fullActivityAccess,
+  fullMenuAccess,
+} from '@/lib/default-access';
+
+const ADMIN_ROLE_CODE = 'ADMIN';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +84,15 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Seed the access baseline from the chosen role: admin users start with
+    // the full grant (consistent with the seeded admin accounts), everyone
+    // else starts default-deny. The session loader merges any per-user
+    // overrides on top of these baselines at sign-in time, so this only sets
+    // the *initial* state when the user is first created.
+    const isAdminRole = role.roleCode === ADMIN_ROLE_CODE;
+    const initialMenuAccess = isAdminRole ? fullMenuAccess : defaultMenuAccess;
+    const initialActivityAccess = isAdminRole ? fullActivityAccess : defaultActivityAccess;
+
     const user = await prisma.user.create({
       data: {
         name,
@@ -89,8 +105,8 @@ export async function POST(request: Request) {
         userRoles: { create: { roleId } },
         access: {
           create: {
-            menuAccess: defaultMenuAccess as unknown as Prisma.InputJsonValue,
-            activityAccess: defaultActivityAccess as unknown as Prisma.InputJsonValue,
+            menuAccess: initialMenuAccess as unknown as Prisma.InputJsonValue,
+            activityAccess: initialActivityAccess as unknown as Prisma.InputJsonValue,
           },
         },
       },

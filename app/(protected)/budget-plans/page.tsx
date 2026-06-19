@@ -3,66 +3,42 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Import, X } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { Plus, Import, X, Lock } from 'lucide-react';
+import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
-import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
+import Tooltip from '@/components/ui/Tooltip';
+import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
+import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
+import {
+  ALL_FISCAL_YEARS,
+  type FiscalYearFilterValue,
+  getCurrentFiscalYear,
+  serializeFiscalYearParam,
+} from '@/lib/fiscal-year';
+import { validateXlsxFile } from '@/lib/xlsx-validation';
+import Modal from '@/components/ui/Modal';
+import EditWarningModal from '@/components/ui/EditWarningModal';
+import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
 
 interface Plan {
   id: string;
   code: string;
   subject: string;
+  createdAt: string;
   status: string;
   importedViaBulk?: boolean;
   canEdit?: boolean;
   canReview?: boolean;
   department: { name: string };
   allocations?: { allocation: unknown }[];
+  approvalSchemaId?: string;
+  budgetRequestCount?: number;
 }
-
-interface EditWarningModalProps {
-  isOpen: boolean;
-  planSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the budget plan
-          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
-          the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 interface ImportPreviewRow {
   fiscalYear: number;
@@ -87,7 +63,7 @@ interface ImportPreviewRow {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Revision', 'Declined'] as const;
+const STATUS_FILTERS = ['All', 'Draft', 'On Progress', 'Need Revision', 'Approved', 'Declined'] as const;
 const SORT_OPTIONS = [
   { value: 'createdAt-desc', label: 'Newest first' },
   { value: 'createdAt-asc', label: 'Oldest first' },
@@ -114,6 +90,8 @@ export default function BudgetPlansPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
+  const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
+  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
@@ -127,8 +105,17 @@ export default function BudgetPlansPage() {
   const [importError, setImportError] = useState('');
 
 
-  const fetchData = async () => {
-    const res = await fetch('/api/budget-plans', { credentials: 'include' });
+  const fetchData = async (fy: FiscalYearFilterValue) => {
+    const params = new URLSearchParams();
+    // Skip the param entirely when "all" is selected so the server returns
+    // every accessible plan; otherwise scope to the chosen fiscal year.
+    if (fy !== ALL_FISCAL_YEARS) {
+      params.set('fiscalYear', serializeFiscalYearParam(fy));
+    }
+    const query = params.toString();
+    const res = await fetch(`/api/budget-plans${query ? `?${query}` : ''}`, {
+      credentials: 'include',
+    });
     const data = await res.json();
     const list = data.plans || [];
     setPlans(list);
@@ -137,8 +124,18 @@ export default function BudgetPlansPage() {
   };
 
   useEffect(() => {
-    fetchData().finally(() => setIsLoading(false));
+    fetch('/api/fiscal-years', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
+      .then((data: { fiscalYears?: { year: number }[] }) => {
+        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
+      })
+      .catch(() => setAvailableFiscalYears([]));
   }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchData(fiscalYearFilter).finally(() => setIsLoading(false));
+  }, [fiscalYearFilter]);
 
   useEffect(() => {
     const kw = searchKeyword.trim().toLowerCase();
@@ -150,18 +147,25 @@ export default function BudgetPlansPage() {
           p.subject?.toLowerCase().includes(kw) ||
           p.code?.toLowerCase().includes(kw) ||
           p.department?.name?.toLowerCase().includes(kw);
-        const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+        const statusLabel = getRequestStatusDisplay(p.status).label;
+        const matchesStatus = statusFilter === 'All' || statusLabel === statusFilter;
         return matchesKeyword && matchesStatus;
       })
       .sort((a, b) => {
         let compare = 0;
 
-        if (sortField === 'subject') {
+        if (sortField === 'createdAt') {
+          compare = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        } else if (sortField === 'subject') {
           compare = (a.subject ?? '').localeCompare(b.subject ?? '');
         } else if (sortField === 'code') {
           compare = (a.code ?? '').localeCompare(b.code ?? '');
         } else if (sortField === 'total') {
           compare = getPlanTotal(a) - getPlanTotal(b);
+        }
+
+        if (compare === 0) {
+          compare = (a.code ?? '').localeCompare(b.code ?? '');
         }
 
         return sortDirection === 'asc' ? compare : -compare;
@@ -200,6 +204,12 @@ const handlePreviewImportFile = async (file: File) => {
   setImportError('');
   setImportRows([]);
   setImportFileName(file.name);
+
+  const validation = await validateXlsxFile(file);
+  if (!validation.valid) {
+    setImportError(validation.error);
+    return;
+  }
 
   try {
     const XLSX = await import('xlsx');
@@ -242,6 +252,20 @@ const handlePreviewImportFile = async (file: File) => {
     }
 
     setImportRows(mappedRows);
+
+    const missingApprovalSchema = mappedRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => !row.approvalSchemaCode);
+    if (missingApprovalSchema.length > 0) {
+      const subjects = missingApprovalSchema
+        .slice(0, 3)
+        .map(({ row, index }) => row.subject || `row ${index + 1}`)
+        .join(', ');
+      const more = missingApprovalSchema.length > 3 ? ` (+${missingApprovalSchema.length - 3} more)` : '';
+      setImportError(
+        `Approval Schema Code is required. Missing on: ${subjects}${more}.`
+      );
+    }
   } catch {
     setImportError('Failed to read Excel file');
   }
@@ -252,6 +276,11 @@ const handleImportRows = async () => {
 
   if (importRows.length === 0) {
     setImportError('Please upload and preview Excel file first');
+    return;
+  }
+
+  if (importRows.some((row) => !row.approvalSchemaCode)) {
+    setImportError('Approval Schema Code is required for every row.');
     return;
   }
 
@@ -275,7 +304,7 @@ const handleImportRows = async () => {
     setIsImportModalOpen(false);
     setImportRows([]);
     setImportFileName('');
-    await fetchData();
+    await fetchData(fiscalYearFilter);
   } catch {
     setImportError('Failed to import budget plans');
   } finally {
@@ -295,6 +324,11 @@ const handleImportRows = async () => {
             placeholder="Search..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+          <FiscalYearFilter
+            value={fiscalYearFilter}
+            onChange={setFiscalYearFilter}
+            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}
@@ -342,6 +376,7 @@ const handleImportRows = async () => {
           <thead>
             <TableHeaderRow>
               <TableHead>#</TableHead>
+              <TableHead>Created At</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Status</TableHead>
@@ -360,18 +395,48 @@ const handleImportRows = async () => {
               currentPlans.map((p, i) => (
                 <TableBodyRow key={p.id}>
                   <TableCell>{startIndex + i + 1}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span>{formatDate(p.createdAt)}</span>
+                      <span className="text-xs text-gray-500 -mt-1">at {formatTime(p.createdAt)}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{p.code}</TableCell>
                   <TableCell>{p.subject}</TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-sm 
-                      ${p.status === 'Approved' ? 'bg-green-100 text-green-800' : 
-                      p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                      p.status === 'Revision' ? 'bg-amber-100 text-amber-800' :
-                      p.status === 'Declined' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
-                        {p.status}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(() => {
+                        const display = getRequestStatusDisplay(p.status);
+                        return (
+                          <span className={`px-1.5 py-0.5 rounded-lg text-xs whitespace-nowrap border ${display.chipClass}`}>
+                            {display.label}
+                          </span>
+                        );
+                      })()}
                       {p.importedViaBulk ? <BulkImportBadge /> : null}
+                      {!p.approvalSchemaId ? (
+                        <Tooltip content="No approval schema">
+                          <span
+                            aria-label="No approval schema"
+                            className="rounded-lg border border-red-300 bg-red-100 px-2 text-sm font-bold text-red-800"
+                          >
+                            !
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                      <RequestCountBadge count={p.budgetRequestCount ?? 0} />
+                      {(p.budgetRequestCount ?? 0) > 0 ? (
+                        <Tooltip
+                          content={`Locked: ${p.budgetRequestCount} budget request${(p.budgetRequestCount ?? 0) > 1 ? 's' : ''} issued`}
+                        >
+                          <span
+                            aria-label="Locked"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-gray-300 bg-gray-100 text-gray-600"
+                          >
+                            <Lock className="h-3 w-3" />
+                          </span>
+                        </Tooltip>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>{p.department?.name ?? '-'}</TableCell>
@@ -382,7 +447,7 @@ const handleImportRows = async () => {
                     {p.canEdit ? (
                       <>
                         {' | '}
-                        {p.status === 'Approved' ? (
+                        {requiresEditConfirmation(p.status) ? (
                           <button
                             type="button"
                             onClick={() => setPlanToConfirmEdit(p)}
@@ -410,10 +475,17 @@ const handleImportRows = async () => {
           </tbody>
         </Table>
       </Card>
-      <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        itemNoun="budget plans"
+      />
       <EditWarningModal
         isOpen={Boolean(planToConfirmEdit)}
-        planSubject={planToConfirmEdit?.subject}
+        entityType="budget-plan"
+        subject={planToConfirmEdit?.subject}
         onCancel={() => setPlanToConfirmEdit(null)}
         onContinue={() => {
           if (!planToConfirmEdit) return;
@@ -423,9 +495,12 @@ const handleImportRows = async () => {
         }}
       />
     
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-xl">
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        panelClassName="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-xl"
+      >
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Import Bulk Budget Plan</h2>
@@ -464,11 +539,12 @@ const handleImportRows = async () => {
                     Upload XLSX
                     <input
                       type="file"
-                      accept=".xlsx,.xls"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handlePreviewImportFile(file);
+                        e.target.value = '';
                       }}
                     />
                   </label>
@@ -535,7 +611,15 @@ const handleImportRows = async () => {
                           <td className="px-3 py-2 text-right">{formatCurrency(row.oct)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.nov)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.dec)}</td>
-                          <td className="px-3 py-2">{row.approvalSchemaCode}</td>
+                          <td
+                            className={`px-3 py-2 ${
+                              row.approvalSchemaCode
+                                ? ''
+                                : 'bg-red-50 text-red-600 font-medium'
+                            }`}
+                          >
+                            {row.approvalSchemaCode || 'required'}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -562,9 +646,7 @@ const handleImportRows = async () => {
                 {isImporting ? 'Importing...' : 'Import Data'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

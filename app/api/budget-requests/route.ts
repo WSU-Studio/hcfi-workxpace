@@ -5,17 +5,36 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
+import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
+import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const { searchParams } = new URL(request.url);
+
+    // Cross-department view scope (null = unrestricted, see helper).
+    const departmentScope = buildDepartmentScope(session);
+    // Optional fiscal-year scope (driven by the FY filter dropdown).
+    const fiscalYearFilter = parseFiscalYearParam(searchParams.get('fiscalYear'));
+    const where = {
+      ...(departmentScope ?? {}),
+      ...(fiscalYearFilter !== null && fiscalYearFilter !== ALL_FISCAL_YEARS
+        ? { fiscalYear: fiscalYearFilter }
+        : {}),
+    };
+    const rowsWhere = Object.keys(where).length > 0 ? where : undefined;
+
     const rows = await prisma.budgetRequest.findMany({
+      where: rowsWhere,
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
@@ -39,6 +58,22 @@ export async function GET() {
       : [];
     const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
 
+    // Batched history lookup so multi-step `canReview` stays accurate without
+    // an N+1 query: a single fetch keyed by entityId, then bucketed in memory.
+    const rowIds = rows.map((row) => row.id);
+    const allHistories = rowIds.length
+      ? await prisma.activityHistory.findMany({
+          where: { entityType: 'BudgetRequest', entityId: { in: rowIds } },
+          select: { entityId: true, action: true, details: true, timestamp: true },
+        })
+      : [];
+    const historiesByEntity = new Map<string, BudgetPlanHistoryEntry[]>();
+    for (const h of allHistories) {
+      const bucket = historiesByEntity.get(h.entityId) ?? [];
+      bucket.push(h as unknown as BudgetPlanHistoryEntry);
+      historiesByEntity.set(h.entityId, bucket);
+    }
+
     const requests = rows.map(({ approvalSchema, ...r }) => ({
       ...r,
       requestorName: r.requestorId ? requestorNameMap.get(r.requestorId) ?? null : null,
@@ -47,16 +82,19 @@ export async function GET() {
         r.requestorId === session.user.id,
       canReview:
         !!session?.user?.id &&
-        canUserActOnCurrentBudgetRequestStep({
-          requestStatus: r.status,
+        canUserActOnCurrentStep({
+          status: r.status,
           approvalLevels: approvalSchema?.approvalLevels ?? [],
+          histories: historiesByEntity.get(r.id) ?? [],
           userRoleIds,
           requestorId: r.requestorId ?? null,
           actorUserId: session.user.id,
         }),
     }));
     const plans = await prisma.budgetPlan.findMany({
-      where: { status: 'Approved' },
+      // Same cross-department view rule applies to the BP dropdown so users
+      // without permission don't see other departments' BPs as picker options.
+      where: { status: 'Approved', ...(departmentScope ?? {}) },
       select: {
         id: true,
         code: true,
@@ -108,6 +146,15 @@ export async function POST(req: Request) {
 
     if (!budgetPlanId || !subject || !departmentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    // Defense in depth: enforce the cross-department permission server-side.
+    const departmentVerdict = assertCanActOnDepartment(session, departmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
     }
 
     const normalizedPayload = normalizeBudgetRequestBody(body, new Date().getFullYear());
@@ -232,6 +279,14 @@ export async function POST(req: Request) {
           allocation: Number(allocation.allocation),
         })),
       },
+    });
+
+    await createBudgetRequestNotifications({
+      requestId: br.id,
+      actorUserId: session.user.id,
+      status: 'Draft',
+      requestCode: br.code,
+      variant: 'submit',
     });
 
     return NextResponse.json(br);

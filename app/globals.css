@@ -12,12 +12,78 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* --background: #0a0a0a; */
+    /* --foreground: #ededed; */
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
+}
+
+@page {
+  size: A4;
+  margin: 14mm 12mm 16mm 12mm;
+}
+
+/* Saat export PDF via html2canvas-pro (tidak men-trigger @media print), kita
+ * pakai attribute selector di <html data-exporting="pdf"> agar utility
+ * Tailwind `print:hidden` / `print:block` tetap berlaku konsisten antara
+ * Print dan Download PDF. Handler page WAJIB clean up attribute di finally. */
+:root[data-exporting='pdf'] .print\:hidden {
+  display: none !important;
+}
+:root[data-exporting='pdf'] .print\:block {
+  display: block !important;
+}
+:root[data-exporting='pdf'] .print\:overflow-visible {
+  overflow: visible !important;
+}
+:root[data-exporting='pdf'] [aria-hidden='true'].grid-rows-\[0fr\] {
+  grid-template-rows: 1fr !important;
+  opacity: 1 !important;
+  margin-top: 1rem !important;
+  pointer-events: auto !important;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hanya hindari page break pada elemen kecil (baris tabel, blok kecil
+   * yang ditandai .print-keep-together). Card/section sengaja DIBIARKAN
+   * boleh terpotong agar konten mengalir dan tidak meninggalkan whitespace
+   * besar yang membuat hasil cetak jadi banyak halaman tidak perlu. */
+  .print-keep-together,
+  thead,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Heading mengikat ke konten di bawahnya */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Anchor tidak menampilkan URL setelah teks */
+  a[href]::after {
+    content: '';
+  }
 }

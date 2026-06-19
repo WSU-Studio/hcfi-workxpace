@@ -4,28 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { IconChartBar, IconDatabase, IconScale } from '@tabler/icons-react';
+import { IconChartBar, IconDatabase, IconScale, IconTable } from '@tabler/icons-react';
 import { MenuAccess } from '@/types/access-control';
-
-const restrictedMenuAccess: MenuAccess = {
-  dashboard: false,
-  budgetPlans: false,
-  budgetRequests: false,
-  paymentRequests: false,
-  reconciliation: false,
-  reports: false,
-  userManagement: false,
-  workspaceManagement: false,
-  viewDepartment: false,
-  viewOriginOffice: false,
-  viewProject: false,
-  viewCategory: false,
-  viewCategoryKeyIndex: false,
-  viewCostCenter: false,
-  viewRole: false,
-  viewApprovalSchema: false,
-  viewActivityHistory: false,
-};
+import { restrictedMenuAccess } from '@/lib/default-access';
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -36,6 +17,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
   const subNavigation = [
     { name: 'Reconciliation', href: '/reports/reconciliation', icon: IconScale, show: menuAccess.reports },
     { name: 'Data Marts', href: '/reports/data-marts', icon: IconDatabase, show: menuAccess.reports },
+    { name: 'Budget Pivot', href: '/reports/budget-pivot', icon: IconTable, show: menuAccess.reports },
     // {
     //   name: 'Budget Plan Realization',
     //   href: '/reports/budget-realization',

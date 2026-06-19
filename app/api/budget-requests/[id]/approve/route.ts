@@ -4,70 +4,15 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
-  getNextBudgetRequestApprovalStep,
+  getNextApprovalStep,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
+import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
+import { canEditClassificationFields } from '@/lib/access/classification';
 
 export const dynamic = 'force-dynamic';
-
-async function resolveNotificationUserIds(requestId: string, actorUserId: string) {
-  const request = await prisma.budgetRequest.findUnique({
-    where: { id: requestId },
-    include: { approvalSchema: { include: { approvalLevels: true } } },
-  });
-  if (!request) return [];
-
-  const roleIds = Array.from(new Set((request.approvalSchema?.approvalLevels || []).map((level) => level.roleId)));
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { id: request.requestorId || undefined },
-        { roleId: { in: roleIds } },
-        { userRoles: { some: { roleId: { in: roleIds } } } },
-      ],
-    },
-    select: { id: true },
-  });
-
-  return Array.from(new Set(users.map((user) => user.id))).filter((id) => id !== actorUserId);
-}
-
-async function createApprovalNotifications(params: {
-  requestId: string;
-  actorUserId: string;
-  status: string;
-  requestCode: string;
-  adjustmentNote?: string | null;
-  declineReason?: string | null;
-}) {
-  const recipientIds = await resolveNotificationUserIds(params.requestId, params.actorUserId);
-  if (!recipientIds.length) return;
-
-  const titleByStatus: Record<string, string> = {
-    Reviewed: 'Budget Request Reviewed',
-    Approved: 'Budget Request Approved',
-    Revision: 'Budget Request Needs Revision',
-    Declined: 'Budget Request Declined',
-  };
-  const title = titleByStatus[params.status] || 'Budget Request Updated';
-  const messageBase = `${params.requestCode} status changed to ${params.status}.`;
-  const messageWithAdjustment = params.adjustmentNote ? `${messageBase} ${params.adjustmentNote}` : messageBase;
-  const message =
-    params.declineReason && (params.status === 'Revision' || params.status === 'Declined')
-      ? `${messageWithAdjustment} Reason: ${params.declineReason}`
-      : messageWithAdjustment;
-
-  await prisma.notification.createMany({
-    data: recipientIds.map((userId) => ({
-      userId,
-      title,
-      message,
-      type: params.status === 'Approved' ? 'success' : params.status === 'Declined' ? 'error' : 'info',
-    })),
-  });
-}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -96,14 +41,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const levels = before.approvalSchema?.approvalLevels ?? [];
     const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+    // Used by the multi-step eligibility checks below; this is the *only*
+    // way to tell apart "still on step 2 of a 4-step ladder" from "already
+    // through every step" when `status === 'Reviewed'`.
+    const histories = (await prisma.activityHistory.findMany({
+      where: { entityType: 'BudgetRequest', entityId: id },
+      select: { action: true, details: true, timestamp: true },
+    })) as unknown as BudgetPlanHistoryEntry[];
     const action =
       body?.action === 'revision' ? 'revision' : body?.action === 'decline' ? 'decline' : 'approve';
     let newStatus: string;
 
     if (action === 'revision' || action === 'decline') {
-      const allowed = canUserActOnCurrentBudgetRequestStep({
-        requestStatus: before.status,
+      const allowed = canUserActOnCurrentStep({
+        status: before.status,
         approvalLevels: levels,
+        histories,
         userRoleIds,
         requestorId: before.requestorId ?? null,
         actorUserId: session.user.id,
@@ -127,9 +80,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
         newStatus = 'Approved';
       } else {
-        const allowed = canUserActOnCurrentBudgetRequestStep({
-          requestStatus: before.status,
+        const allowed = canUserActOnCurrentStep({
+          status: before.status,
           approvalLevels: levels,
+          histories,
           userRoleIds,
           requestorId: before.requestorId ?? null,
           actorUserId: session.user.id,
@@ -138,12 +92,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           return NextResponse.json({ error: 'You are not allowed to approve at this stage' }, { status: 403 });
         }
         const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-        const next = getNextBudgetRequestApprovalStep(before.status, levels);
+        const next = getNextApprovalStep(before.status, levels, histories);
         if (!next) {
           return NextResponse.json({ error: 'No approval step available' }, { status: 400 });
         }
-        const stepIndex = ordered.findIndex((l) => l.stepOrder === next.stepOrder);
-        const isLastStep = stepIndex >= 0 && stepIndex === ordered.length - 1;
+        const isLastStep = next.stepOrder === ordered[ordered.length - 1]!.stepOrder;
         newStatus = isLastStep ? 'Approved' : 'Reviewed';
       }
     }
@@ -158,17 +111,47 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             Math.max(0, Number(lineItem.unitPrice ?? 0)) !== Math.max(0, Number(before.lineItems[index]?.unitPrice ?? 0))
         ));
 
+    // Defense in depth: when the caller lacks `editClassificationSection`,
+    // ignore any classification fields in the body and keep the persisted
+    // values (matches the UI which renders those inputs disabled). Note
+    // that BR uses denormalized text columns (`category`, `costCenter`,
+    // `coa`, `opexAllocation`, `categoryKeyIndex`) rather than the `*Id`
+    // foreign keys used by BP/PR — hence the inline projection here
+    // instead of the shared `pickClassificationFields` helper.
+    const allowClassificationEdit = canEditClassificationFields(session);
+    const nextCategoryKeyIndex = allowClassificationEdit
+      ? body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null
+      : before.categoryKeyIndex ?? null;
+    const nextCostCenter = allowClassificationEdit
+      ? body?.costCenterId ?? before.costCenter ?? null
+      : before.costCenter ?? null;
+    const nextCategory = allowClassificationEdit
+      ? body?.categoryId ?? before.category ?? null
+      : before.category ?? null;
+    const nextCoa = allowClassificationEdit
+      ? body?.coaId ?? before.coa ?? null
+      : before.coa ?? null;
+    const nextType = allowClassificationEdit
+      ? body?.opexType ?? before.type ?? null
+      : before.type ?? null;
+    const nextOpexType = allowClassificationEdit
+      ? body?.opexType ?? before.opexType ?? null
+      : before.opexType ?? null;
+    const nextOpexAllocation = allowClassificationEdit
+      ? (nextOpexType === 'OPEX' ? body?.opexAllocationId ?? before.opexAllocation ?? null : null)
+      : before.opexAllocation ?? null;
+
     const updated = await prisma.budgetRequest.update({
       where: { id },
       data: {
         status: newStatus,
-        categoryKeyIndex: body?.categoryKeyIndexId ?? before.categoryKeyIndex ?? null,
-        costCenter: body?.costCenterId ?? before.costCenter ?? null,
-        category: body?.categoryId ?? before.category ?? null,
-        coa: body?.coaId ?? before.coa ?? null,
-        type: body?.opexType ?? before.type ?? null,
-        opexAllocation: body?.opexAllocationId ?? before.opexAllocation ?? null,
-        opexType: body?.opexType ?? before.opexType ?? null,
+        categoryKeyIndex: nextCategoryKeyIndex,
+        costCenter: nextCostCenter,
+        category: nextCategory,
+        coa: nextCoa,
+        type: nextType,
+        opexAllocation: nextOpexAllocation,
+        opexType: nextOpexType,
       },
       select: { status: true },
     });
@@ -247,17 +230,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         departmentName: before?.department?.name ?? null,
         lineItemCount: before?.lineItems.length ?? 0,
         totalRequested,
-        categoryKeyIndex: body?.categoryKeyIndexId ?? before?.categoryKeyIndex ?? null,
-        costCenter: body?.costCenterId ?? before?.costCenter ?? null,
-        category: body?.categoryId ?? before?.category ?? null,
-        coa: body?.coaId ?? before?.coa ?? null,
-        type: body?.opexType ?? before?.type ?? null,
-        opexAllocation: body?.opexAllocationId ?? before?.opexAllocation ?? null,
+        categoryKeyIndex: nextCategoryKeyIndex,
+        costCenter: nextCostCenter,
+        category: nextCategory,
+        coa: nextCoa,
+        type: nextType,
+        opexAllocation: nextOpexAllocation,
         qtyUnitPriceAdjustmentNote,
         declineReason: action === 'revision' || action === 'decline' ? body?.declineReason ?? null : null,
+        approvalNote:
+          action === 'approve'
+            ? (typeof body?.approvalNote === 'string' ? body.approvalNote.trim() || null : null)
+            : null,
       },
     });
-    await createApprovalNotifications({
+    await createBudgetRequestNotifications({
       requestId: id,
       actorUserId: session.user.id,
       status: updated.status,

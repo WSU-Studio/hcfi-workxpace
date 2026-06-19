@@ -144,7 +144,7 @@ export default function ReconciliationReportPage() {
   if (!canView) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-gray-600">Anda tidak memiliki akses ke laporan.</p>
+        <p className="text-sm text-gray-600">You don&apos;t have access to this report.</p>
       </Card>
     );
   }
@@ -196,7 +196,7 @@ export default function ReconciliationReportPage() {
             <Button type="button" onClick={loadReport} disabled={loading}>
               {loading ? 'Loading...' : 'View'}
             </Button>
-            <Button type="button" variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
+            <Button type="button" variant="outline" className='whitespace-nowrap' onClick={exportCsv} disabled={rows.length === 0}>
               Export CSV
             </Button>
           </div>
@@ -222,7 +222,7 @@ export default function ReconciliationReportPage() {
             </thead>
             <tbody>
               {rows.length === 0 && !loading && (
-                <TableEmptyRow colSpan={9}>Belum ada data tersimpan untuk filter ini.</TableEmptyRow>
+                <TableEmptyRow colSpan={9}>No saved data for this filter.</TableEmptyRow>
               )}
               {rows.map((r) => (
                 <TableBodyRow key={r.id} className="border-gray-200">

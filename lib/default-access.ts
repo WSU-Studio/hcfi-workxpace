@@ -20,6 +20,36 @@ export const defaultMenuAccess: MenuAccess = {
   viewActivityHistory: true,
 };
 
+/**
+ * Lock-everything fallback used by client layouts when the session has no
+ * `access.menuAccess` payload yet (e.g. before NextAuth resolves on first
+ * paint, or for unauthenticated edge cases).
+ *
+ * Single source of truth — adding a new field to `MenuAccess` will produce a
+ * compile error here and the consumers (`Sidebar`, layout files) will keep
+ * working without changes. Derived from the `MenuAccess` shape so we never
+ * forget a key.
+ */
+export const restrictedMenuAccess: MenuAccess = {
+  dashboard: false,
+  budgetPlans: false,
+  budgetRequests: false,
+  paymentRequests: false,
+  reconciliation: false,
+  reports: false,
+  userManagement: false,
+  workspaceManagement: false,
+  viewDepartment: false,
+  viewOriginOffice: false,
+  viewProject: false,
+  viewCategory: false,
+  viewCategoryKeyIndex: false,
+  viewCostCenter: false,
+  viewRole: false,
+  viewApprovalSchema: false,
+  viewActivityHistory: false,
+};
+
 export const defaultActivityAccess: ActivityAccess = {
   createBudgetPlan: false,
   editBudgetPlan: false,
@@ -57,9 +87,28 @@ export const defaultActivityAccess: ActivityAccess = {
   createUser: false,
   editUser: false,
   deleteUser: false,
+  // Changing other users' access permissions is highly privileged — opt-in
+  // only. Admin role bypasses this check via fullActivityAccess.
+  changeAccess: false,
   runReconciliationSync: false,
   editReconciliationMapping: false,
   saveReconciliationResult: false,
+  // Cross-department creation is opt-in. By default users can only create
+  // BP/BR/PR for their own department; admin / explicitly-granted users only.
+  createForOtherDepartment: false,
+  // Cross-department visibility is opt-in. By default users only see
+  // BP/BR/PR rows from their own department in list pages and dropdowns.
+  viewOtherDepartmentDocuments: false,
+  // Editing the Classification section (Cost Center / Category / CKI / COA /
+  // OPEX type & allocation) on review pages is opt-in. Reviewers can still
+  // approve/decline; the classification fields render read-only unless this
+  // permission is granted. Admin role gets it via fullActivityAccess.
+  editClassificationSection: false,
+  // Financial snapshot (Plan total / Realized / Outstanding) on BR review page
+  // is sensitive and should be explicitly granted.
+  viewBudgetPlanSnapshotOnBudgetRequestReview: false,
+  // Sensitive financial column — opt-in. Admin & users explicitly granted only.
+  viewBudgetPlanRealization: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -120,9 +169,15 @@ export const fullActivityAccess: ActivityAccess = {
   createUser: true,
   editUser: true,
   deleteUser: true,
+  changeAccess: true,
   runReconciliationSync: true,
   editReconciliationMapping: true,
   saveReconciliationResult: true,
+  createForOtherDepartment: true,
+  viewOtherDepartmentDocuments: true,
+  editClassificationSection: true,
+  viewBudgetPlanRealization: true,
+  viewBudgetPlanSnapshotOnBudgetRequestReview: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */
@@ -134,10 +189,29 @@ export function mergeWithDefaultMenuAccess(stored: unknown): MenuAccess {
   return { ...defaultMenuAccess, ...partial };
 }
 
-export function mergeWithDefaultActivityAccess(stored: unknown): ActivityAccess {
+export function mergeWithDefaultActivityAccess(
+  stored: unknown,
+  legacyMenuAccess?: unknown,
+): ActivityAccess {
   const partial =
     stored && typeof stored === 'object' && !Array.isArray(stored)
       ? (stored as Partial<ActivityAccess>)
       : {};
-  return { ...defaultActivityAccess, ...partial };
+  const legacy =
+    legacyMenuAccess && typeof legacyMenuAccess === 'object' && !Array.isArray(legacyMenuAccess)
+      ? (legacyMenuAccess as Partial<{ viewBudgetPlanRealization: boolean }>)
+      : {};
+
+  // Backward compatibility: older records stored this flag in menuAccess.
+  // Preserve that grant during the transition to ActivityAccess.
+  const migratedFromLegacy =
+    partial.viewBudgetPlanRealization ?? legacy.viewBudgetPlanRealization;
+
+  return {
+    ...defaultActivityAccess,
+    ...partial,
+    ...(migratedFromLegacy === undefined
+      ? {}
+      : { viewBudgetPlanRealization: migratedFromLegacy }),
+  };
 }

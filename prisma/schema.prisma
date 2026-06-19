@@ -61,6 +61,7 @@ model User {
   activityHistory  ActivityHistory[]
   notifications    Notification[]
   reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
+  reconciliationUnusedPaymentsMarked ReconciliationUnusedPayment[] @relation("ReconciliationUnusedMarkedBy")
 
   @@index([roleId])
   @@index([departmentId])
@@ -107,6 +108,7 @@ model Department {
   paymentRequests PaymentRequest[]
   approvalSchemas ApprovalSchema[]
   reconciliationSavedPayments ReconciliationSavedPayment[]
+  reconciliationUnusedPayments ReconciliationUnusedPayment[]
 
   @@index([headId])
   @@map("departments")
@@ -187,6 +189,12 @@ model Project {
 
 model ApprovalSchema {
   id              String         @id @default(cuid())
+  // Short, stable, human-typeable identifier (e.g. `BP-PRIMARY`, `BR-3STEP`).
+  // Used by the bulk-import XLSX template ("Approval Schema Code" column) and
+  // anywhere else where a stable handle is preferable to the wordier `name`.
+  // Unique across the workspace so imports remain unambiguous even if two
+  // departments happen to pick the same `name`.
+  code            String         @unique
   name            String
   type            String         // BudgetPlan | BudgetRequest | PaymentRequest
   period          String         @default("Unlimited") // Unlimited | Custom
@@ -435,6 +443,7 @@ model PaymentRequest {
   invoiceAmount    Decimal          @default(0) @db.Decimal(18, 2)
   currency         String           @default("IDR")
   payeeName        String
+  bankAccount      String?
   paymentPurpose   String?          @db.Text
   notes            String?          @db.Text
   supportingDocs   Json?
@@ -561,6 +570,40 @@ model DataMartStagingRow {
   @@index([projectCode])
   @@index([invoiceNo])
   @@map("data_mart_staging")
+}
+
+/// Baris pembayaran Confins yang ditandai user sebagai "tidak dipakai" (tidak akan di-match ke BR).
+/// Disembunyikan dari daftar kerja saat sync ulang. Bisa dikembalikan dari halaman Marked Unused.
+model ReconciliationUnusedPayment {
+  id                  String   @id @default(cuid())
+  confinsPaymentDocId String   @unique @map("confins_payment_doc_id")
+  interfaceId         String?  @map("interface_id")
+  paymentRequestNo    String?  @map("payment_request_no")
+  journalNo           String?  @map("journal_no")
+  invoiceNo           String?  @map("invoice_no")
+  invoiceDate         String?  @map("invoice_date")
+  fiscalYear          Int      @map("fiscal_year")
+  month               Int
+  departmentId        String?  @map("department_id")
+  departmentName      String?  @map("department_name")
+  paymentSource       String?  @map("payment_source")
+  paidAmount          Decimal  @map("paid_amount") @db.Decimal(18, 2)
+  currency            String?
+  glAccountCode       String?  @map("gl_account_code")
+  glAccountName       String?  @map("gl_account_name")
+  vendorName          String?  @map("vendor_name")
+  description         String?  @db.Text
+  reason              String?  @db.Text
+  markedByUserId      String   @map("marked_by_user_id")
+  markedAt            DateTime @default(now()) @map("marked_at")
+
+  department Department? @relation(fields: [departmentId], references: [id])
+  markedBy   User        @relation("ReconciliationUnusedMarkedBy", fields: [markedByUserId], references: [id])
+
+  @@index([fiscalYear, month])
+  @@index([departmentId])
+  @@index([markedAt])
+  @@map("reconciliation_unused_payments")
 }
 
 model ReconciliationSavedPayment {

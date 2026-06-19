@@ -20,6 +20,7 @@ interface ApprovalLevel {
 
 interface ApprovalSchemaDetail {
   id: string;
+  code: string;
   name: string;
   type: string;
   period: string;
@@ -61,6 +62,10 @@ export default function ApprovalSchemaDetailPage() {
       <h1 className="text-2xl font-semibold">Approval Schema Detail</h1>
 
       <Card className="space-y-4 p-6">
+        <div>
+          <label className="text-sm text-gray-500">Code</label>
+          <p className="font-mono font-medium">{schema.code}</p>
+        </div>
         <div>
           <label className="text-sm text-gray-500">Name</label>
           <p className="font-medium">{schema.name}</p>

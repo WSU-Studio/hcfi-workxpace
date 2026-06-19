@@ -4,9 +4,13 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import {
-  canUserActOnCurrentBudgetPlanStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
+import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
+import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,12 +33,27 @@ export async function GET(request: Request) {
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
 
+    // Optional fiscal-year scope (driven by the FY filter dropdown). Absent
+    // or `all` ⇒ no restriction; a numeric year ⇒ exact-match WHERE clause.
+    const fiscalYearFilter = parseFiscalYearParam(searchParams.get('fiscalYear'));
+    if (fiscalYearFilter !== null && fiscalYearFilter !== ALL_FISCAL_YEARS) {
+      where.fiscalYear = fiscalYearFilter;
+    }
+
+    // Apply cross-department view scoping LAST so a query string cannot
+    // bypass the permission gate by passing another departmentId.
+    const departmentScope = buildDepartmentScope(session);
+    if (departmentScope) {
+      where.departmentId = departmentScope.departmentId;
+    }
+
     const plans = await prisma.budgetPlan.findMany({
       where,
       include: {
         department: { select: { id: true, code: true, name: true } },
         allocations: { orderBy: { month: 'asc' } },
         approvalSchema: { include: { approvalLevels: true } },
+        _count: { select: { budgetRequests: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -44,15 +63,47 @@ export async function GET(request: Request) {
       orderBy: { code: 'asc' },
     });
 
-    const enrichedPlans = plans.map(({ approvalSchema, ...plan }) => ({
-      ...plan,
-      canEdit: !!session?.user?.id && plan.requestorId === session.user.id,
-      canReview: canUserActOnCurrentBudgetPlanStep({
-        planStatus: plan.status,
-        approvalLevels: approvalSchema?.approvalLevels ?? [],
-        userRoleIds,
-      }),
-    }));
+    // Batched history lookup so multi-step `canReview` stays accurate without
+    // an N+1 query: a single fetch keyed by entityId, then bucketed in memory.
+    const planIds = plans.map((p) => p.id);
+    const allHistories = planIds.length
+      ? await prisma.activityHistory.findMany({
+          where: { entityType: 'BudgetPlan', entityId: { in: planIds } },
+          select: { entityId: true, action: true, details: true, timestamp: true },
+        })
+      : [];
+    const historiesByEntity = new Map<string, BudgetPlanHistoryEntry[]>();
+    for (const h of allHistories) {
+      const bucket = historiesByEntity.get(h.entityId) ?? [];
+      bucket.push(h as unknown as BudgetPlanHistoryEntry);
+      historiesByEntity.set(h.entityId, bucket);
+    }
+
+    const enrichedPlans = plans.map(({ approvalSchema, _count, ...plan }) => {
+      const budgetRequestCount = _count?.budgetRequests ?? 0;
+      const isRequestor =
+        !!session?.user?.id && plan.requestorId === session.user.id;
+      // BR has been issued against this plan → freeze the plan for edits.
+      // Even the original requestor cannot edit a plan that already drives BRs,
+      // because changing it would invalidate the budget against issued requests.
+      const canEdit = isRequestor && budgetRequestCount === 0;
+
+      return {
+        ...plan,
+        budgetRequestCount,
+        canEdit,
+        canReview:
+          !!session?.user?.id &&
+          canUserActOnCurrentStep({
+            status: plan.status,
+            approvalLevels: approvalSchema?.approvalLevels ?? [],
+            histories: historiesByEntity.get(plan.id) ?? [],
+            userRoleIds,
+            requestorId: plan.requestorId ?? null,
+            actorUserId: session.user.id,
+          }),
+      };
+    });
 
     return NextResponse.json({ plans: enrichedPlans, departments });
   } catch (error) {
@@ -67,6 +118,18 @@ export async function POST(request: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
+    if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    // Defense in depth: even if the UI is bypassed, users without the
+    // `createForOtherDepartment` permission must not create BPs for any
+    // department other than their own.
+    const departmentVerdict = assertCanActOnDepartment(session, body.departmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
+    }
+
     const dept = await prisma.department.findUnique({
       where: { id: body.departmentId },
       select: { code: true },
@@ -149,6 +212,16 @@ export async function POST(request: Request) {
         selectedMonths,
         totalAllocation,
       },
+    });
+
+    // Fan-out to reviewers/approvers configured in the approval schema so
+    // they know there's a fresh BP waiting for review.
+    await createBudgetPlanNotifications({
+      planId: plan.id,
+      actorUserId: session.user.id,
+      status: 'Draft',
+      planCode: plan.code,
+      variant: 'submit',
     });
 
     return NextResponse.json(plan);

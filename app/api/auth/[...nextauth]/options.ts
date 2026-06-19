@@ -1,164 +1,155 @@
-import { prisma } from '@/lib/prisma';
 import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import AzureADProvider from 'next-auth/providers/azure-ad';
 import bcrypt from 'bcryptjs';
-import { MenuAccess, ActivityAccess } from '@/types/access-control';
+
+import { prisma } from '@/lib/prisma';
 import {
-  fullMenuAccess,
-  fullActivityAccess,
-  mergeWithDefaultMenuAccess,
-  mergeWithDefaultActivityAccess,
-  defaultMenuAccess,
   defaultActivityAccess,
+  defaultMenuAccess,
+  mergeWithDefaultActivityAccess,
+  mergeWithDefaultMenuAccess,
 } from '@/lib/default-access';
-import { emailFromAzureProfile, isMicrosoftEntraSsoConfigured } from '@/lib/auth/microsoft-sso';
+import { createAzureAdProvider } from '@/lib/auth/azure-ad-provider';
+import {
+  isAuthorizedByEntraGroup,
+  provisionOrLoadAzureAdUser,
+} from '@/lib/auth/azure-ad-provision';
+import {
+  loadSessionUserByEmail,
+  type SessionUser,
+} from '@/lib/auth/session-user';
+import type { ActivityAccess, MenuAccess } from '@/types/access-control';
 
-const userAuthInclude = {
-  userRoles: { include: { role: true } },
-  access: true,
-  department: true,
-} as const;
+const credentialsProvider = CredentialsProvider({
+  name: 'Credentials',
+  credentials: {
+    email: { label: 'Email', type: 'email' },
+    password: { label: 'Password', type: 'password' },
+  },
+  async authorize(credentials) {
+    if (!credentials?.email || !credentials?.password) {
+      throw new Error('Missing credentials');
+    }
 
-type AppUserWithAuth = NonNullable<Awaited<ReturnType<typeof findActiveAppUserByEmail>>>;
+    const user = await prisma.user.findUnique({
+      where: { email: credentials.email, isActive: true },
+      include: {
+        userRoles: { include: { role: true } },
+        access: true,
+        department: true,
+      },
+    });
 
-async function findActiveAppUserByEmail(emailRaw: string) {
-  return prisma.user.findFirst({
-    where: {
-      email: { equals: emailRaw.trim(), mode: 'insensitive' },
-      isActive: true,
-    },
-    include: userAuthInclude,
-  });
-}
+    if (!user) throw new Error('No user found');
+    if (!user.userRoles.length) throw new Error('User has no role');
 
-function buildAuthUserFromDbUser(user: AppUserWithAuth) {
-  if (!user.userRoles.length) {
-    throw new Error('User has no role');
-  }
-  const roleCode = user.userRoles[0].role.roleCode;
-  const isAdmin = roleCode === 'ADMIN';
+    const isValid = await bcrypt.compare(credentials.password, user.password);
+    if (!isValid) throw new Error('Invalid password');
 
-  const menuAccess = isAdmin
-    ? fullMenuAccess
-    : {
-        ...defaultMenuAccess,
-        ...((typeof user.access?.menuAccess === 'string'
-          ? (JSON.parse(user.access.menuAccess as string) as MenuAccess)
-          : (user.access?.menuAccess as unknown as MenuAccess)) ?? {}),
-      };
+    const sessionUser = await loadSessionUserByEmail(user.email);
+    if (!sessionUser) throw new Error('User not eligible for sign-in');
 
-  const activityAccess = isAdmin
-    ? fullActivityAccess
-    : {
-        ...defaultActivityAccess,
-        ...((typeof user.access?.activityAccess === 'string'
-          ? (JSON.parse(user.access.activityAccess as string) as ActivityAccess)
-          : (user.access?.activityAccess as unknown as ActivityAccess)) ?? {}),
-      };
+    return sessionUser;
+  },
+});
 
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    image: user.image,
-    roleId: user.userRoles[0].role.id,
-    role: user.userRoles[0].role.roleName,
-    departmentId: user.departmentId,
-    access: { menuAccess, activityAccess },
-  };
-}
-
-function applyAuthUserToToken(
-  token: Record<string, unknown>,
-  auth: ReturnType<typeof buildAuthUserFromDbUser>,
-) {
-  token.id = auth.id;
-  token.sub = auth.id;
-  token.roleId = auth.roleId;
-  token.role = auth.role;
-  token.departmentId = auth.departmentId;
-  token.access = auth.access;
-  token.email = auth.email;
-  token.name = auth.name;
-  token.picture = auth.image;
-}
-
-const providers: AuthOptions['providers'] = [
-  CredentialsProvider({
-    name: 'Credentials',
-    credentials: {
-      email: { label: 'Email', type: 'email' },
-      password: { label: 'Password', type: 'password' },
-    },
-    async authorize(credentials) {
-      if (!credentials?.email || !credentials?.password) {
-        throw new Error('Missing credentials');
-      }
-
-      const user = await findActiveAppUserByEmail(credentials.email);
-      if (!user) throw new Error('No user found');
-      if (!user.userRoles.length) throw new Error('User has no role');
-
-      const isValid = await bcrypt.compare(credentials.password, user.password);
-      if (!isValid) throw new Error('Invalid password');
-
-      return buildAuthUserFromDbUser(user);
-    },
-  }),
-];
-
-if (isMicrosoftEntraSsoConfigured()) {
-  providers.push(
-    AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID!,
-    }),
-  );
-}
+const azureAdProvider = createAzureAdProvider();
 
 export const authOptions: AuthOptions = {
-  providers,
+  providers: azureAdProvider
+    ? [credentialsProvider, azureAdProvider]
+    : [credentialsProvider],
   pages: { signIn: '/login', signOut: '/login', error: '/login' },
   callbacks: {
-    async signIn({ account, profile }) {
+    /**
+     * Two-stage gate for the Azure AD (Entra ID) path:
+     *
+     *   1. AUTHORIZATION (group check) — when `AZURE_ALLOWED_GROUP_IDS` is
+     *      non-empty, the user's `groups` claim must intersect the allowlist.
+     *      When empty/unset, any authenticated Entra user is allowed. See
+     *      `isAuthorizedByEntraGroup` for the full policy.
+     *
+     *   2. PROVISIONING (auto) — once authorized, the user is upserted into
+     *      the DB with placeholder GUEST role / UNASSIGNED department and
+     *      `isActive=true` but ZERO menu/activity access. Admin must
+     *      explicitly grant access via User Management afterwards.
+     *
+     * The Credentials path bypasses both gates — its `authorize()` enforces
+     * the existing email+password invariants directly.
+     */
+    async signIn({ user, account, profile }) {
       if (account?.provider !== 'azure-ad') return true;
-      const email = emailFromAzureProfile(profile);
-      if (!email) return false;
-      const user = await findActiveAppUserByEmail(email);
-      return Boolean(user && user.userRoles.length > 0);
-    },
-    async jwt({ token, user, account, profile }) {
-      if (account?.provider === 'azure-ad' && profile) {
-        const email = emailFromAzureProfile(profile);
-        if (email) {
-          const dbUser = await findActiveAppUserByEmail(email);
-          if (dbUser && dbUser.userRoles.length) {
-            applyAuthUserToToken(token as Record<string, unknown>, buildAuthUserFromDbUser(dbUser));
-          }
+
+      const debug = process.env.SSO_DEBUG === 'true';
+
+      const email = user?.email ?? (profile as { email?: string } | undefined)?.email;
+      if (!email) {
+        if (debug) {
+          console.warn('[SSO] reject: no email in profile', {
+            profileKeys: profile ? Object.keys(profile) : null,
+          });
         }
-      } else if (user && account?.provider === 'credentials') {
-        const u = user as {
-          id: string;
-          email: string;
-          name: string;
-          image: string | null;
-          roleId: string;
-          role: string;
-          departmentId: string;
-          access: { menuAccess: MenuAccess; activityAccess: ActivityAccess };
-        };
-        applyAuthUserToToken(token as Record<string, unknown>, {
-          id: u.id,
-          email: u.email,
-          name: u.name,
-          image: u.image,
-          roleId: u.roleId,
-          role: u.role,
-          departmentId: u.departmentId,
-          access: u.access,
+        return false;
+      }
+
+      const groupClaim = (profile as { groups?: unknown } | undefined)?.groups;
+      const allowed = isAuthorizedByEntraGroup(groupClaim);
+
+      if (debug) {
+        const claimSources = (profile as { _claim_sources?: unknown } | undefined)
+          ?._claim_sources;
+        console.log('[SSO] group check', {
+          email,
+          groupsClaimPresent: Array.isArray(groupClaim),
+          groupsCount: Array.isArray(groupClaim) ? groupClaim.length : null,
+          groupsSample: Array.isArray(groupClaim) ? groupClaim.slice(0, 5) : null,
+          hasClaimSources: Boolean(claimSources),
+          allowlistConfigured: Boolean(process.env.AZURE_ALLOWED_GROUP_IDS),
+          allowlistCount: (process.env.AZURE_ALLOWED_GROUP_IDS ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean).length,
+          authorized: allowed,
         });
+      }
+
+      if (!allowed) return false;
+
+      const entraOid =
+        (profile as { oid?: string; sub?: string } | undefined)?.oid ??
+        (profile as { sub?: string } | undefined)?.sub ??
+        null;
+
+      const sessionUser = await provisionOrLoadAzureAdUser({
+        email,
+        name: user?.name ?? (profile as { name?: string } | undefined)?.name ?? null,
+        oid: entraOid,
+      });
+      if (!sessionUser) return false;
+
+      Object.assign(user, {
+        id: sessionUser.id,
+        name: sessionUser.name,
+        email: sessionUser.email,
+        image: sessionUser.image,
+        roleId: sessionUser.roleId,
+        role: sessionUser.role,
+        departmentId: sessionUser.departmentId,
+        access: sessionUser.access,
+      });
+
+      return true;
+    },
+    async jwt({ token, user }) {
+      if (user) {
+        const u = user as SessionUser;
+        token.id = u.id;
+        token.sub = u.id;
+        token.roleId = u.roleId;
+        token.role = u.role;
+        token.departmentId = u.departmentId;
+        token.access = u.access;
       }
       const raw = token.access as
         | { menuAccess?: MenuAccess; activityAccess?: ActivityAccess }
@@ -166,7 +157,10 @@ export const authOptions: AuthOptions = {
       if (raw) {
         token.access = {
           menuAccess: mergeWithDefaultMenuAccess(raw.menuAccess),
-          activityAccess: mergeWithDefaultActivityAccess(raw.activityAccess),
+          activityAccess: mergeWithDefaultActivityAccess(
+            raw.activityAccess,
+            raw.menuAccess,
+          ),
         };
       }
       return token;
@@ -191,8 +185,17 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
-    async redirect() {
-      return '/dashboard';
+    /**
+     * Force every post-sign-in landing to `/dashboard`.
+     *
+     * Must return an ABSOLUTE URL — NextAuth (and the browser's URL
+     * constructor it uses for validation) rejects bare paths like
+     * `/dashboard` with `TypeError: URL constructor: ... is not a valid URL`.
+     * Use the `baseUrl` argument (derived from NEXTAUTH_URL) so this
+     * resolves correctly across local, preview, and production deployments.
+     */
+    async redirect({ baseUrl }) {
+      return `${baseUrl}/dashboard`;
     },
   },
   session: { strategy: 'jwt' as const, maxAge: 30 * 24 * 60 * 60 },

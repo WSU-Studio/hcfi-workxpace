@@ -4,7 +4,18 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import accountOptions from '@/data/accounts.json';
-import { getBudgetPlanUserRoleIds, getNextBudgetPlanApprovalStep } from '@/lib/budget-plan-review-eligibility';
+import {
+  getBudgetPlanUserRoleIds,
+  getNextApprovalStep,
+  isNextStepFinal,
+} from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
+import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
+import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
+import {
+  canEditClassificationFields,
+  pickClassificationFields,
+} from '@/lib/access/classification';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,72 +36,15 @@ type OriginOfficeMasterDelegate = {
   >;
 };
 
-function isValidReviewTransition(currentStatus: string, nextStatus: string) {
-  if (currentStatus === 'Draft') {
-    return ['Reviewed', 'Revision', 'Declined'].includes(nextStatus);
-  }
-  if (currentStatus === 'Reviewed') {
-    return ['Approved', 'Revision', 'Declined'].includes(nextStatus);
-  }
-  return false;
-}
+/**
+ * Allow a reviewer to take any of these actions from a non-terminal status.
+ * Intent normalization happens later — the body status is treated as the
+ * caller's desire, and the actual persisted status is derived from where the
+ * BP is in its multi-step ladder.
+ */
+const REVIEW_INTENT_STATUSES = new Set(['Reviewed', 'Approved', 'Revision', 'Declined']);
+const REVIEWABLE_FROM_STATUSES = new Set(['Draft', 'Pending', 'Reviewed']);
 
-async function resolveNotificationUserIds(planId: string, actorUserId: string) {
-  const plan = await prisma.budgetPlan.findUnique({
-    where: { id: planId },
-    include: { approvalSchema: { include: { approvalLevels: true } } },
-  });
-  if (!plan) return [];
-
-  const roleIds = Array.from(new Set((plan.approvalSchema?.approvalLevels || []).map((l) => l.roleId)));
-
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { id: plan.requestorId || undefined },
-        { roleId: { in: roleIds } },
-        { userRoles: { some: { roleId: { in: roleIds } } } },
-      ],
-    },
-    select: { id: true },
-  });
-
-  return Array.from(new Set(users.map((u) => u.id))).filter((id) => id !== actorUserId);
-}
-
-async function createApprovalNotifications(params: {
-  planId: string;
-  actorUserId: string;
-  status: string;
-  planCode: string;
-  declineReason?: string | null;
-}) {
-  const recipientIds = await resolveNotificationUserIds(params.planId, params.actorUserId);
-  if (!recipientIds.length) return;
-
-  const titleByStatus: Record<string, string> = {
-    Reviewed: 'Budget Plan Reviewed',
-    Approved: 'Budget Plan Approved',
-    Revision: 'Budget Plan Needs Revision',
-    Declined: 'Budget Plan Declined',
-  };
-  const title = titleByStatus[params.status] || 'Budget Plan Updated';
-  const messageBase = `${params.planCode} status changed to ${params.status}.`;
-  const message =
-    params.declineReason && (params.status === 'Revision' || params.status === 'Declined')
-      ? `${messageBase} Reason: ${params.declineReason}`
-      : messageBase;
-
-  await prisma.notification.createMany({
-    data: recipientIds.map((userId) => ({
-      userId,
-      title,
-      message,
-      type: params.status === 'Approved' ? 'success' : params.status === 'Declined' ? 'error' : 'info',
-    })),
-  });
-}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -108,6 +62,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         costCenter: true,
         opex: true,
         opexAllocation: true,
+        _count: { select: { budgetRequests: true } },
       },
     });
     if (!plan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -154,15 +109,60 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     let nextStepOrder: number | null = null;
     if (session?.user?.id && plan.approvalSchema?.approvalLevels?.length) {
       const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
-      const next = getNextBudgetPlanApprovalStep(plan.status, plan.approvalSchema.approvalLevels);
+      const next = getNextApprovalStep(
+        plan.status,
+        plan.approvalSchema.approvalLevels,
+        histories as unknown as BudgetPlanHistoryEntry[],
+      );
       nextStepOrder = next?.stepOrder ?? null;
-      canReview = !!next && userRoleIds.includes(next.roleId);
+      // Defence in depth: requestor can never review their own plan.
+      canReview =
+        !!next &&
+        userRoleIds.includes(next.roleId) &&
+        plan.requestorId !== session.user.id;
     }
+
+    const budgetRequestCount = plan._count?.budgetRequests ?? 0;
+    const isRequestor = !!session?.user?.id && plan.requestorId === session.user.id;
+    const canEdit = isRequestor && budgetRequestCount === 0;
+    const editLockReason = !isRequestor
+      ? null
+      : budgetRequestCount > 0
+        ? `Locked: ${budgetRequestCount} budget request${budgetRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`
+        : null;
+
+    // Realization & Outstanding are sensitive financial figures gated by the
+    // `viewBudgetPlanRealization` activity permission. If the caller lacks it, we
+    // skip both the BR query (saves a roundtrip) and the enrichment, and ship
+    // the plain allocation rows only — defence-in-depth alongside the UI gate.
+    const canViewRealization = Boolean(
+      session?.user?.access?.activityAccess?.viewBudgetPlanRealization,
+    );
+    const enrichedAllocations = canViewRealization
+      ? enrichAllocationsWithRealization(
+          plan.allocations,
+          budgetRequestCount > 0
+            ? await prisma.budgetRequest.findMany({
+                where: { budgetPlanId: id },
+                // `status` is required so the realization bucket can filter
+                // out non-Approved BRs (Draft / Pending / Revision / etc.)
+                // — only fully-approved requests count as realized budget.
+                select: { requestDate: true, grandTotal: true, status: true },
+              })
+            : [],
+          plan.fiscalYear,
+        )
+      : plan.allocations.map((a) => ({
+          month: a.month,
+          allocation: Number(a.allocation ?? 0),
+        }));
 
     return NextResponse.json({
       plan: {
         ...plan,
+        allocations: enrichedAllocations,
         requestorName: requestor?.name ?? null,
+        budgetRequestCount,
       },
       fiscalYears,
       departments,
@@ -177,6 +177,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       originOffices,
       histories,
       reviewMeta: { canReview, nextStepOrder },
+      editMeta: { canEdit, editLockReason, budgetRequestCount },
     });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
@@ -192,11 +193,29 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const body = await request.json();
     const existing = await prisma.budgetPlan.findUnique({
       where: { id },
-      select: { id: true, code: true, requestorId: true, status: true },
+      select: {
+        id: true,
+        code: true,
+        requestorId: true,
+        status: true,
+        _count: { select: { budgetRequests: true } },
+      },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (existing.requestorId !== session.user.id) {
       return NextResponse.json({ error: 'Only requestor can edit this budget plan' }, { status: 403 });
+    }
+    const linkedRequestCount = existing._count?.budgetRequests ?? 0;
+    if (linkedRequestCount > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot edit: ${linkedRequestCount} budget request${linkedRequestCount > 1 ? 's have' : ' has'} been issued against this plan.`,
+        },
+        { status: 409 }
+      );
+    }
+    if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
 
     await prisma.budgetPlan.update({
@@ -265,11 +284,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     });
 
     if (existing.status !== 'Draft') {
-      await createApprovalNotifications({
+      await createBudgetPlanNotifications({
         planId: id,
         actorUserId: session.user.id,
         status: 'Draft',
         planCode: existing.code,
+        variant: 'resubmit',
       });
     }
 
@@ -305,12 +325,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
       if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-      if (['Reviewed', 'Approved', 'Revision', 'Declined'].includes(body.status)) {
-        const levels = before.approvalSchema?.approvalLevels ?? [];
-        const next = getNextBudgetPlanApprovalStep(before.status, levels);
-        if (!isValidReviewTransition(before.status, body.status)) {
+      // Multi-step approval gate. The body's `status` is treated as the
+      // caller's *intent* (Reviewed / Approved = "advance one step";
+      // Revision / Declined = "interrupt and bounce back to the requestor").
+      // The actual persisted status is derived below based on where in the
+      // schema we are, so a 3- or 4-step ladder progresses correctly instead
+      // of getting stuck on step 2 like the old 2-step heuristic.
+      let resolvedStatus: string = body.status;
+      if (REVIEW_INTENT_STATUSES.has(body.status)) {
+        if (!REVIEWABLE_FROM_STATUSES.has(before.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
         }
+        if (before.requestorId === session.user.id) {
+          return NextResponse.json({ error: 'Requestor cannot review own plan' }, { status: 403 });
+        }
+        const levels = before.approvalSchema?.approvalLevels ?? [];
+        const reviewHistories = (await prisma.activityHistory.findMany({
+          where: { entityType: 'BudgetPlan', entityId: id },
+          select: { action: true, details: true, timestamp: true },
+        })) as unknown as BudgetPlanHistoryEntry[];
+        const next = getNextApprovalStep(before.status, levels, reviewHistories);
         if (!next) {
           return NextResponse.json({ error: 'No available review step' }, { status: 400 });
         }
@@ -318,19 +352,54 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (!userRoleIds.includes(next.roleId)) {
           return NextResponse.json({ error: 'You are not allowed to review at this stage' }, { status: 403 });
         }
+        if (body.status === 'Reviewed' || body.status === 'Approved') {
+          // Approve intent → land on `Approved` only if this is the final
+          // step; otherwise advance one rung to `Reviewed`.
+          resolvedStatus = isNextStepFinal(before.status, levels, reviewHistories)
+            ? 'Approved'
+            : 'Reviewed';
+        }
+        // For Revision / Declined we just persist the body status as-is.
       }
+      body.status = resolvedStatus;
+
+      // Defense in depth: the UI renders the Classification section as
+      // read-only for users without `editClassificationSection`, but a
+      // direct PATCH could still try to slip those fields in. Project the
+      // incoming body onto either the caller-supplied overrides (allowed)
+      // or the persisted values (not allowed) so the approve/decline flow
+      // still succeeds without partially overwriting accounting tags.
+      const classification = pickClassificationFields(
+        {
+          coaId: body.coaId,
+          categoryId: body.categoryId,
+          categoryKeyIndexId: body.categoryKeyIndexId,
+          costCenterId: body.costCenterId,
+          opexType: body.opexType,
+          opexAllocationId: body.opexAllocationId,
+        },
+        {
+          coaId: before.coaId,
+          categoryId: before.categoryId,
+          categoryKeyIndexId: before.categoryKeyIndexId,
+          costCenterId: before.costCenterId,
+          opexType: before.opexType,
+          opexAllocationId: before.opexAllocationId,
+        },
+        canEditClassificationFields(session),
+      );
 
       const updated = await prisma.budgetPlan.update({
         where: { id },
         data: {
           status: body.status,
-          coaId: body.coaId ?? undefined,
-          categoryId: body.categoryId ?? undefined,
-          categoryKeyIndexId: body.categoryKeyIndexId ?? undefined,
-          costCenterId: body.costCenterId ?? undefined,
+          coaId: classification.coaId,
+          categoryId: classification.categoryId,
+          categoryKeyIndexId: classification.categoryKeyIndexId,
+          costCenterId: classification.costCenterId,
           opexId: null,
-          opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId ?? undefined : null,
-          opexType: body.opexType ?? undefined,
+          opexAllocationId: classification.opexAllocationId,
+          opexType: classification.opexType,
         },
         select: {
           status: true,
@@ -401,9 +470,34 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
       });
 
+      // For Review / Approve intents we ALWAYS persist the post-action status
+      // in the history entry — even when the DB column didn't actually
+      // change. In a multi-step ladder the same `Reviewed` status can carry
+      // across several reviewer steps (step 2 of a 4-step schema lands on
+      // `Reviewed` just like step 1 did), and the diff-only loop above would
+      // otherwise drop the event entirely. Downstream helpers
+      // (`getMultiStepApprovalProgress`, `countCompletedApprovalSteps`)
+      // detect "this reviewer step is done" by reading status off history
+      // entries; a blank `currentState` would silently freeze the escalation
+      // table on the previous step. See BR/PR `approve/route.ts` for the
+      // equivalent flat `details.status` pattern that has always worked.
+      if (body.status === 'Reviewed' || body.status === 'Approved') {
+        previousState.status = beforeState.status ?? null;
+        currentState.status = afterState.status ?? null;
+      }
+
       if (body.declineReason !== undefined) {
+        const trimmedDeclineReason =
+          typeof body.declineReason === 'string' ? body.declineReason.trim() || null : null;
         previousState.declineReason = null;
-        currentState.declineReason = body.declineReason ?? null;
+        currentState.declineReason = trimmedDeclineReason;
+      }
+      let approvalNoteForHistory: string | null | undefined;
+      if (body.approvalNote !== undefined) {
+        approvalNoteForHistory =
+          typeof body.approvalNote === 'string' ? body.approvalNote.trim() || null : null;
+        previousState.approvalNote = null;
+        currentState.approvalNote = approvalNoteForHistory;
       }
       const allocationAdjustmentNote = allocationAdjusted
         ? body.status === 'Approved'
@@ -426,10 +520,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           previousState,
           currentState,
           allocationAdjustmentNote,
+          ...(body.declineReason !== undefined
+            ? {
+                declineReason:
+                  typeof body.declineReason === 'string' ? body.declineReason.trim() || null : null,
+              }
+            : {}),
+          ...(approvalNoteForHistory !== undefined ? { approvalNote: approvalNoteForHistory } : {}),
         },
       });
 
-      await createApprovalNotifications({
+      await createBudgetPlanNotifications({
         planId: id,
         actorUserId: session.user.id,
         status: body.status,

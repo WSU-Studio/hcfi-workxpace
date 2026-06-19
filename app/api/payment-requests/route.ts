@@ -6,12 +6,15 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import {
-  canUserActOnCurrentBudgetRequestStep,
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
 } from '@/lib/budget-plan-review-eligibility';
+import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
+import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
+import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
 import {
   classificationToStored,
   mergeStoredClassification,
@@ -36,21 +39,37 @@ type PaymentRequestListRow = Prisma.PaymentRequestGetPayload<{
   include: typeof paymentRequestListInclude;
 }>;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const { searchParams } = new URL(request.url);
+
+    // Cross-department view scope: applies both to the PR list and to the
+    // "link BR" dropdown so visibility rules stay consistent across the page.
+    const departmentScope = buildDepartmentScope(session);
+    // Optional fiscal-year scope (driven by the FY filter dropdown). Applied
+    // only to the PR list — the BR picker dropdown stays unrestricted by FY
+    // so users can link to any approved BR they have access to.
+    const fiscalYearFilter = parseFiscalYearParam(searchParams.get('fiscalYear'));
+    const prListWhere = {
+      ...(departmentScope ?? {}),
+      ...(fiscalYearFilter !== null && fiscalYearFilter !== ALL_FISCAL_YEARS
+        ? { fiscalYear: fiscalYearFilter }
+        : {}),
+    };
 
     // Load approved BRs independently so the PR "link BR" dropdown still works if the payment list query fails
     // (e.g. schema drift on payment_requests / line_items) — previously a thrown findMany hid all BR options.
     const [prSettled, brSettled] = await Promise.allSettled([
       prisma.paymentRequest.findMany({
+        where: Object.keys(prListWhere).length > 0 ? prListWhere : undefined,
         include: paymentRequestListInclude,
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
       prisma.budgetRequest.findMany({
-        where: { status: { equals: 'Approved', mode: 'insensitive' } },
+        where: { status: { equals: 'Approved', mode: 'insensitive' }, ...(departmentScope ?? {}) },
         select: {
           id: true,
           code: true,
@@ -131,6 +150,22 @@ async function serializePaymentRequestList(
     : [];
   const requestorNameMap = new Map(requestorUsers.map((user) => [user.id, user.name]));
 
+  // Batched history lookup for accurate multi-step `canReview` — see BR list
+  // route for the rationale; single query keyed by entityId.
+  const rowIds = rows.map((row) => row.id);
+  const allHistories = rowIds.length
+    ? await prisma.activityHistory.findMany({
+        where: { entityType: 'PaymentRequest', entityId: { in: rowIds } },
+        select: { entityId: true, action: true, details: true, timestamp: true },
+      })
+    : [];
+  const historiesByEntity = new Map<string, BudgetPlanHistoryEntry[]>();
+  for (const h of allHistories) {
+    const bucket = historiesByEntity.get(h.entityId) ?? [];
+    bucket.push(h as unknown as BudgetPlanHistoryEntry);
+    historiesByEntity.set(h.entityId, bucket);
+  }
+
   return rows.map(({ approvalSchema, lineItems, ...r }) => ({
     ...r,
     amount: Number(r.amount),
@@ -143,9 +178,10 @@ async function serializePaymentRequestList(
     canEdit: !!session?.user?.id && r.requestorId === session.user.id,
     canReview:
       !!session?.user?.id &&
-      canUserActOnCurrentBudgetRequestStep({
-        requestStatus: r.status,
+      canUserActOnCurrentStep({
+        status: r.status,
         approvalLevels: approvalSchema?.approvalLevels ?? [],
+        histories: historiesByEntity.get(r.id) ?? [],
         userRoleIds,
         requestorId: r.requestorId ?? null,
         actorUserId: session.user.id,
@@ -168,6 +204,7 @@ export async function POST(req: Request) {
       budgetRequestId,
       currency,
       payeeName,
+      bankAccount,
       paymentPurpose,
       fiscalYear: bodyFiscalYear,
       originOffice: bodyOriginOffice,
@@ -176,6 +213,9 @@ export async function POST(req: Request) {
 
     if (!subject || typeof subject !== 'string' || !payeeName || typeof payeeName !== 'string') {
       return NextResponse.json({ error: 'Missing required fields (subject, payee)' }, { status: 400 });
+    }
+    if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
+      return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
@@ -274,6 +314,16 @@ export async function POST(req: Request) {
           : null;
     }
 
+    // Defense in depth: enforce the cross-department permission server-side.
+    // Ran here because `resolvedDepartmentId` may have been overridden by the
+    // linked Budget Request (BR.departmentId is the source of truth when a BR
+    // is selected). Users without permission cannot back-door into another
+    // department by selecting an Approved BR from elsewhere.
+    const departmentVerdict = assertCanActOnDepartment(session, resolvedDepartmentId);
+    if (!departmentVerdict.ok) {
+      return NextResponse.json({ error: departmentVerdict.message }, { status: 403 });
+    }
+
     const dept = await prisma.department.findUnique({ where: { id: resolvedDepartmentId } });
     if (!dept) {
       return NextResponse.json({ error: 'Department not found' }, { status: 400 });
@@ -315,6 +365,7 @@ export async function POST(req: Request) {
         invoiceAmount: normalizedInvoiceAmount,
         currency: typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'IDR',
         payeeName: payeeName.trim(),
+        bankAccount: typeof bankAccount === 'string' && bankAccount.trim() ? bankAccount.trim() : null,
         paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
         notes: typeof notes === 'string' ? notes : null,
         approvalSchemaId: approvalSchemaId || null,
@@ -351,6 +402,7 @@ export async function POST(req: Request) {
         totalAmount,
         currency: pr.currency,
         payeeName: pr.payeeName,
+        bankAccount: pr.bankAccount ? '***' : null,
         departmentName: pr.department?.name ?? null,
         budgetRequestCode: pr.budgetRequest?.code ?? null,
         approvalSchemaId: pr.approvalSchemaId,
