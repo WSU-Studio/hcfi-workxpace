@@ -1,3 +1,5 @@
+import type { ApprovalSchemaOption } from '@/lib/approval-schema';
+
 export const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -20,7 +22,7 @@ export interface BudgetPlanFormOptions {
   departments: { id: string; name: string; code: string }[];
   projects: { id: string; name: string; code: string }[];
   originOffices: { code: string; name: string; isActive: boolean }[];
-  approvalSchemas: { id: string; name: string; departmentId: string }[];
+  approvalSchemas: ApprovalSchemaOption[];
 }
 
 export interface BudgetPlanAllocationInput {

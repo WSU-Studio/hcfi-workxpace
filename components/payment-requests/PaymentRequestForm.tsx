@@ -1,7 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import ButtonLink from '@/components/ui/ButtonLink';
+import ApprovalSchemaLevelsPreview from '@/components/approval/ApprovalSchemaLevelsPreview';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import RichTextEditor from '@/components/ui/RichTextEditor';
@@ -17,6 +19,7 @@ import {
   PaymentRequestFormValues,
   PaymentRequestTaxSummary,
 } from '@/lib/payment-requests/form';
+import { sortApprovalLevels } from '@/lib/approval-schema';
 
 export interface PaymentRequestFormProps {
   mode: 'create' | 'edit';
@@ -80,6 +83,14 @@ export default function PaymentRequestForm({
   const schemasForDept = approvalSchemas.filter(
     (schema) => schema.departmentId === formData.departmentId,
   );
+
+  const selectedApprovalLevels = useMemo(() => {
+    if (!formData.approvalSchemaId) return [];
+    const selectedSchema = approvalSchemas.find(
+      (schema) => schema.id === formData.approvalSchemaId,
+    );
+    return sortApprovalLevels(selectedSchema?.approvalLevels ?? []);
+  }, [approvalSchemas, formData.approvalSchemaId]);
 
   const fiscalYearOptions =
     fiscalYears.length > 0 ? fiscalYears : [{ year: new Date().getFullYear() }];
@@ -351,6 +362,9 @@ export default function PaymentRequestForm({
           <p className="mt-1.5 text-xs text-amber-600">
             No approval schema is configured for the selected department.
           </p>
+        ) : null}
+        {formData.approvalSchemaId ? (
+          <ApprovalSchemaLevelsPreview levels={selectedApprovalLevels} className="mt-3" />
         ) : null}
       </div>
 

@@ -1,3 +1,4 @@
+import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -71,7 +72,7 @@ export interface PaymentRequestFormOptions {
   departments: { id: string; name: string; code: string }[];
   projects: { id: string; name: string; code: string }[];
   originOffices: { code: string; name: string; isActive: boolean }[];
-  approvalSchemas: { id: string; name: string; departmentId: string }[];
+  approvalSchemas: ApprovalSchemaOption[];
   categoryOptions: ClassificationOption[];
   categoryKeyIndexOptions: ClassificationOption[];
   costCenterOptions: ClassificationOption[];
