@@ -14,6 +14,7 @@ import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { PenSquare } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -57,6 +58,7 @@ export default function ReviewBudgetPlanPage() {
     details: {
       status?: string;
       declineReason?: string | null;
+      approvalNote?: string | null;
       allocationAdjustmentNote?: string | null;
     } | null;
     timestamp: string;
@@ -78,6 +80,7 @@ export default function ReviewBudgetPlanPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -141,6 +144,11 @@ export default function ReviewBudgetPlanPage() {
     setDeclineReason('');
   };
 
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
+
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
@@ -152,6 +160,7 @@ export default function ReviewBudgetPlanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'Approved',
+          approvalNote: approvalNote.trim() || null,
           coaId: classification.coaId || null,
           categoryId: classification.categoryId || null,
           categoryKeyIndexId: classification.categoryKeyIndexId || null,
@@ -166,7 +175,7 @@ export default function ReviewBudgetPlanPage() {
         }),
       });
       if (res.ok) {
-        setIsApproveModalOpen(false);
+        closeApproveModal();
         router.push(`/budget-plans/${id}`);
       }
     } finally {
@@ -479,6 +488,19 @@ export default function ReviewBudgetPlanPage() {
               </tbody>
             </Table>
 
+            {(() => {
+              const stepProgresses = getMultiStepApprovalProgress(
+                plan.approvalSchema!.approvalLevels,
+                histories,
+              );
+              return (
+                <ApprovalStepNotesList
+                  levels={plan.approvalSchema!.approvalLevels}
+                  stepProgresses={stepProgresses}
+                />
+              );
+            })()}
+
             {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
               <div className="flex justify-end gap-3 pt-4">
                 <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
@@ -554,19 +576,25 @@ export default function ReviewBudgetPlanPage() {
 
       <Modal
         isOpen={isApproveModalOpen}
-        onClose={() => setIsApproveModalOpen(false)}
+        onClose={closeApproveModal}
         closeOnEscape={!isSubmitting}
         overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
-        panelClassName="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
       >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this budget plan?
             </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsApproveModalOpen(false)}
+                onClick={closeApproveModal}
                 className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -603,6 +631,9 @@ export default function ReviewBudgetPlanPage() {
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {history.details?.approvalNote ? (
+                  <p className="text-gray-600">Note: {history.details.approvalNote}</p>
                 ) : null}
                 {history.details?.allocationAdjustmentNote ? (
                   <p className="text-amber-700">

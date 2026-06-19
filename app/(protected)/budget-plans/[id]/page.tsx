@@ -18,6 +18,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
 import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
@@ -447,6 +448,20 @@ export default function BudgetPlanDetailPage() {
               </tbody>
             </Table>
 
+            {(() => {
+              const stepProgresses = getMultiStepApprovalProgress(
+                plan.approvalSchema!.approvalLevels,
+                histories,
+              );
+              return (
+                <ApprovalStepNotesList
+                  levels={plan.approvalSchema!.approvalLevels}
+                  stepProgresses={stepProgresses}
+                  className="print:hidden"
+                />
+              );
+            })()}
+
             <div className="hidden print:block">
               {(() => {
                 const approvalLevels = plan.approvalSchema!.approvalLevels;
@@ -577,6 +592,7 @@ export default function BudgetPlanDetailPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {history.details?.approvalNote ? <p className="text-gray-600">Note: {history.details.approvalNote}</p> : null}
                 {(history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote) ? (
                   <p className="text-amber-700">
                     {history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote}
