@@ -1,26 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { logActivity } from '@/lib/activity';
-import { syncAllUsersFromConfins } from '@/lib/confins/employee-sync';
+import {
+  logConfinsEmployeeSyncFailure,
+  runConfinsEmployeeSync,
+} from '@/lib/confins/run-employee-sync';
 import { verifyCronSecret } from '@/lib/cron/verify-cron-secret';
-import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
-
-const SYNC_ENTITY_TYPE = 'ConfinsSyncEmployees';
-
-async function resolveActivityUserId(): Promise<string | null> {
-  const admin = await prisma.user.findFirst({
-    where: {
-      isActive: true,
-      userRoles: { some: { role: { roleCode: 'ADMIN' } } },
-    },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  return admin?.id ?? null;
-}
 
 /**
  * Scheduled Confins → Workxpace employee sync.
@@ -44,48 +31,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const summary = await syncAllUsersFromConfins();
-
-    const activityUserId = await resolveActivityUserId();
-    if (activityUserId) {
-      await logActivity({
-        userId: activityUserId,
-        entityType: SYNC_ENTITY_TYPE,
-        entityId: 'confins-employees',
-        entityCode: 'CONFINS-EMPLOYEES',
-        action: 'update',
-        details: {
-          status: 'success',
-          trigger: 'cron',
-          summary,
-        },
-      });
-    }
-
+    const { summary } = await runConfinsEmployeeSync({ trigger: 'cron' });
     console.log('[CRON] Confins employee sync completed', summary);
-
     return NextResponse.json({ success: true, summary });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Sync failed';
-
-    const activityUserId = await resolveActivityUserId();
-    if (activityUserId) {
-      await logActivity({
-        userId: activityUserId,
-        entityType: SYNC_ENTITY_TYPE,
-        entityId: 'confins-employees',
-        entityCode: 'CONFINS-EMPLOYEES',
-        action: 'update',
-        details: {
-          status: 'failed',
-          trigger: 'cron',
-          error: message,
-        },
-      });
-    }
-
+    await logConfinsEmployeeSyncFailure({ trigger: 'cron', error: message });
     console.error('[CRON] Confins employee sync failed', message);
-
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

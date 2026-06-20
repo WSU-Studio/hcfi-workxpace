@@ -22,6 +22,17 @@ Authorization: Bearer {CRON_SECRET}
 Content-Type: application/json
 ```
 
+### Manual sync (User Management UI)
+
+Admins with `editUser` or `changeAccess` can trigger the same sync from **User Management → Sync from Confins**.
+
+```
+POST /api/user-management/sync-confins
+Cookie: session (NextAuth)
+```
+
+Both paths call the same `runConfinsEmployeeSync()` logic.
+
 **Success response:**
 
 ```json

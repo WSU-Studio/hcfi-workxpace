@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import SearchInput from '@/components/ui/SearchInput';
 import { formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
@@ -40,6 +41,10 @@ export default function UserManagementPage() {
   const canEditUser = Boolean(session?.user?.access?.activityAccess?.editUser);
   const canDeleteUser = Boolean(session?.user?.access?.activityAccess?.deleteUser);
   const canChangeAccess = Boolean(session?.user?.access?.activityAccess?.changeAccess);
+  const canSyncFromConfins = canEditUser || canChangeAccess;
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -52,6 +57,40 @@ export default function UserManagementPage() {
     const list = data.users ?? [];
     setUsers(list);
     setFilteredUsers(list);
+  };
+
+  const runConfinsSync = async () => {
+    setSyncMessage(null);
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/user-management/sync-confins', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncMessage(data.error ?? 'Sync from Confins failed');
+        return;
+      }
+
+      const summary = data.summary as
+        | {
+            totalUsers: number;
+            matchedInConfins: number;
+            updated: number;
+            unchanged: number;
+            notInConfins: number;
+          }
+        | undefined;
+
+      setSyncMessage(
+        summary
+          ? `Sync selesai: ${summary.updated} user diperbarui dari Confins (${summary.matchedInConfins}/${summary.totalUsers} match, ${summary.notInConfins} tidak ada di Confins).`
+          : 'Sync from Confins berhasil.',
+      );
+      await fetchUsers();
+    } catch {
+      setSyncMessage('Sync from Confins failed');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   useEffect(() => {
@@ -168,13 +207,34 @@ export default function UserManagementPage() {
             ))}
           </select>
         </div>
-        {canCreateUser && (
-          <Link href="/user-management/new" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-            <Plus className="h-4 w-4" />
-            Add User
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {canSyncFromConfins && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={runConfinsSync}
+              disabled={isSyncing}
+              title="Update employee ID and department from Confins for users whose email exists in Confins"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Sync from Confins'}
+            </Button>
+          )}
+
+          {canCreateUser && (
+            <Link href="/user-management/new" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+              <Plus className="h-4 w-4" />
+              Add User
+            </Link>
+          )}
+        </div>
       </div>
+
+      {syncMessage && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {syncMessage}
+        </div>
+      )}
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-600">{error}</div>}
 
