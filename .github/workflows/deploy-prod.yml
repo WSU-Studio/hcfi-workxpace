@@ -45,6 +45,7 @@ jobs:
           echo "" >> .env
           echo "NEXTAUTH_URL=\"${{ secrets.NEXTAUTH_URL }}\"" >> .env
           echo "NEXTAUTH_SECRET=\"${{ secrets.NEXTAUTH_SECRET }}\"" >> .env
+          echo "CRON_SECRET=\"${{ secrets.CRON_SECRET }}\"" >> .env
           echo "" >> .env
           echo "NODE_ENV=production" >> .env
   

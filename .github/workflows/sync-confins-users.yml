@@ -1,0 +1,48 @@
+# Sync Confins Employees (Option A — GitHub Actions scheduler)
+#
+# Calls the same API endpoint used by Option B (server crontab). To migrate:
+#   1. Set up crontab on the HCFI production server (see docs/ops/confins-user-sync.md)
+#   2. Disable or delete this workflow's `schedule` trigger
+#
+# Required GitHub Secrets (production environment):
+#   - NEXTAUTH_URL   e.g. https://ebudget.hyundaicapital.co.id
+#   - CRON_SECRET    shared bearer token (must match production .env)
+
+name: Sync Confins Employees
+
+on:
+  schedule:
+    # 02:00 WIB = 19:00 UTC (previous calendar day)
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Trigger Confins employee sync
+        env:
+          SYNC_URL: ${{ secrets.NEXTAUTH_URL }}/api/cron/sync-confins-employees
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Error: CRON_SECRET is not set in GitHub environment secrets."
+            exit 1
+          fi
+
+          echo "Calling $SYNC_URL"
+          response=$(curl -sf -w "\n%{http_code}" -X POST "$SYNC_URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP $http_code"
+          echo "$body"
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            exit 1
+          fi
