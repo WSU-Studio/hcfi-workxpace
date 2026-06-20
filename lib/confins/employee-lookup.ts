@@ -42,19 +42,21 @@ type ConfinsBizUnitRow = {
 };
 
 export interface ConfinsEmployeeProfile {
-  /** True when a row matched the Entra email on `Username`. */
   found: boolean;
   empNo: string | null;
   businessUnitName: string | null;
-  /** Resolved Workxpace `departments.id`, when mapping succeeded. */
   departmentId: string | null;
 }
 
-function normalizeEmail(value: string): string {
+export type DepartmentIdResolver = (businessUnitName: string) => Promise<string | null>;
+
+export function normalizeConfinsEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function pickBusinessUnitName(roles: ConfinsEmployeeRole[] | null | undefined): string | null {
+export function pickBusinessUnitName(
+  roles: ConfinsEmployeeRole[] | null | undefined,
+): string | null {
   if (!Array.isArray(roles) || roles.length === 0) return null;
   const activeRole =
     roles.find((role) => role.IsActive !== false && role.BusinessUnitName?.trim()) ??
@@ -78,9 +80,18 @@ async function postWithFallback<T>(
   throw lastError instanceof Error ? lastError : new Error('Confins request failed');
 }
 
-async function fetchEmployees(client: ConfinsClient): Promise<ConfinsEmployeeRow[]> {
+/**
+ * Fetch the full Confins employee master list.
+ *
+ * SSO login uses a short TTL cache; the daily batch sync passes
+ * `{ bypassCache: true }` to always read fresh data.
+ */
+export async function fetchAllConfinsEmployees(
+  client: ConfinsClient,
+  options?: { bypassCache?: boolean },
+): Promise<ConfinsEmployeeRow[]> {
   const now = Date.now();
-  if (cachedEmployees && now < cacheExpiresAt) {
+  if (!options?.bypassCache && cachedEmployees && now < cacheExpiresAt) {
     return cachedEmployees;
   }
 
@@ -88,50 +99,85 @@ async function fetchEmployees(client: ConfinsClient): Promise<ConfinsEmployeeRow
     IsActive: '0',
   });
 
-  cachedEmployees = rows;
-  cacheExpiresAt = now + CACHE_TTL_MS;
+  if (!options?.bypassCache) {
+    cachedEmployees = rows;
+    cacheExpiresAt = now + CACHE_TTL_MS;
+  }
+
   return rows;
+}
+
+/** Index Confins employees by normalized `Username` (corporate email). */
+export function buildConfinsEmployeeEmailMap(
+  employees: ConfinsEmployeeRow[],
+): Map<string, ConfinsEmployeeRow> {
+  const map = new Map<string, ConfinsEmployeeRow>();
+  for (const row of employees) {
+    const email = normalizeConfinsEmail(String(row.Username ?? ''));
+    if (!email) continue;
+    map.set(email, row);
+  }
+  return map;
+}
+
+/**
+ * Preload department name → Workxpace ID mapping for batch sync.
+ *
+ * Combines existing DB rows with Confins BizUnit master so repeated lookups
+ * during a sync run don't hit the database/API per user.
+ */
+export async function createDepartmentIdResolver(
+  client: ConfinsClient,
+): Promise<DepartmentIdResolver> {
+  const [dbDepartments, bizUnits] = await Promise.all([
+    prisma.department.findMany({ select: { id: true, name: true, code: true } }),
+    postWithFallback<ConfinsBizUnitRow>(client, DEFAULT_BIZ_UNIT_PATHS, {
+      IsActive: '0',
+    }),
+  ]);
+
+  const byName = new Map<string, string>();
+  for (const dept of dbDepartments) {
+    byName.set(dept.name.trim().toLowerCase(), dept.id);
+  }
+
+  for (const unit of bizUnits) {
+    const code = String(unit.BizUnitCode ?? '').trim();
+    const name = String(unit.BizUnitName ?? '').trim();
+    if (!code || !name) continue;
+
+    const key = name.toLowerCase();
+    if (byName.has(key)) continue;
+
+    const department = await prisma.department.upsert({
+      where: { code },
+      update: {
+        name,
+        description: 'Synced from Confins (employee sync)',
+      },
+      create: {
+        code,
+        name,
+        description: 'Synced from Confins (employee sync)',
+      },
+      select: { id: true, name: true },
+    });
+    byName.set(department.name.trim().toLowerCase(), department.id);
+  }
+
+  return async (businessUnitName: string) => {
+    const normalized = businessUnitName.trim().toLowerCase();
+    if (!normalized) return null;
+    return byName.get(normalized) ?? null;
+  };
 }
 
 async function resolveDepartmentIdByBusinessUnitName(
   businessUnitName: string,
   client: ConfinsClient,
 ): Promise<string | null> {
-  const normalized = businessUnitName.trim();
-  if (!normalized) return null;
-
-  const existing = await prisma.department.findFirst({
-    where: { name: { equals: normalized, mode: 'insensitive' } },
-    select: { id: true },
-  });
-  if (existing) return existing.id;
-
-  const bizUnits = await postWithFallback<ConfinsBizUnitRow>(
-    client,
-    DEFAULT_BIZ_UNIT_PATHS,
-    { IsActive: '0' },
-  );
-
-  const match = bizUnits.find(
-    (row) => row.BizUnitName?.trim().toLowerCase() === normalized.toLowerCase(),
-  );
-  if (!match?.BizUnitCode || !match.BizUnitName) return null;
-
-  const department = await prisma.department.upsert({
-    where: { code: String(match.BizUnitCode).trim() },
-    update: {
-      name: String(match.BizUnitName).trim(),
-      description: 'Synced from Confins (SSO provisioning)',
-    },
-    create: {
-      code: String(match.BizUnitCode).trim(),
-      name: String(match.BizUnitName).trim(),
-      description: 'Synced from Confins (SSO provisioning)',
-    },
-    select: { id: true },
-  });
-
-  return department.id;
+  const resolver = await createDepartmentIdResolver(client);
+  return resolver(businessUnitName);
 }
 
 /**
@@ -142,23 +188,22 @@ async function resolveDepartmentIdByBusinessUnitName(
  * Mapped fields:
  *   - `EmpNo` → Workxpace `users.employeeId`
  *   - `Roles[].BusinessUnitName` → Workxpace `users.departmentId`
- *     (matched by department name, with on-demand BizUnit sync if missing)
  *
  * Name stays from Entra per Hyundai requirement — `EmpName` is ignored here.
  */
 export async function lookupConfinsEmployeeByEmail(
   email: string,
 ): Promise<ConfinsEmployeeProfile> {
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = normalizeConfinsEmail(email);
   if (!normalizedEmail) {
     return { found: false, empNo: null, businessUnitName: null, departmentId: null };
   }
 
   try {
     const client = new ConfinsClient();
-    const employees = await fetchEmployees(client);
+    const employees = await fetchAllConfinsEmployees(client);
     const row = employees.find(
-      (employee) => normalizeEmail(String(employee.Username ?? '')) === normalizedEmail,
+      (employee) => normalizeConfinsEmail(String(employee.Username ?? '')) === normalizedEmail,
     );
 
     if (!row) {

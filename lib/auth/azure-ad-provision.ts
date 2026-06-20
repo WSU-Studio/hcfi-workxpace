@@ -10,7 +10,7 @@ import {
   loadSessionUserByEmail,
   type SessionUser,
 } from '@/lib/auth/session-user';
-import { lookupConfinsEmployeeByEmail } from '@/lib/confins/employee-lookup';
+import { lookupConfinsEmployeeByEmail, normalizeConfinsEmail } from '@/lib/confins/employee-lookup';
 
 /**
  * Codes used for the placeholder role / department that auto-provisioned
@@ -248,7 +248,7 @@ async function resolveEmployeeId(
     where: { employeeId: candidate },
     select: { email: true },
   });
-  if (taken && normalizeEmail(taken.email) !== normalizeEmail(email)) {
+  if (taken && normalizeConfinsEmail(taken.email) !== normalizeConfinsEmail(email)) {
     if (process.env.SSO_DEBUG === 'true') {
       console.warn('[SSO] Confins EmpNo already assigned to another user', {
         empNo: candidate,
@@ -259,10 +259,6 @@ async function resolveEmployeeId(
   }
 
   return candidate;
-}
-
-function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
 }
 
 /** Re-exported so other modules don't need to import constants separately. */
