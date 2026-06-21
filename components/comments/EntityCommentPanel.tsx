@@ -290,7 +290,7 @@ export default function EntityCommentPanel({
           type="button"
           onClick={() => setActiveTab('comment')}
           className={cn(
-            'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+            'flex-1 px-4 py-3 text-sm font-medium transition-colors cursor-pointer',
             activeTab === 'comment'
               ? 'border-b-2 border-blue-600 text-blue-600'
               : 'text-gray-500 hover:text-gray-700',
@@ -302,7 +302,7 @@ export default function EntityCommentPanel({
           type="button"
           onClick={() => setActiveTab('approval')}
           className={cn(
-            'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+            'flex-1 px-4 py-3 text-sm font-medium transition-colors cursor-pointer',
             activeTab === 'approval'
               ? 'border-b-2 border-blue-600 text-blue-600'
               : 'text-gray-500 hover:text-gray-700',
@@ -312,20 +312,20 @@ export default function EntityCommentPanel({
         </button>
       </div>
 
+      <div className="shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 rounded-lg bg-white p-2 text-gray-500 shadow-sm">
+            <ClipboardList className="h-4 w-4" aria-hidden />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Approval Status</p>
+            <p className="text-sm font-semibold text-gray-900">{statusDisplay.label}</p>
+          </div>
+        </div>
+      </div>
+
       {activeTab === 'comment' ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 rounded-lg bg-white p-2 text-gray-500 shadow-sm">
-                <ClipboardList className="h-4 w-4" aria-hidden />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Approval Status</p>
-                <p className="text-sm font-semibold text-gray-900">{statusDisplay.label}</p>
-              </div>
-            </div>
-          </div>
-
           <div className="shrink-0 border-b border-gray-100 px-4 py-3">
             <label htmlFor={inputId} className="mb-2 block text-sm font-semibold text-gray-900">
               Comment
@@ -444,11 +444,6 @@ export default function EntityCommentPanel({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Approval Status</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{statusDisplay.label}</p>
-          </div>
-
           {approvalLevels.length === 0 ? (
             <p className="text-sm text-gray-500">No approval schema configured.</p>
           ) : (
@@ -456,7 +451,7 @@ export default function EntityCommentPanel({
               {approvalLevels.map((level, index) => {
                 const progress = stepProgresses[index];
                 return (
-                  <div key={`${level.stepOrder}-${index}`} className="rounded-lg border border-gray-100 p-3">
+                  <div key={`${level.stepOrder}-${index}`} className="rounded-lg border border-gray-200 p-3 hover:shadow-sm transition-shadow duration-400">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-gray-900">
                         Step {level.stepOrder}: {level.role?.roleName ?? '-'}
