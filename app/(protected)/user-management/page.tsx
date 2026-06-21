@@ -13,6 +13,9 @@ import { formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import UserActions from './components/UserActions';
 import { UserListItem } from '@/types/user-management';
+import { isConfinsEmployeeSyncEnabled } from '@/lib/deployment/tenant-features';
+
+const confinsEmployeeSyncEnabled = isConfinsEmployeeSyncEnabled();
 
 const STATUS_FILTERS = ['All', 'Active', 'Inactive'] as const;
 const SORT_OPTIONS = [
@@ -41,7 +44,8 @@ export default function UserManagementPage() {
   const canEditUser = Boolean(session?.user?.access?.activityAccess?.editUser);
   const canDeleteUser = Boolean(session?.user?.access?.activityAccess?.deleteUser);
   const canChangeAccess = Boolean(session?.user?.access?.activityAccess?.changeAccess);
-  const canSyncFromConfins = canEditUser || canChangeAccess;
+  const canSyncFromConfins =
+    confinsEmployeeSyncEnabled && (canEditUser || canChangeAccess);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);

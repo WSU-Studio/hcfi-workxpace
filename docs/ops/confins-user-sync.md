@@ -24,6 +24,9 @@ Content-Type: application/json
 
 ### Manual sync (User Management UI)
 
+**Hyundai/HCFI deployments only** — requires `NEXT_PUBLIC_DEPLOYMENT_TENANT=hyundaicapital` at build time.
+Other tenant deployments do not show the button and the manual API returns 404.
+
 Admins with `editUser` or `changeAccess` can trigger the same sync from **User Management → Sync from Confins**.
 
 ```

@@ -42,6 +42,7 @@ jobs:
           echo "AZURE_CLIENT_SECRET=\"${{ secrets.AZURE_CLIENT_SECRET }}\"" >> .env
           echo "AZURE_ALLOWED_GROUP_IDS=\"${{ secrets.AZURE_ALLOWED_GROUP_IDS }}\"" >> .env
           echo "NEXT_PUBLIC_AZURE_AD_SSO_ENABLED=${{ secrets.NEXT_PUBLIC_AZURE_AD_SSO_ENABLED }}" >> .env
+          echo "NEXT_PUBLIC_DEPLOYMENT_TENANT=\"${{ secrets.NEXT_PUBLIC_DEPLOYMENT_TENANT }}\"" >> .env
           echo "" >> .env
           echo "NEXTAUTH_URL=\"${{ secrets.NEXTAUTH_URL }}\"" >> .env
           echo "NEXTAUTH_SECRET=\"${{ secrets.NEXTAUTH_SECRET }}\"" >> .env
