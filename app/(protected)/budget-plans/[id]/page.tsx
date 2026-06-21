@@ -24,6 +24,7 @@ import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
 import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
+import BudgetPlanCommentPanel from '@/components/budget-plans/BudgetPlanCommentPanel';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -205,7 +206,8 @@ export default function BudgetPlanDetailPage() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6 print:max-w-none">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
+      <div className="min-w-0 flex-1 space-y-6 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
         <div className="flex flex-wrap items-center gap-2">
@@ -614,6 +616,16 @@ export default function BudgetPlanDetailPage() {
           router.push(`/budget-plans/${id}/edit`);
         }}
       />
+      </div>
+
+      <aside className="w-full shrink-0 xl:w-96 print:hidden">
+        <BudgetPlanCommentPanel
+          budgetPlanId={id}
+          planStatus={plan.status}
+          approvalLevels={plan.approvalSchema?.approvalLevels}
+          histories={histories}
+        />
+      </aside>
     </div>
   );
 }
