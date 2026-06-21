@@ -28,7 +28,7 @@ function extractBudgetRequestCode(title: string, message: string) {
 
 function extractPaymentRequestCode(title: string, message: string) {
   if (!title.toLowerCase().includes('payment request')) return null;
-  return message.match(CODE_HEAD)?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? message.match(COMMENT_CODE_HEAD)?.[1] ?? null;
 }
 
 export async function GET(request: Request) {
