@@ -23,7 +23,7 @@ function extractBudgetPlanCode(title: string, message: string) {
 
 function extractBudgetRequestCode(title: string, message: string) {
   if (!title.toLowerCase().includes('budget request')) return null;
-  return message.match(CODE_HEAD)?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? message.match(COMMENT_CODE_HEAD)?.[1] ?? null;
 }
 
 function extractPaymentRequestCode(title: string, message: string) {
