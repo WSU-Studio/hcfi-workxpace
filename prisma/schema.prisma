@@ -62,6 +62,8 @@ model User {
   notifications    Notification[]
   budgetPlanComments BudgetPlanComment[]
   budgetPlanCommentMentions BudgetPlanCommentMention[]
+  budgetRequestComments BudgetRequestComment[]
+  budgetRequestCommentMentions BudgetRequestCommentMention[]
   reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
   reconciliationUnusedPaymentsMarked ReconciliationUnusedPayment[] @relation("ReconciliationUnusedMarkedBy")
 
@@ -444,11 +446,41 @@ model BudgetRequest {
   reconciliationSavedPayments ReconciliationSavedPayment[]
   dataMartStagingRows        DataMartStagingRow[]
   paymentRequests            PaymentRequest[]
+  comments                   BudgetRequestComment[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+model BudgetRequestComment {
+  id              String   @id @default(cuid())
+  budgetRequestId String
+  userId          String
+  body            String   @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  budgetRequest   BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions        BudgetRequestCommentMention[]
+
+  @@index([budgetRequestId, createdAt])
+  @@index([userId])
+  @@map("budget_request_comments")
+}
+
+model BudgetRequestCommentMention {
+  id        String               @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime             @default(now())
+  comment   BudgetRequestComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("budget_request_comment_mentions")
 }
 
 /// Permohonan pembayaran — alur approval internal Workxpace (eksekusi/pembukuan di Confins tetap terpisah).
