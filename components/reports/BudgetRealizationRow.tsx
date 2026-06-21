@@ -6,7 +6,7 @@ import { TableBodyRow, TableCell } from '@/components/ui/Table';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import UtilizationBar from './UtilizationBar';
-import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import type { BudgetRealizationRow as BudgetRealizationRowType } from '@/types/budget-realization';
 
 export interface BudgetRealizationRowProps {

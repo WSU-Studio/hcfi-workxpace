@@ -8,11 +8,13 @@ import { formatDate, formatCurrency } from '@/lib/utils';
 import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { PenSquare } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -56,6 +58,7 @@ export default function ReviewBudgetPlanPage() {
     details: {
       status?: string;
       declineReason?: string | null;
+      approvalNote?: string | null;
       allocationAdjustmentNote?: string | null;
     } | null;
     timestamp: string;
@@ -77,6 +80,7 @@ export default function ReviewBudgetPlanPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -135,23 +139,15 @@ export default function ReviewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  useEffect(() => {
-    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+  const closeDeclineModal = () => {
+    setIsDeclineModalOpen(false);
+    setDeclineReason('');
+  };
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      if (isDeclineModalOpen) {
-        setIsDeclineModalOpen(false);
-        setDeclineReason('');
-      } else {
-        setIsApproveModalOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
 
   const handleApprove = async () => {
     setIsSubmitting(true);
@@ -164,6 +160,7 @@ export default function ReviewBudgetPlanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'Approved',
+          approvalNote: approvalNote.trim() || null,
           coaId: classification.coaId || null,
           categoryId: classification.categoryId || null,
           categoryKeyIndexId: classification.categoryKeyIndexId || null,
@@ -178,7 +175,7 @@ export default function ReviewBudgetPlanPage() {
         }),
       });
       if (res.ok) {
-        setIsApproveModalOpen(false);
+        closeApproveModal();
         router.push(`/budget-plans/${id}`);
       }
     } finally {
@@ -491,6 +488,19 @@ export default function ReviewBudgetPlanPage() {
               </tbody>
             </Table>
 
+            {(() => {
+              const stepProgresses = getMultiStepApprovalProgress(
+                plan.approvalSchema!.approvalLevels,
+                histories,
+              );
+              return (
+                <ApprovalStepNotesList
+                  levels={plan.approvalSchema!.approvalLevels}
+                  stepProgresses={stepProgresses}
+                />
+              );
+            })()}
+
             {(plan.status === 'Draft' || plan.status === 'Reviewed') && (
               <div className="flex justify-end gap-3 pt-4">
                 <Link href={`/budget-plans/${id}`} className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</Link>
@@ -518,9 +528,13 @@ export default function ReviewBudgetPlanPage() {
         ) : null}
       </div>
 
-      {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Decline Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Do you want to decline this budget plan? You may ask for revision.
@@ -534,10 +548,7 @@ export default function ReviewBudgetPlanPage() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setIsDeclineModalOpen(false);
-                  setDeclineReason('');
-                }}
+                onClick={closeDeclineModal}
                 className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -561,21 +572,29 @@ export default function ReviewBudgetPlanPage() {
                 Yes, I Decline
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
-      {isApproveModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={closeApproveModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this budget plan?
             </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsApproveModalOpen(false)}
+                onClick={closeApproveModal}
                 className="px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -590,9 +609,7 @@ export default function ReviewBudgetPlanPage() {
                 {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
       <Card
         collapsible
@@ -614,6 +631,9 @@ export default function ReviewBudgetPlanPage() {
                 ) : null}
                 {history.details?.declineReason ? (
                   <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                ) : null}
+                {history.details?.approvalNote ? (
+                  <p className="text-gray-600">Note: {history.details.approvalNote}</p>
                 ) : null}
                 {history.details?.allocationAdjustmentNote ? (
                   <p className="text-amber-700">

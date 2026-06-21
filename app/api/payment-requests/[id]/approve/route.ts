@@ -154,6 +154,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         departmentName: before.department?.name ?? null,
         budgetRequestCode: before.budgetRequest?.code ?? null,
         declineReason: action === 'revision' || action === 'decline' ? body?.declineReason ?? null : null,
+        approvalNote:
+          action === 'approve'
+            ? (typeof body?.approvalNote === 'string' ? body.approvalNote.trim() || null : null)
+            : null,
       },
     });
 

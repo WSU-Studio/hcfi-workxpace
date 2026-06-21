@@ -60,6 +60,12 @@ model User {
   departmentHeadOf Department[] @relation("DepartmentHead")
   activityHistory  ActivityHistory[]
   notifications    Notification[]
+  budgetPlanComments BudgetPlanComment[]
+  budgetPlanCommentMentions BudgetPlanCommentMention[]
+  budgetRequestComments BudgetRequestComment[]
+  budgetRequestCommentMentions BudgetRequestCommentMention[]
+  paymentRequestComments PaymentRequestComment[]
+  paymentRequestCommentMentions PaymentRequestCommentMention[]
   reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
   reconciliationUnusedPaymentsMarked ReconciliationUnusedPayment[] @relation("ReconciliationUnusedMarkedBy")
 
@@ -278,6 +284,7 @@ model BudgetPlan {
   opexAllocation   OpexAllocationMaster? @relation(fields: [opexAllocationId], references: [id])
   allocations      BudgetPlanAllocation[]
   budgetRequests   BudgetRequest[]
+  comments         BudgetPlanComment[]
 
   @@index([departmentId])
   @@index([status])
@@ -288,6 +295,35 @@ model BudgetPlan {
   @@index([opexId])
   @@index([opexAllocationId])
   @@map("budget_plans")
+}
+
+model BudgetPlanComment {
+  id           String   @id @default(cuid())
+  budgetPlanId String
+  userId       String
+  body         String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  budgetPlan   BudgetPlan @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions     BudgetPlanCommentMention[]
+
+  @@index([budgetPlanId, createdAt])
+  @@index([userId])
+  @@map("budget_plan_comments")
+}
+
+model BudgetPlanCommentMention {
+  id        String            @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime          @default(now())
+  comment   BudgetPlanComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("budget_plan_comment_mentions")
 }
 
 model CategoryMaster {
@@ -412,11 +448,41 @@ model BudgetRequest {
   reconciliationSavedPayments ReconciliationSavedPayment[]
   dataMartStagingRows        DataMartStagingRow[]
   paymentRequests            PaymentRequest[]
+  comments                   BudgetRequestComment[]
 
   @@index([budgetPlanId])
   @@index([departmentId])
   @@index([status])
   @@map("budget_requests")
+}
+
+model BudgetRequestComment {
+  id              String   @id @default(cuid())
+  budgetRequestId String
+  userId          String
+  body            String   @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  budgetRequest   BudgetRequest @relation(fields: [budgetRequestId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions        BudgetRequestCommentMention[]
+
+  @@index([budgetRequestId, createdAt])
+  @@index([userId])
+  @@map("budget_request_comments")
+}
+
+model BudgetRequestCommentMention {
+  id        String               @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime             @default(now())
+  comment   BudgetRequestComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("budget_request_comment_mentions")
 }
 
 /// Permohonan pembayaran — alur approval internal Workxpace (eksekusi/pembukuan di Confins tetap terpisah).
@@ -462,12 +528,42 @@ model PaymentRequest {
   budgetRequest    BudgetRequest?   @relation(fields: [budgetRequestId], references: [id], onDelete: SetNull)
   approvalSchema   ApprovalSchema?  @relation(fields: [approvalSchemaId], references: [id])
   lineItems        PaymentRequestLineItem[]
+  comments         PaymentRequestComment[]
 
   @@index([departmentId])
   @@index([projectId])
   @@index([budgetRequestId])
   @@index([status])
   @@map("payment_requests")
+}
+
+model PaymentRequestComment {
+  id               String   @id @default(cuid())
+  paymentRequestId String
+  userId           String
+  body             String   @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions         PaymentRequestCommentMention[]
+
+  @@index([paymentRequestId, createdAt])
+  @@index([userId])
+  @@map("payment_request_comments")
+}
+
+model PaymentRequestCommentMention {
+  id        String               @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime             @default(now())
+  comment   PaymentRequestComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("payment_request_comment_mentions")
 }
 
 model PaymentRequestLineItem {

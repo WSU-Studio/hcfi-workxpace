@@ -14,20 +14,21 @@ export const dynamic = 'force-dynamic';
  * slash-bearing codes, leaving notifications without a clickable link.
  */
 const CODE_HEAD = /^(\S+)\s+(was submitted|was updated|status changed)/i;
+const COMMENT_CODE_HEAD = /^(\S+)\s+—/;
 
 function extractBudgetPlanCode(title: string, message: string) {
   if (!title.toLowerCase().includes('budget plan')) return null;
-  return message.match(CODE_HEAD)?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? message.match(COMMENT_CODE_HEAD)?.[1] ?? null;
 }
 
 function extractBudgetRequestCode(title: string, message: string) {
   if (!title.toLowerCase().includes('budget request')) return null;
-  return message.match(CODE_HEAD)?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? message.match(COMMENT_CODE_HEAD)?.[1] ?? null;
 }
 
 function extractPaymentRequestCode(title: string, message: string) {
   if (!title.toLowerCase().includes('payment request')) return null;
-  return message.match(CODE_HEAD)?.[1] ?? null;
+  return message.match(CODE_HEAD)?.[1] ?? message.match(COMMENT_CODE_HEAD)?.[1] ?? null;
 }
 
 export async function GET(request: Request) {

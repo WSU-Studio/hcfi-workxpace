@@ -3,6 +3,7 @@
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Modal from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils';
 import { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 
@@ -28,8 +29,12 @@ export default function ManualMatchModal({
   if (!open || !row) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
-      <div className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4"
+      panelClassName="w-full max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-2xl"
+    >
         <div className="space-y-1">
           <h3 className="text-lg font-semibold text-gray-900">Manual Match Payment</h3>
           <p className="text-sm text-gray-600">
@@ -71,7 +76,6 @@ export default function ManualMatchModal({
             Save Manual Match
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

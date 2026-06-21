@@ -6,20 +6,25 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { normalizeSupportingDocs } from '@/lib/budget-plans/form';
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
+  requiresEditConfirmation,
   type BudgetPlanHistoryEntry,
 } from '@/lib/budget-plan-approval-display';
+import EditWarningModal from '@/components/ui/EditWarningModal';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
-import BulkImportBadge from '@/components/budget-plan/BulkImportBadge';
-import RequestCountBadge from '@/components/budget-plan/RequestCountBadge';
+import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
+import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
+import BudgetPlanCommentPanel from '@/components/budget-plans/BudgetPlanCommentPanel';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -55,59 +60,6 @@ type OriginOfficeOption = {
   isActive: boolean;
 };
 
-interface EditWarningModalProps {
-  isOpen: boolean;
-  planSubject?: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}
-
-const EditWarningModal = ({ isOpen, planSubject, onCancel, onContinue }: EditWarningModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Do you want to edit budget plan?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          The status of the budget plan
-          {planSubject ? <span className="font-medium text-slate-800"> &quot;{planSubject}&quot;</span> : ''} will be reverted to
-          the initial status and needs to go through the approval process again.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-function normalizeSupportingDocs(input: unknown) {
-  if (!Array.isArray(input)) return [];
-
-  return input
-    .map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'string') {
-        return item.url;
-      }
-      return null;
-    })
-    .filter((url): url is string => typeof url === 'string' && url.length > 0);
-}
 
 // function ReadonlyField({ label, value }: { label: string; value: string }) {
 //   return (
@@ -254,7 +206,8 @@ export default function BudgetPlanDetailPage() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6 print:max-w-none">
+    <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
+      <div className="min-w-0 flex-1 space-y-6 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>
         <div className="flex flex-wrap items-center gap-2">
@@ -280,6 +233,27 @@ export default function BudgetPlanDetailPage() {
             <Download className="h-4 w-4" aria-hidden />
             {isExporting ? 'Generating PDF...' : 'Download PDF'}
           </Button>
+          {canEdit ? (
+            requiresEditConfirmation(plan.status) ? (
+              <button
+                type="button"
+                onClick={() => setIsEditWarningOpen(true)}
+                disabled={isExporting}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </button>
+            ) : (
+              <Link
+                href={`/budget-plans/${id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Link>
+            )
+          ) : null}
         </div>
       </div>
 
@@ -319,7 +293,9 @@ export default function BudgetPlanDetailPage() {
           </div>
           <div className="col-span-2">
             <span className="text-gray-500">Description:</span>
-            <RichTextContent value={plan.description} className="mt-1" />
+            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-100">
+              <RichTextContent value={plan.description} />
+            </div>
           </div>
           <div className="col-span-2 print:hidden">
             <span className="text-gray-500">Supporting Documents:</span>
@@ -474,6 +450,20 @@ export default function BudgetPlanDetailPage() {
               </tbody>
             </Table>
 
+            {(() => {
+              const stepProgresses = getMultiStepApprovalProgress(
+                plan.approvalSchema!.approvalLevels,
+                histories,
+              );
+              return (
+                <ApprovalStepNotesList
+                  levels={plan.approvalSchema!.approvalLevels}
+                  stepProgresses={stepProgresses}
+                  className="print:hidden"
+                />
+              );
+            })()}
+
             <div className="hidden print:block">
               {(() => {
                 const approvalLevels = plan.approvalSchema!.approvalLevels;
@@ -558,7 +548,7 @@ export default function BudgetPlanDetailPage() {
 
                 <div className="flex flex-wrap items-center gap-3">
                   {canEdit ? (
-                    plan.status === 'Approved' ? (
+                    requiresEditConfirmation(plan.status) ? (
                       <button
                         type="button"
                         onClick={() => setIsEditWarningOpen(true)}
@@ -604,6 +594,7 @@ export default function BudgetPlanDetailPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {history.details?.approvalNote ? <p className="text-gray-600">Note: {history.details.approvalNote}</p> : null}
                 {(history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote) ? (
                   <p className="text-amber-700">
                     {history.details?.allocationAdjustmentNote || history.details?.currentState?.allocationAdjustmentNote}
@@ -617,13 +608,24 @@ export default function BudgetPlanDetailPage() {
       </div>
       <EditWarningModal
         isOpen={isEditWarningOpen}
-        planSubject={plan.subject}
+        entityType="budget-plan"
+        subject={plan.subject}
         onCancel={() => setIsEditWarningOpen(false)}
         onContinue={() => {
           setIsEditWarningOpen(false);
           router.push(`/budget-plans/${id}/edit`);
         }}
       />
+      </div>
+
+      <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96 print:hidden">
+        <BudgetPlanCommentPanel
+          budgetPlanId={id}
+          planStatus={plan.status}
+          approvalLevels={plan.approvalSchema?.approvalLevels}
+          histories={histories}
+        />
+      </aside>
     </div>
   );
 }

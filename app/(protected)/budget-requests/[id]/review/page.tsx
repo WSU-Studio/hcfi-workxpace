@@ -6,8 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
@@ -21,7 +23,7 @@ type HistoryEntry = {
   id: string;
   action: string;
   timestamp: string;
-  details: { status?: string; declineReason?: string; qtyUnitPriceAdjustmentNote?: string | null } | null;
+  details: { status?: string; declineReason?: string; approvalNote?: string | null; qtyUnitPriceAdjustmentNote?: string | null } | null;
   user: { name: string | null } | null;
 };
 
@@ -87,6 +89,7 @@ export default function ReviewBudgetRequestPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [classification, setClassification] = useState({
     costCenterId: '',
     categoryId: '',
@@ -125,23 +128,15 @@ export default function ReviewBudgetRequestPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  useEffect(() => {
-    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+  const closeDeclineModal = () => {
+    setIsDeclineModalOpen(false);
+    setDeclineReason('');
+  };
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      if (isDeclineModalOpen) {
-        setIsDeclineModalOpen(false);
-        setDeclineReason('');
-      } else {
-        setIsApproveModalOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
 
   const handleApprove = async () => {
     setIsSubmitting(true);
@@ -150,6 +145,7 @@ export default function ReviewBudgetRequestPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          approvalNote: approvalNote.trim() || null,
           costCenterId: classification.costCenterId || null,
           categoryId: classification.categoryId || null,
           categoryKeyIndexId: classification.categoryKeyIndexId || null,
@@ -165,7 +161,7 @@ export default function ReviewBudgetRequestPage() {
         }),
       });
       if (res.ok) {
-        setIsApproveModalOpen(false);
+        closeApproveModal();
         router.push(`/budget-requests/${id}`);
       } else alert('Failed');
     } finally {
@@ -592,6 +588,8 @@ export default function ReviewBudgetRequestPage() {
               </tbody>
             </Table>
 
+            <ApprovalStepNotesList levels={orderedLevels} stepProgresses={stepProgresses} />
+
             {data.status !== 'Approved' ? (
               <div className="flex justify-end gap-3 pt-4">
                 <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
@@ -633,6 +631,7 @@ export default function ReviewBudgetRequestPage() {
                 </p>
                 {history.details?.status ? <p className="text-gray-600">Status: {history.details.status}</p> : null}
                 {history.details?.declineReason ? <p className="text-gray-600">Reason: {history.details.declineReason}</p> : null}
+                {history.details?.approvalNote ? <p className="text-gray-600">Note: {history.details.approvalNote}</p> : null}
                 {history.details?.qtyUnitPriceAdjustmentNote ? (
                   <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
                 ) : null}
@@ -643,9 +642,13 @@ export default function ReviewBudgetRequestPage() {
           <p className="text-sm text-gray-500">No history yet.</p>
         )}
       </Card>
-      {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Decline Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Do you want to decline this budget request? You may ask for revision.
@@ -659,10 +662,7 @@ export default function ReviewBudgetRequestPage() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setIsDeclineModalOpen(false);
-                  setDeclineReason('');
-                }}
+                onClick={closeDeclineModal}
                 className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -686,21 +686,29 @@ export default function ReviewBudgetRequestPage() {
                 Yes, I Decline
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
-      {isApproveModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={closeApproveModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this budget request?
             </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsApproveModalOpen(false)}
+                onClick={closeApproveModal}
                 className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -715,9 +723,7 @@ export default function ReviewBudgetRequestPage() {
                 {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
     </div>
   );
 }

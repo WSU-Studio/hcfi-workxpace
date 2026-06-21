@@ -4,8 +4,13 @@ export type BudgetPlanHistoryEntry = {
   details: {
     status?: string;
     declineReason?: string | null;
+    approvalNote?: string | null;
     allocationAdjustmentNote?: string | null;
-    currentState?: { allocationAdjustmentNote?: string | null } | null;
+    currentState?: {
+      declineReason?: string | null;
+      approvalNote?: string | null;
+      allocationAdjustmentNote?: string | null;
+    } | null;
   } | null;
   timestamp: string;
   // Sengaja dilonggarkan: history mungkin punya user `null` (sistem) atau
@@ -52,6 +57,7 @@ export type ApprovalStepProgress = {
   statusLabel: ApprovalStepStatus | string;
   timestampLabel: string;
   actorName: string | null;
+  note: string | null;
 };
 
 export type RequestStatusDisplay = {
@@ -79,9 +85,9 @@ export type RequestStatusDisplay = {
  */
 export function getRequestStatusDisplay(status: string): RequestStatusDisplay {
   switch (status) {
+    case 'Pending':
     case 'Approved':
       return { label: 'Approved', chipClass: 'bg-green-100 text-green-800 border-green-200' };
-    case 'Pending':
     case 'Reviewed':
       return { label: 'On Progress', chipClass: 'bg-blue-100 text-blue-800 border-blue-200' };
     case 'Revision':
@@ -93,6 +99,37 @@ export function getRequestStatusDisplay(status: string): RequestStatusDisplay {
     default:
       return { label: status || '-', chipClass: 'bg-gray-100 text-gray-700 border-gray-200' };
   }
+}
+
+/** BP / BR / PR that are approved or in-flight need a confirmation before edit. */
+export function requiresEditConfirmation(status: string): boolean {
+  return status === 'Approved' || status === 'Reviewed';
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getHistoryStepNote(history: BudgetPlanHistoryEntry): string | null {
+  const details = history.details;
+  if (!details) return null;
+
+  const status = getHistoryStatus(history);
+  if (status === 'Reviewed' || status === 'Approved') {
+    return (
+      readNonEmptyString(details.approvalNote) ||
+      readNonEmptyString(details.currentState?.approvalNote)
+    );
+  }
+  if (status === 'Revision' || status === 'Declined') {
+    return (
+      readNonEmptyString(details.declineReason) ||
+      readNonEmptyString(details.currentState?.declineReason)
+    );
+  }
+  return null;
 }
 
 type ScannedCycle = {
@@ -171,7 +208,12 @@ export function getMultiStepApprovalProgress(
   orderedLevels: { stepOrder: number; levelType: string }[],
   histories: BudgetPlanHistoryEntry[]
 ): ApprovalStepProgress[] {
-  const pending: ApprovalStepProgress = { statusLabel: 'Pending', timestampLabel: '-', actorName: null };
+  const pending: ApprovalStepProgress = {
+    statusLabel: 'Pending',
+    timestampLabel: '-',
+    actorName: null,
+    note: null,
+  };
   const empty = orderedLevels.map(() => ({ ...pending }));
   if (!orderedLevels.length) return empty;
 
@@ -184,6 +226,7 @@ export function getMultiStepApprovalProgress(
         statusLabel: level.levelType === 'Reviewer' ? 'Reviewed' : 'Approved',
         timestampLabel: formatBudgetPlanHistoryDateTime(completed.timestamp),
         actorName: completed.user?.name ?? null,
+        note: getHistoryStepNote(completed),
       };
     }
     if (interruptedAction && index === completedActions.length) {
@@ -192,6 +235,7 @@ export function getMultiStepApprovalProgress(
         statusLabel: status,
         timestampLabel: formatBudgetPlanHistoryDateTime(interruptedAction.timestamp),
         actorName: interruptedAction.user?.name ?? null,
+        note: getHistoryStepNote(interruptedAction),
       };
     }
     return { ...pending };
@@ -217,7 +261,7 @@ export function getApprovalStepProgress(
       return status ? ['Reviewed', 'Revision', 'Declined'].includes(status) : false;
     });
     if (!reviewerHistory) {
-      return { statusLabel: 'Pending', timestampLabel: '-', actorName: null };
+      return { statusLabel: 'Pending', timestampLabel: '-', actorName: null, note: null };
     }
 
     const reviewerStatus = getHistoryStatus(reviewerHistory) || 'Processed';
@@ -225,6 +269,7 @@ export function getApprovalStepProgress(
       statusLabel: reviewerStatus,
       timestampLabel: formatBudgetPlanHistoryDateTime(reviewerHistory.timestamp),
       actorName: reviewerHistory.user?.name ?? null,
+      note: getHistoryStepNote(reviewerHistory),
     };
   }
 
@@ -236,12 +281,13 @@ export function getApprovalStepProgress(
   });
 
   if (!approverHistory) {
-    return { statusLabel: 'Pending', timestampLabel: '-', actorName: null };
+    return { statusLabel: 'Pending', timestampLabel: '-', actorName: null, note: null };
   }
   const approverStatus = getHistoryStatus(approverHistory) || 'Processed';
   return {
     statusLabel: approverStatus,
     timestampLabel: formatBudgetPlanHistoryDateTime(approverHistory.timestamp),
     actorName: approverHistory.user?.name ?? null,
+    note: getHistoryStepNote(approverHistory),
   };
 }

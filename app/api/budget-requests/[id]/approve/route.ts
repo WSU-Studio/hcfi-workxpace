@@ -238,6 +238,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         opexAllocation: nextOpexAllocation,
         qtyUnitPriceAdjustmentNote,
         declineReason: action === 'revision' || action === 'decline' ? body?.declineReason ?? null : null,
+        approvalNote:
+          action === 'approve'
+            ? (typeof body?.approvalNote === 'string' ? body.approvalNote.trim() || null : null)
+            : null,
       },
     });
     await createBudgetRequestNotifications({

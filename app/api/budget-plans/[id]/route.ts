@@ -487,8 +487,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
 
       if (body.declineReason !== undefined) {
+        const trimmedDeclineReason =
+          typeof body.declineReason === 'string' ? body.declineReason.trim() || null : null;
         previousState.declineReason = null;
-        currentState.declineReason = body.declineReason ?? null;
+        currentState.declineReason = trimmedDeclineReason;
+      }
+      let approvalNoteForHistory: string | null | undefined;
+      if (body.approvalNote !== undefined) {
+        approvalNoteForHistory =
+          typeof body.approvalNote === 'string' ? body.approvalNote.trim() || null : null;
+        previousState.approvalNote = null;
+        currentState.approvalNote = approvalNoteForHistory;
       }
       const allocationAdjustmentNote = allocationAdjusted
         ? body.status === 'Approved'
@@ -511,6 +520,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           previousState,
           currentState,
           allocationAdjustmentNote,
+          ...(body.declineReason !== undefined
+            ? {
+                declineReason:
+                  typeof body.declineReason === 'string' ? body.declineReason.trim() || null : null,
+              }
+            : {}),
+          ...(approvalNoteForHistory !== undefined ? { approvalNote: approvalNoteForHistory } : {}),
         },
       });
 

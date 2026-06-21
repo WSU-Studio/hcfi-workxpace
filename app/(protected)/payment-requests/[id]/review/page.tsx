@@ -6,8 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import RichTextContent from '@/components/ui/RichTextContent';
 import Input from '@/components/ui/Input';
 import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
@@ -70,7 +72,7 @@ export default function ReviewPaymentRequestPage() {
       id: string;
       action: string;
       timestamp: string;
-      details: { status?: string; declineReason?: string | null } | null;
+      details: { status?: string; declineReason?: string | null; approvalNote?: string | null } | null;
       user: { name: string | null } | null;
     }[];
   } | null>(null);
@@ -79,6 +81,7 @@ export default function ReviewPaymentRequestPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
   const [classification, setClassification] = useState<RequestClassificationValue>(emptyRequestClassification());
   const [categoryOptions, setCategoryOptions] = useState<ClassificationOption[]>([]);
   const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<ClassificationOption[]>([]);
@@ -102,23 +105,15 @@ export default function ReviewPaymentRequestPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
-  useEffect(() => {
-    if ((!isDeclineModalOpen && !isApproveModalOpen) || isSubmitting) return;
+  const closeDeclineModal = () => {
+    setIsDeclineModalOpen(false);
+    setDeclineReason('');
+  };
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      if (isDeclineModalOpen) {
-        setIsDeclineModalOpen(false);
-        setDeclineReason('');
-      } else {
-        setIsApproveModalOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isDeclineModalOpen, isApproveModalOpen, isSubmitting]);
+  const closeApproveModal = () => {
+    setIsApproveModalOpen(false);
+    setApprovalNote('');
+  };
 
   const classificationPayload = {
     costCenterId: classification.costCenterId || null,
@@ -135,10 +130,13 @@ export default function ReviewPaymentRequestPage() {
       const res = await fetch(`/api/payment-requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(classificationPayload),
+        body: JSON.stringify({
+          approvalNote: approvalNote.trim() || null,
+          ...classificationPayload,
+        }),
       });
       if (res.ok) {
-        setIsApproveModalOpen(false);
+        closeApproveModal();
         router.push(`/payment-requests/${id}`);
       } else alert('Failed');
     } finally {
@@ -408,6 +406,8 @@ export default function ReviewPaymentRequestPage() {
               </tbody>
             </Table>
 
+            <ApprovalStepNotesList levels={orderedLevels} stepProgresses={stepProgresses} />
+
             {data.status !== 'Approved' ? (
               <div className="flex justify-end gap-3 pt-4">
                 <Link
@@ -453,9 +453,13 @@ export default function ReviewPaymentRequestPage() {
         </Card>
       ) : null}
 
-      {isDeclineModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+        panelClassName="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-200"
+      >
             <h2 className="text-lg font-semibold text-slate-900">Revision or Decline</h2>
             <p className="mt-2 text-sm text-slate-600">Provide a reason (optional but recommended).</p>
             <Input
@@ -467,7 +471,7 @@ export default function ReviewPaymentRequestPage() {
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsDeclineModalOpen(false)}
+                onClick={closeDeclineModal}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
               >
                 Cancel
@@ -489,21 +493,29 @@ export default function ReviewPaymentRequestPage() {
                 Decline
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
 
-      {isApproveModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={closeApproveModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
             <h3 className="text-lg font-semibold">Approval Confirmation</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to approve this payment request?
             </p>
+            <textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Write approval note (optional)..."
+              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsApproveModalOpen(false)}
+                onClick={closeApproveModal}
                 className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
                 disabled={isSubmitting}
               >
@@ -518,9 +530,7 @@ export default function ReviewPaymentRequestPage() {
                 {isSubmitting ? 'Processing...' : 'Confirm Approval'}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
     </div>
   );
 }
