@@ -60,6 +60,8 @@ model User {
   departmentHeadOf Department[] @relation("DepartmentHead")
   activityHistory  ActivityHistory[]
   notifications    Notification[]
+  budgetPlanComments BudgetPlanComment[]
+  budgetPlanCommentMentions BudgetPlanCommentMention[]
   reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
   reconciliationUnusedPaymentsMarked ReconciliationUnusedPayment[] @relation("ReconciliationUnusedMarkedBy")
 
@@ -278,6 +280,7 @@ model BudgetPlan {
   opexAllocation   OpexAllocationMaster? @relation(fields: [opexAllocationId], references: [id])
   allocations      BudgetPlanAllocation[]
   budgetRequests   BudgetRequest[]
+  comments         BudgetPlanComment[]
 
   @@index([departmentId])
   @@index([status])
@@ -288,6 +291,35 @@ model BudgetPlan {
   @@index([opexId])
   @@index([opexAllocationId])
   @@map("budget_plans")
+}
+
+model BudgetPlanComment {
+  id           String   @id @default(cuid())
+  budgetPlanId String
+  userId       String
+  body         String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  budgetPlan   BudgetPlan @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions     BudgetPlanCommentMention[]
+
+  @@index([budgetPlanId, createdAt])
+  @@index([userId])
+  @@map("budget_plan_comments")
+}
+
+model BudgetPlanCommentMention {
+  id        String            @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime          @default(now())
+  comment   BudgetPlanComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("budget_plan_comment_mentions")
 }
 
 model CategoryMaster {
