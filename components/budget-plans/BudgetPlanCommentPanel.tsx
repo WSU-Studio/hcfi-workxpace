@@ -148,18 +148,23 @@ export default function BudgetPlanCommentPanel({
           `/api/budget-plans/${budgetPlanId}/comments/mentionable-users?${params.toString()}`,
           { credentials: 'include', signal: controller.signal },
         );
+        if (controller.signal.aborted) return;
         if (!response.ok) return;
         const data = await response.json();
         setMentionResults(data.users ?? []);
         setActiveMentionIndex(0);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
       } finally {
-        setIsSearchingMentions(false);
+        if (!controller.signal.aborted) {
+          setIsSearchingMentions(false);
+        }
       }
     }, 200);
 
     return () => {
-      controller.abort();
       window.clearTimeout(timer);
+      controller.abort();
     };
   }, [budgetPlanId, mentionQuery]);
 
@@ -278,8 +283,8 @@ export default function BudgetPlanCommentPanel({
   };
 
   return (
-    <div className="sticky top-24 flex max-h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex border-b border-gray-200">
+    <div className="flex h-[calc(100vh-6.5rem)] max-h-[calc(100vh-6.5rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex shrink-0 border-b border-gray-200">
         <button
           type="button"
           onClick={() => setActiveTab('comment')}
@@ -307,8 +312,8 @@ export default function BudgetPlanCommentPanel({
       </div>
 
       {activeTab === 'comment' ? (
-        <>
-          <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-lg bg-white p-2 text-gray-500 shadow-sm">
                 <ClipboardList className="h-4 w-4" aria-hidden />
@@ -320,7 +325,7 @@ export default function BudgetPlanCommentPanel({
             </div>
           </div>
 
-          <div className="border-b border-gray-100 px-4 py-3">
+          <div className="shrink-0 border-b border-gray-100 px-4 py-3">
             <label htmlFor="bp-comment-input" className="mb-2 block text-sm font-semibold text-gray-900">
               Comment
             </label>
@@ -387,7 +392,7 @@ export default function BudgetPlanCommentPanel({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {isLoading ? (
               <div className="flex items-center justify-center py-8 text-sm text-gray-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -435,9 +440,9 @@ export default function BudgetPlanCommentPanel({
               </ul>
             )}
           </div>
-        </>
+        </div>
       ) : (
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
             <p className="text-xs text-gray-500">Approval Status</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">{statusDisplay.label}</p>

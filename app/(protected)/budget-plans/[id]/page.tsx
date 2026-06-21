@@ -618,7 +618,7 @@ export default function BudgetPlanDetailPage() {
       />
       </div>
 
-      <aside className="w-full shrink-0 xl:w-96 print:hidden">
+      <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96 print:hidden">
         <BudgetPlanCommentPanel
           budgetPlanId={id}
           planStatus={plan.status}
