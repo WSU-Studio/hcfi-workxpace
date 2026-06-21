@@ -64,6 +64,8 @@ model User {
   budgetPlanCommentMentions BudgetPlanCommentMention[]
   budgetRequestComments BudgetRequestComment[]
   budgetRequestCommentMentions BudgetRequestCommentMention[]
+  paymentRequestComments PaymentRequestComment[]
+  paymentRequestCommentMentions PaymentRequestCommentMention[]
   reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
   reconciliationUnusedPaymentsMarked ReconciliationUnusedPayment[] @relation("ReconciliationUnusedMarkedBy")
 
@@ -526,12 +528,42 @@ model PaymentRequest {
   budgetRequest    BudgetRequest?   @relation(fields: [budgetRequestId], references: [id], onDelete: SetNull)
   approvalSchema   ApprovalSchema?  @relation(fields: [approvalSchemaId], references: [id])
   lineItems        PaymentRequestLineItem[]
+  comments         PaymentRequestComment[]
 
   @@index([departmentId])
   @@index([projectId])
   @@index([budgetRequestId])
   @@index([status])
   @@map("payment_requests")
+}
+
+model PaymentRequestComment {
+  id               String   @id @default(cuid())
+  paymentRequestId String
+  userId           String
+  body             String   @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions         PaymentRequestCommentMention[]
+
+  @@index([paymentRequestId, createdAt])
+  @@index([userId])
+  @@map("payment_request_comments")
+}
+
+model PaymentRequestCommentMention {
+  id        String               @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime             @default(now())
+  comment   PaymentRequestComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("payment_request_comment_mentions")
 }
 
 model PaymentRequestLineItem {
