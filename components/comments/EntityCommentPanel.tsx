@@ -11,7 +11,7 @@ import {
 } from '@/lib/budget-plan-approval-display';
 import { cn } from '@/lib/utils';
 
-export type CommentEntityBasePath = 'budget-plans' | 'budget-requests';
+export type CommentEntityBasePath = 'budget-plans' | 'budget-requests' | 'payment-requests';
 
 type MentionableUser = {
   id: string;
