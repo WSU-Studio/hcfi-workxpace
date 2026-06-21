@@ -206,7 +206,7 @@ export default function BudgetPlanDetailPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
+    <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
       <div className="min-w-0 flex-1 space-y-6 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/budget-plans" className="text-blue-600 hover:underline">← Back</Link>

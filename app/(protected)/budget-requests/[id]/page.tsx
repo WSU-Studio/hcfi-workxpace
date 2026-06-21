@@ -15,6 +15,7 @@ import RichTextContent from '@/components/ui/RichTextContent';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
@@ -175,7 +176,8 @@ export default function BudgetRequestDetailPage() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6 print:max-w-none">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
+      <div className="min-w-0 flex-1 space-y-6 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/budget-requests" className="text-blue-600 hover:underline">← Back</Link>
         <div className="flex flex-wrap items-center gap-2">
@@ -576,6 +578,18 @@ export default function BudgetRequestDetailPage() {
           router.push(`/budget-requests/${id}/edit`);
         }}
       />
+      </div>
+
+      <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96 print:hidden">
+        <EntityCommentPanel
+          entityBasePath="budget-requests"
+          entityId={id}
+          requestStatus={data.status}
+          approvalLevels={orderedLevels}
+          histories={data.histories ?? []}
+          inputId="br-comment-input"
+        />
+      </aside>
     </div>
   );
 }
