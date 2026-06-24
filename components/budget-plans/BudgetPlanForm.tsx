@@ -101,6 +101,36 @@ export default function BudgetPlanForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      <div>
+        <label className="block mb-1.5 font-medium">Approval Schema *</label>
+        <Select
+          value={formData.approvalSchemaId}
+          onChange={(event) =>
+            onFormDataChange((previous) => ({
+              ...previous,
+              approvalSchemaId: event.target.value,
+            }))
+          }
+          required
+          aria-invalid={!formData.approvalSchemaId}
+        >
+          <option value="">-</option>
+          {schemasForDept.map((schema) => (
+            <option key={schema.id} value={schema.id}>
+              {schema.name}
+            </option>
+          ))}
+        </Select>
+        {formData.departmentId && schemasForDept.length === 0 ? (
+          <p className="mt-1.5 text-xs text-amber-600">
+            No approval schema is configured for the selected department.
+          </p>
+        ) : null}
+        {formData.approvalSchemaId ? (
+          <ApprovalSchemaLevelsPreview levels={selectedApprovalLevels} className="mt-3" />
+        ) : null}
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block mb-1.5 font-medium">Fiscal Year *</label>
@@ -367,36 +397,6 @@ export default function BudgetPlanForm({
             )}
           </Table>
         </div>
-      </div>
-
-      <div>
-        <label className="block mb-1.5 font-medium">Approval Schema *</label>
-        <Select
-          value={formData.approvalSchemaId}
-          onChange={(event) =>
-            onFormDataChange((previous) => ({
-              ...previous,
-              approvalSchemaId: event.target.value,
-            }))
-          }
-          required
-          aria-invalid={!formData.approvalSchemaId}
-        >
-          <option value="">-</option>
-          {schemasForDept.map((schema) => (
-            <option key={schema.id} value={schema.id}>
-              {schema.name}
-            </option>
-          ))}
-        </Select>
-        {formData.departmentId && schemasForDept.length === 0 ? (
-          <p className="mt-1.5 text-xs text-amber-600">
-            No approval schema is configured for the selected department.
-          </p>
-        ) : null}
-        {formData.approvalSchemaId ? (
-          <ApprovalSchemaLevelsPreview levels={selectedApprovalLevels} className="mt-3" />
-        ) : null}
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">
