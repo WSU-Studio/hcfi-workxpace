@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import EditWarningModal from '@/components/ui/EditWarningModal';
@@ -16,15 +16,20 @@ import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
+import BudgetRequestDetailModal from '@/components/budget-requests/BudgetRequestDetailModal';
+import {
+  BudgetRequestClassificationSection,
+  BudgetRequestDetailSummarySection,
+  BudgetRequestLineItemsSection,
+} from '@/components/budget-requests/BudgetRequestDetailSections';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
   getMultiStepApprovalProgress,
   getRequestorSubmissionStepProgress,
-  getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 type HistoryEntry = {
   id: string;
@@ -44,6 +49,8 @@ type HistoryEntry = {
 //     </div>
 //   );
 // }
+
+const usingCompactView = isBudgetRequestCompactDetailView();
 
 export default function BudgetRequestDetailPage() {
   const params = useParams();
@@ -92,6 +99,7 @@ export default function BudgetRequestDetailPage() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -109,7 +117,6 @@ export default function BudgetRequestDetailPage() {
   const whtAmount = Number(data.whtAmount ?? 0);
   const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
   const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
-  const allocationsTotal = data.allocations?.reduce((sum, allocation) => sum + Number(allocation.allocation ?? 0), 0) ?? 0;
   const allocatedMonths = Array.from(new Set((data.allocations || []).map((a) => a.month))).sort((a, b) => a - b);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -181,6 +188,112 @@ export default function BudgetRequestDetailPage() {
     }
   };
 
+  const amountTotals = {
+    transactionAmount,
+    vatAmount,
+    whtAmount,
+    invoiceAmount,
+    grandTotal,
+  };
+
+  if (usingCompactView) {
+    return (
+      <div className="mx-auto w-full max-w-5xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/budget-requests" className="text-blue-600 hover:underline">
+            ← Back
+          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsDetailModalOpen(true)}>
+              Detail
+            </Button>
+            {data.canReview ? (
+              <Link
+                href={`/budget-requests/${id}/review`}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                <ScanSearch className="h-4 w-4" />
+                Review
+              </Link>
+            ) : null}
+            {canEditAsRequestor ? (
+              requiresEditConfirmation(data.status) ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditWarningOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </button>
+              ) : (
+                <Link
+                  href={`/budget-requests/${id}/edit`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Link>
+              )
+            ) : null}
+          </div>
+        </div>
+
+        <Card className="space-y-4">
+          <div>
+            <p className="text-sm text-gray-500">Request Date</p>
+            <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Subject</p>
+            <h1 className="text-2xl font-semibold text-gray-900">{data.subject}</h1>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Description</p>
+            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <RichTextContent value={data.description} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="space-y-4">
+          <h3 className="font-medium">Approval Escalation</h3>
+          {orderedLevels.length ? (
+            <ApprovalEscalationPrintGrid
+              levels={orderedLevels}
+              stepProgresses={stepProgresses}
+              showRequestor
+              requestorStepProgress={requestorStepProgress}
+            />
+          ) : (
+            <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
+          )}
+        </Card>
+
+        <BudgetRequestDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          data={data}
+          originOfficeLabel={originOfficeLabel}
+          accountLabel={accountLabel}
+          opexType={opexType}
+          totals={amountTotals}
+        />
+
+        <EditWarningModal
+          isOpen={isEditWarningOpen}
+          entityType="budget-request"
+          subject={data.subject}
+          onCancel={() => setIsEditWarningOpen(false)}
+          onContinue={() => {
+            setIsEditWarningOpen(false);
+            router.push(`/budget-requests/${id}/edit`);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
       <div className="min-w-0 flex-1 space-y-6 print:max-w-none">
@@ -243,37 +356,7 @@ export default function BudgetRequestDetailPage() {
       </div>
 
       <Card className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:gap-y-2">
-          <div><span className="text-gray-500">ID:</span> {data.code}</div>
-          <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
-          <div><span className="text-gray-500">Requestor:</span> {data.requestorName ?? '-'}</div>
-          <div><span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}</div>
-          <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
-          <div><span className="text-gray-500">Project:</span> {data.budgetPlan?.project?.name ?? '-'}</div>
-          <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
-          <div><span className="text-gray-500">Origin Office:</span> {originOfficeLabel}</div>
-          <div>
-            <span className="text-gray-500">Status:</span>{' '}
-            {(() => {
-              const display = getRequestStatusDisplay(data.status);
-              return (
-                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
-                  {display.label}
-                </span>
-              );
-            })()}
-          </div>
-          <div className="md:col-span-2 print:col-span-2">
-            <span className="text-gray-500">Description:</span>
-            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-100">
-              <RichTextContent value={data.description} />
-            </div>
-          </div>
-          <div className="md:col-span-2 print:col-span-2">
-            <span className="text-gray-500">Notes:</span>
-            <p className="mt-1 text-gray-700 whitespace-pre-wrap">{data.notes || '-'}</p>
-          </div>
-        </div>
+        <BudgetRequestDetailSummarySection data={data} originOfficeLabel={originOfficeLabel} />
       </Card>
 
       <Card collapsible 
@@ -312,81 +395,12 @@ export default function BudgetRequestDetailPage() {
           </Card> */}
 
           {data.lineItems?.length ? (
-            <Table>
-              <thead>
-                <TableHeaderRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
-                  <TableHead className="text-right">Deduction</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableHeaderRow>
-              </thead>
-              <tbody>
-                {data.lineItems.map((li, index) => (
-                  <TableBodyRow key={`${li.item}-${index}`}>
-                    <TableCell>{li.item}</TableCell>
-                    <TableCell className="text-right">{li.qty}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0))}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.subtotal ?? li.qty * Number(li.unitPrice ?? 0)))}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(li.total ?? 0))}</TableCell>
-                  </TableBodyRow>
-                ))}
-                <TableBodyRow className="bg-gray-50 font-medium">
-                  <TableCell colSpan={5} className="text-right">Transaction Amount</TableCell>
-                  <TableCell className="text-right">{formatCurrency(transactionAmount)}</TableCell>
-                </TableBodyRow>
-                <TableBodyRow>
-                  <TableCell colSpan={5} className="text-right">VAT / PPN</TableCell>
-                  <TableCell className="text-right">{formatCurrency(vatAmount)}</TableCell>
-                </TableBodyRow>
-                <TableBodyRow>
-                  <TableCell colSpan={5} className="text-right">Invoice Amount</TableCell>
-                  <TableCell className="text-right">{formatCurrency(invoiceAmount)}</TableCell>
-                </TableBodyRow>
-                <TableBodyRow>
-                  <TableCell colSpan={5} className="text-right">WHT / PPh</TableCell>
-                  <TableCell className="text-right">({formatCurrency(whtAmount)})</TableCell>
-                </TableBodyRow>
-                <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
-                  <TableCell colSpan={5} className="text-right">Grandtotal</TableCell>
-                  <TableCell className="text-right">{formatCurrency(grandTotal)}</TableCell>
-                </TableBodyRow>
-              </tbody>
-            </Table>
+            <BudgetRequestLineItemsSection lineItems={data.lineItems} totals={amountTotals} />
           ) : null}
         </div>
 
         <div className="space-y-3 border-t border-gray-100 pt-4">
-          <h3 className="font-medium">Classification</h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div><span className="text-gray-500">Cost Center:</span> {data.budgetPlan?.costCenter?.name ?? ''}</div>
-            <div><span className="text-gray-500">Category:</span> {data.budgetPlan?.category?.name ?? ''}</div>
-            <div><span className="text-gray-500">Category Key Index:</span> {data.budgetPlan?.categoryKeyIndex?.name ?? ''}</div>
-            <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
-            <div><span className="text-gray-500">Type:</span> {opexType}</div>
-            <div><span className="text-gray-500">Opex Allocation:</span> {data.budgetPlan?.opexAllocation?.name ?? ''}</div>
-          </div>
-          
-          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ReadonlyField label="Cost Center" value={data.budgetPlan?.costCenter?.name ?? ''} />
-            <ReadonlyField label="Category" value={data.budgetPlan?.category?.name ?? ''} />
-            <ReadonlyField label="Category Key Index" value={data.budgetPlan?.categoryKeyIndex?.name ?? ''} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <ReadonlyField label="Kode Akun" value={accountLabel} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ReadonlyField label="Type" value={opexType} />
-            {data.budgetPlan?.opexType === 'OPEX' ? (
-              <ReadonlyField label="Opex Allocation" value={data.budgetPlan?.opexAllocation?.name ?? ''} />
-            ) : null}
-          </div> */}
+          <BudgetRequestClassificationSection data={data} accountLabel={accountLabel} opexType={opexType} />
         </div>
       </Card>
 
