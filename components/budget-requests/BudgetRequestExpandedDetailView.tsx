@@ -1,10 +1,12 @@
 import Card from '@/components/ui/Card';
+import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import {
   BudgetRequestClassificationSection,
   BudgetRequestDetailSummarySection,
   BudgetRequestLineItemsSection,
   type BudgetRequestDetailSectionsData,
 } from '@/components/budget-requests/BudgetRequestDetailSections';
+import type { ApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 
 export type BudgetRequestExpandedDetailProps = {
   data: BudgetRequestDetailSectionsData;
@@ -18,6 +20,8 @@ export type BudgetRequestExpandedDetailProps = {
     invoiceAmount: number;
     grandTotal: number;
   };
+  orderedLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+  stepProgresses: ApprovalStepProgress[];
 };
 
 export default function BudgetRequestExpandedDetailView({
@@ -26,6 +30,8 @@ export default function BudgetRequestExpandedDetailView({
   accountLabel,
   opexType,
   totals,
+  orderedLevels,
+  stepProgresses,
 }: BudgetRequestExpandedDetailProps) {
   return (
     <div className="space-y-6">
@@ -47,6 +53,10 @@ export default function BudgetRequestExpandedDetailView({
       <Card>
         <BudgetRequestClassificationSection data={data} accountLabel={accountLabel} opexType={opexType} />
       </Card>
+
+      {orderedLevels.length > 0 ? (
+        <ApprovalStepNotesList levels={orderedLevels} stepProgresses={stepProgresses} />
+      ) : null}
     </div>
   );
 }

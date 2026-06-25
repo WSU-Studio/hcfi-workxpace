@@ -7,6 +7,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetRequestExpandedDetailView from '@/components/budget-requests/BudgetRequestExpandedDetailView';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
+import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 
 type HistoryEntry = {
   id: string;
@@ -116,6 +117,7 @@ export default function BudgetRequestExpandedDetailPage() {
   const orderedLevels = [...(data.approvalSchema?.approvalLevels ?? [])].sort(
     (a, b) => a.stepOrder - b.stepOrder,
   );
+  const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">
@@ -136,6 +138,8 @@ export default function BudgetRequestExpandedDetailPage() {
             invoiceAmount,
             grandTotal,
           }}
+          orderedLevels={orderedLevels}
+          stepProgresses={stepProgresses}
         />
       </div>
 

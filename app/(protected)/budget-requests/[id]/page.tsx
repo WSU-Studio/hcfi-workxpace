@@ -486,7 +486,6 @@ export default function BudgetRequestDetailPage() {
               <ApprovalStepNotesList
                 levels={orderedLevels}
                 stepProgresses={stepProgresses}
-                className="print:hidden"
               />
 
               <div className="hidden print:block">
