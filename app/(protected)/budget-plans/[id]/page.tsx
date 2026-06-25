@@ -478,7 +478,7 @@ export default function BudgetPlanDetailPage() {
               <ApprovalEscalationPrintGrid
                 levels={approvalLevels}
                 stepProgresses={approvalStepProgresses}
-                showRequestor
+                // showRequestor
                 requestorStepProgress={requestorStepProgress}
               />
             </div>

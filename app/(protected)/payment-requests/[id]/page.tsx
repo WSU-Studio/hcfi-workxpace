@@ -495,7 +495,7 @@ export default function PaymentRequestDetailPage() {
                 <ApprovalEscalationPrintGrid
                   levels={orderedLevels}
                   stepProgresses={stepProgresses}
-                  showRequestor
+                  // showRequestor
                   requestorStepProgress={requestorStepProgress}
                 />
               </div>
