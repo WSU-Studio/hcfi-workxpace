@@ -5,7 +5,21 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetRequestExpandedDetailView from '@/components/budget-requests/BudgetRequestExpandedDetailView';
+import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
+
+type HistoryEntry = {
+  id: string;
+  action: string;
+  timestamp: string;
+  details: {
+    status?: string;
+    declineReason?: string;
+    approvalNote?: string | null;
+    qtyUnitPriceAdjustmentNote?: string | null;
+  } | null;
+  user: { name: string | null } | null;
+};
 
 type BudgetRequestDetailApi = {
   id: string;
@@ -44,6 +58,10 @@ type BudgetRequestDetailApi = {
   }[];
   accountOptions?: { id: string; accountCode: string; accountName: string }[];
   originOffices?: { code: string; name: string; isActive: boolean }[];
+  approvalSchema?: {
+    approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+  } | null;
+  histories?: HistoryEntry[];
 };
 
 const compactDetailEnabled = isBudgetRequestCompactDetailView();
@@ -95,25 +113,42 @@ export default function BudgetRequestExpandedDetailPage() {
     return office ? `${office.code} - ${office.name}` : officeCode;
   })();
 
-  return (
-    <div className="mx-auto w-full max-w-5xl space-y-6">
-      <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">
-        ← Back
-      </Link>
+  const orderedLevels = [...(data.approvalSchema?.approvalLevels ?? [])].sort(
+    (a, b) => a.stepOrder - b.stepOrder,
+  );
 
-      <BudgetRequestExpandedDetailView
-        data={data}
-        originOfficeLabel={originOfficeLabel}
-        accountLabel={accountLabel}
-        opexType={opexType}
-        totals={{
-          transactionAmount,
-          vatAmount,
-          whtAmount,
-          invoiceAmount,
-          grandTotal,
-        }}
-      />
+  return (
+    <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">
+      <div className="min-w-0 flex-1 space-y-6">
+        <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">
+          ← Back
+        </Link>
+
+        <BudgetRequestExpandedDetailView
+          data={data}
+          originOfficeLabel={originOfficeLabel}
+          accountLabel={accountLabel}
+          opexType={opexType}
+          totals={{
+            transactionAmount,
+            vatAmount,
+            whtAmount,
+            invoiceAmount,
+            grandTotal,
+          }}
+        />
+      </div>
+
+      <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96">
+        <EntityCommentPanel
+          entityBasePath="budget-requests"
+          entityId={id}
+          requestStatus={data.status}
+          approvalLevels={orderedLevels}
+          histories={data.histories ?? []}
+          inputId="br-detail-comment-input"
+        />
+      </aside>
     </div>
   );
 }
