@@ -14,9 +14,11 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import {
   getMultiStepApprovalProgress,
+  getRequestorSubmissionStepProgress,
   getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
@@ -130,6 +132,10 @@ export default function PaymentRequestDetailPage() {
   // after a later reviewer asks for revision, and only the requestor's
   // resubmit (logged as `update`) resets the table back to "Pending".
   const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
+  const requestorStepProgress = getRequestorSubmissionStepProgress(data.histories ?? [], {
+    requestorName: data.requestorName,
+    requestDate: data.requestDate,
+  });
 
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -486,63 +492,12 @@ export default function PaymentRequestDetailPage() {
               />
 
               <div className="hidden print:block">
-                <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
-                  <div
-                    className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
-                    style={{
-                      gridTemplateColumns: `repeat(${orderedLevels.length}, minmax(140px, 1fr))`,
-                    }}
-                  >
-                    {orderedLevels.map((l, i) => {
-                      const stepProgress = stepProgresses[i];
-                      const isApproved =
-                        stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
-                      const isPending = stepProgress.statusLabel === 'Pending';
-                      const isRevision = stepProgress.statusLabel === 'Revision';
-                      const stampLabel = isApproved
-                        ? stepProgress.statusLabel === 'Reviewed'
-                          ? 'Accept'
-                          : 'Accept'
-                        : isPending
-                          ? ''
-                          : isRevision
-                            ? ''
-                            : '';
-                      const stampToneClass = isApproved
-                        ? 'border-2 border-blue-400 text-blue-500'
-                        : isPending
-                          ? ''
-                          : isRevision
-                            ? ''
-                            : '';
-                      const isLastCol = i === orderedLevels.length - 1;
-                      const colBorder = isLastCol ? '' : 'border-r border-gray-300';
-                      return (
-                        <div
-                          key={l.stepOrder}
-                          className={`flex flex-col text-center text-sm print:break-inside-avoid ${colBorder}`}
-                        >
-                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
-                            {l.role?.roleName ?? '-'}
-                          </div>
-                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
-                            {stepProgress.actorName ?? <span className="text-gray-300">—</span>}
-                          </div>
-                          <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
-                            <span
-                              className={`inline-flex items-center rounded-full h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
-                            >
-                              {stampLabel}
-                            </span>
-                          </div>
-                          <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
-                            {stepProgress.timestampLabel}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <ApprovalEscalationPrintGrid
+                  levels={orderedLevels}
+                  stepProgresses={stepProgresses}
+                  showRequestor
+                  requestorStepProgress={requestorStepProgress}
+                />
               </div>
             </>
           ) : (
