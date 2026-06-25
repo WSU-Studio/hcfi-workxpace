@@ -243,6 +243,20 @@ export default function BudgetRequestDetailPage() {
         </div>
 
         <Card className="space-y-4">
+          <h3 className="font-medium">Approval Escalation</h3>
+          {orderedLevels.length ? (
+            <ApprovalEscalationPrintGrid
+              levels={orderedLevels}
+              stepProgresses={stepProgresses}
+              showRequestor
+              requestorStepProgress={requestorStepProgress}
+            />
+          ) : (
+            <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
+          )}
+        </Card>
+
+        <Card className="space-y-4">
           <div>
             <p className="text-sm text-gray-500">Request Date</p>
             <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
@@ -257,21 +271,7 @@ export default function BudgetRequestDetailPage() {
               <RichTextContent value={data.description} />
             </div>
           </div>
-        </Card>
-
-        <Card className="space-y-4">
-          <h3 className="font-medium">Approval Escalation</h3>
-          {orderedLevels.length ? (
-            <ApprovalEscalationPrintGrid
-              levels={orderedLevels}
-              stepProgresses={stepProgresses}
-              showRequestor
-              requestorStepProgress={requestorStepProgress}
-            />
-          ) : (
-            <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
-          )}
-        </Card>
+        </Card>        
 
         <BudgetRequestDetailModal
           isOpen={isDetailModalOpen}
