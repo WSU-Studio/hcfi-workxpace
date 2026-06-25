@@ -50,20 +50,20 @@ function ApprovalPrintColumn({
 
   return (
     <div className={`flex flex-col text-center text-sm print:break-inside-avoid ${colBorder}`}>
-      <div className="flex min-h-[3.5rem] items-center justify-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
+      <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
         {roleLabel}
       </div>
-      <div className="flex min-h-[3.5rem] items-center justify-center border-b border-gray-300 px-2 py-2 text-gray-700">
+      <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
         {progress.actorName ?? <span className="text-gray-300">—</span>}
       </div>
-      <div className="flex min-h-[4rem] items-center justify-center border-b border-gray-300 px-2 py-2">
+      <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-4">
         <span
-          className={`inline-flex h-12 w-12 items-center justify-center rounded-full text-xs font-semibold tracking-narrow opacity-90 ${stamp.toneClass}`}
+          className={`inline-flex h-12 w-12 items-center rounded-full text-xs font-semibold tracking-narrow opacity-90 ${stamp.toneClass}`}
         >
           {stamp.label}
         </span>
       </div>
-      <div className="flex min-h-[2.5rem] items-center justify-center px-2 py-2 text-xs text-gray-500">
+      <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
         {progress.timestampLabel}
       </div>
     </div>
