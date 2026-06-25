@@ -13,11 +13,17 @@ import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
-import { PenSquare } from 'lucide-react';
+import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
+import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
+import { Eye, PenSquare } from 'lucide-react';
 import {
   getMultiStepApprovalProgress,
+  getRequestorSubmissionStepProgress,
   getRequestStatusDisplay,
 } from '@/lib/budget-plan-approval-display';
+
+const usingCompactView = isBudgetRequestCompactDetailView();
 
 type HistoryEntry = {
   id: string;
@@ -40,6 +46,7 @@ export default function ReviewBudgetRequestPage() {
     notes: string | null;
     status: string;
     requestDate: string;
+    requestorName?: string | null;
     fiscalYear: number;
     vatAmount?: unknown;
     whtAmount?: unknown;
@@ -242,6 +249,10 @@ export default function ReviewBudgetRequestPage() {
   const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
+  const requestorStepProgress = getRequestorSubmissionStepProgress(data.histories ?? [], {
+    requestorName: data.requestorName,
+    requestDate: data.requestDate,
+  });
   // The next step the current reviewer is about to act on is the first one
   // whose progress is still "Pending" (or "Revision"/"Declined" — but those
   // are blocked until the requestor resubmits, so the button is hidden anyway).
@@ -260,45 +271,122 @@ export default function ReviewBudgetRequestPage() {
       minute: '2-digit',
     });
 
-  return (
-    <div className="max-w-4xl space-y-6">
-      <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">← Back</Link>
-      <h1 className="text-2xl font-semibold">Review Budget Request</h1>
+  const reviewActionButtons =
+    data.status !== 'Approved' ? (
+      <div className="flex justify-end gap-3 pt-4">
+        <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+          Cancel
+        </Link>
+        <button
+          type="button"
+          onClick={() => setIsDeclineModalOpen(true)}
+          disabled={isSubmitting || !data.canReview}
+          className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+        >
+          Decline
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsApproveModalOpen(true)}
+          disabled={isSubmitting || !data.canReview}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+        >
+          {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
+        </button>
+      </div>
+    ) : null;
 
-      <Card className="space-y-4">
-        <h3 className="font-medium">Header Information</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div><span className="text-gray-500">ID:</span> {data.code}</div>
-          <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
-          <div><span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}</div>
-          <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
-          <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
-          <div>
-            <span className="text-gray-500">Status:</span>{' '}
-            {(() => {
-              const display = getRequestStatusDisplay(data.status);
-              return (
-                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
-                  {display.label}
-                </span>
-              );
-            })()}
-          </div>
-          <div className="md:col-span-2">
-            <span className="text-gray-500">Subject:</span>
-            <p className="font-medium">{data.subject}</p>
-          </div>
-          <div className="md:col-span-2">
-            <span className="text-gray-500">Description:</span>
-            <RichTextContent value={data.description} className="mt-1" />
-          </div>
-          <div className="md:col-span-2">
-            <span className="text-gray-500">Notes:</span>
-            <p className="mt-1 whitespace-pre-wrap text-gray-700">{data.notes || '-'}</p>
-          </div>
+  const reviewModals = (
+    <>
+      <Modal
+        isOpen={isDeclineModalOpen}
+        onClose={closeDeclineModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
+        <h3 className="text-lg font-semibold">Decline Confirmation</h3>
+        <p className="mt-2 text-sm text-gray-600">
+          Do you want to decline this budget request? You may ask for revision.
+        </p>
+        <textarea
+          value={declineReason}
+          onChange={(e) => setDeclineReason(e.target.value)}
+          placeholder="Write reason..."
+          className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeDeclineModal}
+            className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDecline('revision')}
+            className="flex items-center gap-2 rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+            disabled={isSubmitting}
+          >
+            <PenSquare className="h-4 w-4 text-gray-500" />
+            Ask For Revision
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDecline('decline')}
+            className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 cursor-pointer"
+            disabled={isSubmitting}
+          >
+            Yes, I Decline
+          </button>
         </div>
-      </Card>
+      </Modal>
 
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={closeApproveModal}
+        closeOnEscape={!isSubmitting}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
+        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
+      >
+        <h3 className="text-lg font-semibold">Approval Confirmation</h3>
+        <p className="mt-2 text-sm text-gray-600">
+          Are you sure you want to approve this budget request?
+        </p>
+        <textarea
+          value={approvalNote}
+          onChange={(e) => setApprovalNote(e.target.value)}
+          placeholder="Write approval note (optional)..."
+          className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeApproveModal}
+            className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleApprove}
+            className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 cursor-pointer"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Processing...' : 'Confirm Approval'}
+          </button>
+        </div>
+      </Modal>
+    </>
+  );
+
+  const reviewFormSections = (
+    <>
       <Card collapsible header={<h3 className="font-medium">Items</h3>}>
         <Table>
           <thead>
@@ -543,6 +631,120 @@ export default function ReviewBudgetRequestPage() {
           </div>
         </div>
       </Card>
+    </>
+  );
+
+  if (usingCompactView) {
+    return (
+      <>
+        <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">
+          <div className="mx-auto w-full space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">
+                ← Back
+              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/budget-requests/${id}/detail`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                >
+                  <Eye className="h-4 w-4" aria-hidden />
+                  Detail
+                </Link>
+              </div>
+            </div>
+
+            <Card className="space-y-4">
+              <h3 className="font-medium">Approval Escalation</h3>
+              {orderedLevels.length ? (
+                <ApprovalEscalationPrintGrid
+                  levels={orderedLevels}
+                  stepProgresses={stepProgresses}
+                  showRequestor
+                  requestorStepProgress={requestorStepProgress}
+                />
+              ) : (
+                <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
+              )}
+            </Card>
+
+            <Card className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">Request Date</p>
+                <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Subject</p>
+                <h1 className="text-2xl font-semibold text-gray-900">{data.subject}</h1>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Description</p>
+                <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                  <RichTextContent value={data.description} />
+                </div>
+              </div>
+            </Card>
+
+            {reviewFormSections}
+            {reviewActionButtons}
+          </div>
+
+          <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96">
+            <EntityCommentPanel
+              entityBasePath="budget-requests"
+              entityId={id}
+              requestStatus={data.status}
+              approvalLevels={orderedLevels}
+              histories={data.histories ?? []}
+              inputId="br-review-comment-input"
+            />
+          </aside>
+        </div>
+        {reviewModals}
+      </>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">← Back</Link>
+      <h1 className="text-2xl font-semibold">Review Budget Request</h1>
+
+      <Card className="space-y-4">
+        <h3 className="font-medium">Header Information</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div><span className="text-gray-500">ID:</span> {data.code}</div>
+          <div><span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}</div>
+          <div><span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}</div>
+          <div><span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}</div>
+          <div><span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}</div>
+          <div>
+            <span className="text-gray-500">Status:</span>{' '}
+            {(() => {
+              const display = getRequestStatusDisplay(data.status);
+              return (
+                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
+                  {display.label}
+                </span>
+              );
+            })()}
+          </div>
+          <div className="md:col-span-2">
+            <span className="text-gray-500">Subject:</span>
+            <p className="font-medium">{data.subject}</p>
+          </div>
+          <div className="md:col-span-2">
+            <span className="text-gray-500">Description:</span>
+            <RichTextContent value={data.description} className="mt-1" />
+          </div>
+          <div className="md:col-span-2">
+            <span className="text-gray-500">Notes:</span>
+            <p className="mt-1 whitespace-pre-wrap text-gray-700">{data.notes || '-'}</p>
+          </div>
+        </div>
+      </Card>
+
+      {reviewFormSections}
 
       <div>
         {orderedLevels.length ? (
@@ -590,31 +792,7 @@ export default function ReviewBudgetRequestPage() {
 
             <ApprovalStepNotesList levels={orderedLevels} stepProgresses={stepProgresses} />
 
-            {data.status !== 'Approved' ? (
-              <div className="flex justify-end gap-3 pt-4">
-                <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-                  Cancel
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setIsDeclineModalOpen(true)}
-                  disabled={isSubmitting || !data.canReview}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                  title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
-                >
-                  Decline
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsApproveModalOpen(true)}
-                  disabled={isSubmitting || !data.canReview}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                  title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
-                >
-                  {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
-                </button>
-              </div>
-            ) : null}
+            {reviewActionButtons}
           </Card>
         ) : null}
       </div>
@@ -642,88 +820,7 @@ export default function ReviewBudgetRequestPage() {
           <p className="text-sm text-gray-500">No history yet.</p>
         )}
       </Card>
-      <Modal
-        isOpen={isDeclineModalOpen}
-        onClose={closeDeclineModal}
-        closeOnEscape={!isSubmitting}
-        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
-        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
-      >
-            <h3 className="text-lg font-semibold">Decline Confirmation</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Do you want to decline this budget request? You may ask for revision.
-            </p>
-            <textarea
-              value={declineReason}
-              onChange={(e) => setDeclineReason(e.target.value)}
-              placeholder="Write reason..."
-              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeDeclineModal}
-                className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDecline('revision')}
-                className="flex items-center gap-2 rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                disabled={isSubmitting}
-              >
-                <PenSquare className="h-4 w-4 text-gray-500" />
-                Ask For Revision
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDecline('decline')}
-                className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 cursor-pointer"
-                disabled={isSubmitting}
-              >
-                Yes, I Decline
-              </button>
-            </div>
-      </Modal>
-
-      <Modal
-        isOpen={isApproveModalOpen}
-        onClose={closeApproveModal}
-        closeOnEscape={!isSubmitting}
-        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 m-0"
-        panelClassName="w-full max-w-xl rounded-xl bg-white p-6 shadow-lg"
-      >
-            <h3 className="text-lg font-semibold">Approval Confirmation</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Are you sure you want to approve this budget request?
-            </p>
-            <textarea
-              value={approvalNote}
-              onChange={(e) => setApprovalNote(e.target.value)}
-              placeholder="Write approval note (optional)..."
-              className="mt-4 h-28 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeApproveModal}
-                className="rounded-lg border border-gray-500 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApprove}
-                className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 cursor-pointer"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Processing...' : 'Confirm Approval'}
-              </button>
-            </div>
-      </Modal>
+      {reviewModals}
     </div>
   );
 }
