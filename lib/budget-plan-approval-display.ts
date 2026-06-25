@@ -189,6 +189,51 @@ export function countCompletedApprovalSteps(histories: BudgetPlanHistoryEntry[])
   return scanCurrentCycle(histories).completedActions.length;
 }
 
+/** Requestor submission column for print approval grids (first step before reviewers). */
+export function getRequestorSubmissionStepProgress(
+  histories: BudgetPlanHistoryEntry[],
+  options?: { requestorName?: string | null; requestDate?: string | null }
+): ApprovalStepProgress {
+  const sortedAsc = histories
+    .slice()
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  let resetIdx = -1;
+  for (let i = sortedAsc.length - 1; i >= 0; i--) {
+    if (getHistoryStatus(sortedAsc[i]) === 'Draft') {
+      resetIdx = i;
+      break;
+    }
+  }
+  const scoped = resetIdx >= 0 ? sortedAsc.slice(resetIdx + 1) : sortedAsc;
+
+  const submission = scoped.find((history) => history.action === 'create' || history.action === 'update');
+  if (submission) {
+    return {
+      statusLabel: 'Submitted',
+      timestampLabel: formatBudgetPlanHistoryDateTime(submission.timestamp),
+      actorName: submission.user?.name ?? options?.requestorName ?? null,
+      note: null,
+    };
+  }
+
+  if (options?.requestDate) {
+    return {
+      statusLabel: 'Submitted',
+      timestampLabel: formatBudgetPlanHistoryDateTime(options.requestDate),
+      actorName: options?.requestorName ?? null,
+      note: null,
+    };
+  }
+
+  return {
+    statusLabel: 'Pending',
+    timestampLabel: '-',
+    actorName: options?.requestorName ?? null,
+    note: null,
+  };
+}
+
 /**
  * Derive per-step approval state for a multi-step schema (e.g. 3-step or
  * 4-step ladders) from the entity's activity history.
