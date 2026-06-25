@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import EditWarningModal from '@/components/ui/EditWarningModal';
@@ -27,9 +27,11 @@ import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
   getMultiStepApprovalProgress,
   getRequestorSubmissionStepProgress,
+  getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 type HistoryEntry = {
   id: string;
@@ -117,6 +119,7 @@ export default function BudgetRequestDetailPage() {
   const whtAmount = Number(data.whtAmount ?? 0);
   const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
   const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
+  const allocationsTotal = data.allocations?.reduce((sum, allocation) => sum + Number(allocation.allocation ?? 0), 0) ?? 0;
   const allocatedMonths = Array.from(new Set((data.allocations || []).map((a) => a.month))).sort((a, b) => a - b);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
