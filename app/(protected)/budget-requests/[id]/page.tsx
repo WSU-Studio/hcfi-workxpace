@@ -18,6 +18,7 @@ import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import {
   getMultiStepApprovalProgress,
+  getRequestorSubmissionStepProgress,
   getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
@@ -127,6 +128,11 @@ export default function BudgetRequestDetailPage() {
   // after a later reviewer asks for revision, and only the requestor's
   // resubmit (logged as `update`) resets the table back to "Pending".
   const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
+  const requestorStepProgress = getRequestorSubmissionStepProgress(data.histories ?? [], {
+    requestorName: data.requestorName,
+    requestDate: data.requestDate,
+  });
+  const printApprovalColumns = orderedLevels.length + 1;
   const accountLabel = (() => {
     const coaId = data.budgetPlan?.coaId;
     if (!coaId) return '-';
@@ -444,9 +450,37 @@ export default function BudgetRequestDetailPage() {
                   <div
                     className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
                     style={{
-                      gridTemplateColumns: `repeat(${orderedLevels.length}, minmax(140px, 1fr))`,
+                      gridTemplateColumns: `repeat(${printApprovalColumns}, minmax(140px, 1fr))`,
                     }}
                   >
+                    {(() => {
+                      const isSubmitted = requestorStepProgress.statusLabel === 'Submitted';
+                      const stampLabel = isSubmitted ? 'Submit' : '';
+                      const stampToneClass = isSubmitted ? 'border-2 border-blue-400 text-blue-500' : '';
+                      return (
+                        <div
+                          key="requestor"
+                          className="flex flex-col border-r border-gray-300 text-center text-sm print:break-inside-avoid"
+                        >
+                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
+                            Requestor
+                          </div>
+                          <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
+                            {requestorStepProgress.actorName ?? <span className="text-gray-300">—</span>}
+                          </div>
+                          <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
+                            <span
+                              className={`inline-flex h-12 w-12 items-center rounded-full text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
+                            >
+                              {stampLabel}
+                            </span>
+                          </div>
+                          <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
+                            {requestorStepProgress.timestampLabel}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {orderedLevels.map((l, i) => {
                       const stepProgress = stepProgresses[i];
                       const isApproved =
