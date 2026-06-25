@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
-import { Download, Pencil, Printer, ScanSearch } from 'lucide-react';
+import { Download, Pencil, Printer, ScanSearch, Eye } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -199,91 +199,127 @@ export default function BudgetRequestDetailPage() {
 
   if (usingCompactView) {
     return (
-      <div className="mx-auto w-full max-w-5xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/budget-requests" className="text-blue-600 hover:underline">
-            ← Back
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/budget-requests/${id}/detail`}
-              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Detail
+      <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
+        <div className="mx-auto w-full space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+            <Link href="/budget-requests" className="text-blue-600 hover:underline">
+              ← Back
             </Link>
-            {data.canReview ? (
-              <Link
-                href={`/budget-requests/${id}/review`}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrint}
+                className="inline-flex items-center gap-2"
+                aria-label="Print budget request detail"
+                disabled={isExporting}
               >
-                <ScanSearch className="h-4 w-4" />
-                Review
+                <Printer className="h-4 w-4" aria-hidden />
+                Print
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDownloadPdf}
+                className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Download budget request detail as PDF"
+                aria-busy={isExporting}
+                disabled={isExporting}
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                {isExporting ? 'Generating PDF...' : 'Download PDF'}
+              </Button>
+              <Link
+                href={`/budget-requests/${id}/detail`}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              >
+                <Eye className="h-4 w-4" aria-hidden /> 
+                Detail
               </Link>
-            ) : null}
-            {canEditAsRequestor ? (
-              requiresEditConfirmation(data.status) ? (
-                <button
-                  type="button"
-                  onClick={() => setIsEditWarningOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </button>
-              ) : (
+              {data.canReview ? (
                 <Link
-                  href={`/budget-requests/${id}/edit`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                  href={`/budget-requests/${id}/review`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
-                  <Pencil className="h-4 w-4" />
-                  Edit
+                  <ScanSearch className="h-4 w-4" />
+                  Review
                 </Link>
-              )
-            ) : null}
-          </div>
-        </div>
-
-        <Card className="space-y-4">
-          <h3 className="font-medium">Approval Escalation</h3>
-          {orderedLevels.length ? (
-            <ApprovalEscalationPrintGrid
-              levels={orderedLevels}
-              stepProgresses={stepProgresses}
-              showRequestor
-              requestorStepProgress={requestorStepProgress}
-            />
-          ) : (
-            <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
-          )}
-        </Card>
-
-        <Card className="space-y-4">
-          <div>
-            <p className="text-sm text-gray-500">Request Date</p>
-            <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Subject</p>
-            <h1 className="text-2xl font-semibold text-gray-900">{data.subject}</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Description</p>
-            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
-              <RichTextContent value={data.description} />
+              ) : null}
+              {canEditAsRequestor ? (
+                requiresEditConfirmation(data.status) ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditWarningOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </button>
+                ) : (
+                  <Link
+                    href={`/budget-requests/${id}/edit`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Link>
+                )
+              ) : null}
             </div>
           </div>
-        </Card>
 
-        <EditWarningModal
-          isOpen={isEditWarningOpen}
-          entityType="budget-request"
-          subject={data.subject}
-          onCancel={() => setIsEditWarningOpen(false)}
-          onContinue={() => {
-            setIsEditWarningOpen(false);
-            router.push(`/budget-requests/${id}/edit`);
-          }}
+          <Card className="space-y-4">
+            <h3 className="font-medium">Approval Escalation</h3>
+            {orderedLevels.length ? (
+              <ApprovalEscalationPrintGrid
+                levels={orderedLevels}
+                stepProgresses={stepProgresses}
+                showRequestor
+                requestorStepProgress={requestorStepProgress}
+              />
+            ) : (
+              <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
+            )}
+          </Card>
+
+          <Card className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-500">Request Date</p>
+              <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Subject</p>
+              <h1 className="text-2xl font-semibold text-gray-900">{data.subject}</h1>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Description</p>
+              <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <RichTextContent value={data.description} />
+              </div>
+            </div>
+          </Card>
+
+          <EditWarningModal
+            isOpen={isEditWarningOpen}
+            entityType="budget-request"
+            subject={data.subject}
+            onCancel={() => setIsEditWarningOpen(false)}
+            onContinue={() => {
+              setIsEditWarningOpen(false);
+              router.push(`/budget-requests/${id}/edit`);
+            }}
+          />
+        </div>
+
+        <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96 print:hidden">
+        <EntityCommentPanel
+          entityBasePath="budget-requests"
+          entityId={id}
+          requestStatus={data.status}
+          approvalLevels={orderedLevels}
+          histories={data.histories ?? []}
+          inputId="br-comment-input"
         />
+        </aside>
       </div>
     );
   }
