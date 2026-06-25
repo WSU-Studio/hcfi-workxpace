@@ -16,7 +16,6 @@ import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
-import BudgetRequestDetailModal from '@/components/budget-requests/BudgetRequestDetailModal';
 import {
   BudgetRequestClassificationSection,
   BudgetRequestDetailSummarySection,
@@ -101,7 +100,6 @@ export default function BudgetRequestDetailPage() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -207,9 +205,12 @@ export default function BudgetRequestDetailPage() {
             ← Back
           </Link>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsDetailModalOpen(true)}>
+            <Link
+              href={`/budget-requests/${id}/detail`}
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
               Detail
-            </Button>
+            </Link>
             {data.canReview ? (
               <Link
                 href={`/budget-requests/${id}/review`}
@@ -271,17 +272,7 @@ export default function BudgetRequestDetailPage() {
               <RichTextContent value={data.description} />
             </div>
           </div>
-        </Card>        
-
-        <BudgetRequestDetailModal
-          isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          data={data}
-          originOfficeLabel={originOfficeLabel}
-          accountLabel={accountLabel}
-          opexType={opexType}
-          totals={amountTotals}
-        />
+        </Card>
 
         <EditWarningModal
           isOpen={isEditWarningOpen}

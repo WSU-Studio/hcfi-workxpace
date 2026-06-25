@@ -92,6 +92,7 @@ NEXT_PUBLIC_AZURE_AD_SSO_ENABLED=false
 # Tenant UI (optional) — see lib/deployment-ui-policy.ts
 NEXT_PUBLIC_DEPLOYMENT_TENANT=
 NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW=false
+# When enabled: /budget-requests/[id] = compact view; /budget-requests/[id]/detail = full drill-down
 
 # Master sync UI (optional)
 NEXT_PUBLIC_SYNC_MANAGED_MASTERS=""
