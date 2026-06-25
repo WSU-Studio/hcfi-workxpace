@@ -253,50 +253,11 @@ export default function ReviewBudgetRequestPage() {
     requestorName: data.requestorName,
     requestDate: data.requestDate,
   });
-  // The next step the current reviewer is about to act on is the first one
-  // whose progress is still "Pending" (or "Revision"/"Declined" — but those
-  // are blocked until the requestor resubmits, so the button is hidden anyway).
-  // "Final approve" only applies to the very last step in the schema.
   const nextStepIndex = stepProgresses.findIndex(
     (step) => step.statusLabel !== 'Reviewed' && step.statusLabel !== 'Approved',
   );
   const isFinalApprovalStep =
     orderedLevels.length > 0 && nextStepIndex === orderedLevels.length - 1;
-  const formatDateTime = (date: string) =>
-    new Date(date).toLocaleString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-  const reviewActionButtons =
-    data.status !== 'Approved' ? (
-      <div className="flex justify-end gap-3 pt-4">
-        <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-          Cancel
-        </Link>
-        <button
-          type="button"
-          onClick={() => setIsDeclineModalOpen(true)}
-          disabled={isSubmitting || !data.canReview}
-          className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-          title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
-        >
-          Decline
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsApproveModalOpen(true)}
-          disabled={isSubmitting || !data.canReview}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-          title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
-        >
-          {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
-        </button>
-      </div>
-    ) : null;
 
   const reviewModals = (
     <>
@@ -384,6 +345,138 @@ export default function ReviewBudgetRequestPage() {
       </Modal>
     </>
   );
+
+  if (usingCompactView) {
+    return (
+      <>
+        <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">
+          <div className="mx-auto w-full space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">
+                ← Back
+              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/budget-requests/${id}/review/detail`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                >
+                  <Eye className="h-4 w-4" aria-hidden />
+                  Detail
+                </Link>
+                {data.status !== 'Approved' ? (
+                  <>
+                    <Link
+                      href={`/budget-requests/${id}`}
+                      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setIsDeclineModalOpen(true)}
+                      disabled={isSubmitting || !data.canReview}
+                      className="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 h-10 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+                    >
+                      Decline
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsApproveModalOpen(true)}
+                      disabled={isSubmitting || !data.canReview}
+                      className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 h-10 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+                    >
+                      {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            <Card className="space-y-4">
+            <h3 className="font-medium">Approval Escalation</h3>
+            {orderedLevels.length ? (
+              <ApprovalEscalationPrintGrid
+                levels={orderedLevels}
+                stepProgresses={stepProgresses}
+                showRequestor
+                requestorStepProgress={requestorStepProgress}
+              />
+            ) : (
+              <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
+            )}
+          </Card>
+
+          <Card className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-500">Request Date</p>
+              <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Subject</p>
+              <h1 className="text-2xl font-semibold text-gray-900">{data.subject}</h1>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Description</p>
+              <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <RichTextContent value={data.description} />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96">
+          <EntityCommentPanel
+            entityBasePath="budget-requests"
+            entityId={id}
+            requestStatus={data.status}
+            approvalLevels={orderedLevels}
+            histories={data.histories ?? []}
+            inputId="br-review-comment-input"
+          />
+        </aside>
+        </div>
+        {reviewModals}
+      </>
+    );
+  }
+
+  const formatDateTime = (date: string) =>
+    new Date(date).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const reviewActionButtons =
+    data.status !== 'Approved' ? (
+      <div className="flex justify-end gap-3 pt-4">
+        <Link href={`/budget-requests/${id}`} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+          Cancel
+        </Link>
+        <button
+          type="button"
+          onClick={() => setIsDeclineModalOpen(true)}
+          disabled={isSubmitting || !data.canReview}
+          className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+        >
+          Decline
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsApproveModalOpen(true)}
+          disabled={isSubmitting || !data.canReview}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          title={!data.canReview ? 'You are not in current review step of this approval schema' : undefined}
+        >
+          {isSubmitting ? 'Submitting...' : isFinalApprovalStep ? 'Final approve' : 'Approve'}
+        </button>
+      </div>
+    ) : null;
 
   const reviewFormSections = (
     <>
@@ -633,77 +726,6 @@ export default function ReviewBudgetRequestPage() {
       </Card>
     </>
   );
-
-  if (usingCompactView) {
-    return (
-      <>
-        <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">
-          <div className="mx-auto w-full space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">
-                ← Back
-              </Link>
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`/budget-requests/${id}/detail`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
-                >
-                  <Eye className="h-4 w-4" aria-hidden />
-                  Detail
-                </Link>
-              </div>
-            </div>
-
-            <Card className="space-y-4">
-              <h3 className="font-medium">Approval Escalation</h3>
-              {orderedLevels.length ? (
-                <ApprovalEscalationPrintGrid
-                  levels={orderedLevels}
-                  stepProgresses={stepProgresses}
-                  showRequestor
-                  requestorStepProgress={requestorStepProgress}
-                />
-              ) : (
-                <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
-              )}
-            </Card>
-
-            <Card className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-500">Request Date</p>
-                <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Subject</p>
-                <h1 className="text-2xl font-semibold text-gray-900">{data.subject}</h1>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Description</p>
-                <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                  <RichTextContent value={data.description} />
-                </div>
-              </div>
-            </Card>
-
-            {reviewFormSections}
-            {reviewActionButtons}
-          </div>
-
-          <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96">
-            <EntityCommentPanel
-              entityBasePath="budget-requests"
-              entityId={id}
-              requestStatus={data.status}
-              approvalLevels={orderedLevels}
-              histories={data.histories ?? []}
-              inputId="br-review-comment-input"
-            />
-          </aside>
-        </div>
-        {reviewModals}
-      </>
-    );
-  }
 
   return (
     <div className="max-w-4xl space-y-6">
