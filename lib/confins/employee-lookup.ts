@@ -253,7 +253,8 @@ async function resolveDepartmentIdByBusinessUnitName(
  *   - `EmpNo` → Workxpace `users.employeeId`
  *   - `Roles[].BusinessUnitName` → Workxpace `users.departmentId`
  *
- * Name stays from Entra per Hyundai requirement — `EmpName` is ignored here.
+ * `EmpName` is applied during batch employee sync, not SSO auto-provision
+ * (SSO keeps the display name from Entra on first login).
  */
 export async function lookupConfinsEmployeeByEmail(
   email: string,

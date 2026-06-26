@@ -7,12 +7,13 @@ Daily job that updates Workxpace users whose email exists in the Confins Organiz
 | Confins field | Workxpace field | Notes |
 |---|---|---|
 | `Username` | match key (`users.email`) | Case-insensitive |
+| `EmpName` | `users.name` | Skipped when empty in Confins |
 | `EmpNo` | `users.employeeId` | Skipped if EmpNo already belongs to another user |
 | `Roles[].BusinessUnitName` | `users.departmentId` | Resolved by department name; auto-creates from BizUnit master if missing |
 | `Roles[].RoleName` | `users.roleId` | Match `roles.roleCode`; auto-create role if missing |
 | `Roles[].JobTitleName` | `roles.roleName` | Used as display name when role is auto-created |
 
-**Not synced:** `name` (stays from Entra/manual), access flags, `isActive`.
+**Not synced:** access flags, `isActive`.
 
 Employee master sync **always calls the live Confins API** (`liveOnly`) — it ignores the
 **Activate Mock API** toggle and mock fallback. Mock mode only affects other Confins

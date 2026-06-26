@@ -19,7 +19,7 @@ export type ConfinsEmployeeSyncSummary = {
   matchedInConfins: number;
   /** Users with no Confins row for their email. */
   notInConfins: number;
-  /** Rows where `employeeId`, `departmentId`, and/or `roleId` were written. */
+  /** Rows where user fields were written from Confins. */
   updated: number;
   /** Matched users already up to date — no DB write. */
   unchanged: number;
@@ -28,6 +28,7 @@ export type ConfinsEmployeeSyncSummary = {
 };
 
 type UserPatchData = {
+  name: string;
   employeeId: string;
   departmentId: string;
   roleId: string;
@@ -83,13 +84,13 @@ async function applyUserPatch(
  * Daily batch sync: update Workxpace users whose email exists in Confins.
  *
  * Fields synced (Confins → Workxpace):
+ *   - `EmpName` → `users.name`
  *   - `EmpNo` → `users.employeeId`
  *   - `Roles[].BusinessUnitName` → `users.departmentId`
  *   - `Roles[].RoleName` → `users.roleId` (match/create `roles.roleCode`)
  *   - `Roles[].JobTitleName` → `roles.roleName` when role is auto-created
  *
  * NOT synced (by design):
- *   - `name` — remains from Entra / manual entry
  *   - access flags — admin-managed in Workxpace
  *   - `isActive` — not changed by this job (confirm with HCFI before enabling)
  *
@@ -111,6 +112,7 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
     prisma.user.findMany({
       select: {
         id: true,
+        name: true,
         email: true,
         employeeId: true,
         departmentId: true,
@@ -155,6 +157,7 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
         summary.errors.push({ email, reason: patch.reason });
         if (patch.partial) {
           await applyUserPatch(user.id, user.roleId, {
+            name: patch.partial.name ?? user.name,
             employeeId: patch.partial.employeeId ?? user.employeeId,
             departmentId: patch.partial.departmentId ?? user.departmentId,
             roleId: patch.partial.roleId ?? user.roleId,
@@ -181,6 +184,7 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
 
 type UserRow = {
   id: string;
+  name: string;
   email: string;
   employeeId: string;
   departmentId: string;
@@ -203,6 +207,8 @@ async function buildUserPatchFromConfinsRow(
   const confinsRoleCode = activeRole?.RoleName?.trim() ?? null;
   const jobTitleName = activeRole?.JobTitleName?.trim() ?? null;
 
+  const confinsName = String(row.EmpName ?? '').trim() || null;
+
   const departmentId = businessUnitName
     ? await resolveDepartmentId(businessUnitName)
     : null;
@@ -218,16 +224,19 @@ async function buildUserPatchFromConfinsRow(
 
   const nextDepartmentId = departmentId ?? user.departmentId;
   const nextRoleId = roleId ?? user.roleId;
+  const nextName = confinsName ?? user.name;
+  const nameChanged = nextName !== user.name;
   const employeeChanged = employeeId !== user.employeeId;
   const departmentChanged = nextDepartmentId !== user.departmentId;
   const roleChanged = nextRoleId !== user.roleId;
 
-  if (!employeeChanged && !departmentChanged && !roleChanged) {
+  if (!nameChanged && !employeeChanged && !departmentChanged && !roleChanged) {
     return { kind: 'unchanged' };
   }
 
   if (empSkipped) {
     const partial: Partial<UserPatchData> = {};
+    if (nameChanged) partial.name = nextName;
     if (departmentChanged) partial.departmentId = nextDepartmentId;
     if (roleChanged) partial.roleId = nextRoleId;
 
@@ -241,6 +250,7 @@ async function buildUserPatchFromConfinsRow(
   return {
     kind: 'update',
     data: {
+      name: nextName,
       employeeId,
       departmentId: nextDepartmentId,
       roleId: nextRoleId,
