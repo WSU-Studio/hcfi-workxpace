@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { normalizeSupportingDocs } from '@/lib/budget-plans/form';
 import {
   getMultiStepApprovalProgress,
+  getRequestorSubmissionStepProgress,
   getRequestStatusDisplay,
   requiresEditConfirmation,
   type BudgetPlanHistoryEntry,
@@ -19,6 +20,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
 import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
 import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
@@ -167,6 +169,14 @@ export default function BudgetPlanDetailPage() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  const approvalLevels = [...(plan.approvalSchema?.approvalLevels ?? [])].sort(
+    (a, b) => a.stepOrder - b.stepOrder,
+  );
+  const approvalStepProgresses = getMultiStepApprovalProgress(approvalLevels, histories);
+  const requestorStepProgress = getRequestorSubmissionStepProgress(histories, {
+    requestorName: plan.requestorName,
+    requestDate: plan.requestDate,
+  });
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();
@@ -465,69 +475,12 @@ export default function BudgetPlanDetailPage() {
             })()}
 
             <div className="hidden print:block">
-              {(() => {
-                const approvalLevels = plan.approvalSchema!.approvalLevels;
-                const stepProgresses = getMultiStepApprovalProgress(approvalLevels, histories);
-                return (
-                  <div className="overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0">
-                    <div
-                      className="grid min-w-full overflow-hidden rounded-lg border border-gray-300 bg-white"
-                      style={{
-                        gridTemplateColumns: `repeat(${approvalLevels.length}, minmax(140px, 1fr))`,
-                      }}
-                    >
-                      {approvalLevels.map((l, i) => {
-                        const stepProgress = stepProgresses[i];
-                        const isApproved =
-                          stepProgress.statusLabel === 'Approved' || stepProgress.statusLabel === 'Reviewed';
-                        const isPending = stepProgress.statusLabel === 'Pending';
-                        const isRevision = stepProgress.statusLabel === 'Revision';
-                        const stampLabel = isApproved
-                          ? stepProgress.statusLabel === 'Reviewed'
-                            ? 'Accept'
-                            : 'Accept'
-                          : isPending
-                            ? ''
-                            : isRevision
-                              ? ''
-                              : '';
-                        const stampToneClass = isApproved
-                          ? 'border-2 border-blue-400 text-blue-500'
-                          : isPending
-                            ? ''
-                            : isRevision
-                              ? ''
-                              : '';
-                        const isLastCol = i === approvalLevels.length - 1;
-                        const colBorder = isLastCol ? '' : 'border-r border-gray-300';
-                        return (
-                          <div
-                            key={i}
-                            className={`flex flex-col text-sm print:break-inside-avoid ${colBorder}`}
-                          >
-                            <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 font-medium text-gray-800">
-                              {l.role?.roleName ?? '-'}
-                            </div>
-                            <div className="flex min-h-[3.5rem] items-center border-b border-gray-300 px-2 py-2 text-gray-700">
-                              {stepProgress.actorName ?? <span className="text-gray-300">—</span>}
-                            </div>
-                            <div className="flex min-h-[4rem] items-center border-b border-gray-300 px-2 py-2">
-                              <span
-                                className={`inline-flex items-center rounded-full h-12 w-12 justify-center text-xs font-semibold tracking-narrow opacity-90 ${stampToneClass}`}
-                              >
-                                {stampLabel}
-                              </span>
-                            </div>
-                            <div className="flex min-h-[2.5rem] items-center px-2 py-2 text-xs text-gray-500">
-                              {stepProgress.timestampLabel}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
+              <ApprovalEscalationPrintGrid
+                levels={approvalLevels}
+                stepProgresses={approvalStepProgresses}
+                // showRequestor
+                requestorStepProgress={requestorStepProgress}
+              />
             </div>
 
             {canEdit || editLocked || reviewMeta?.canReview ? (

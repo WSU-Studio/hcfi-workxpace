@@ -87,6 +87,36 @@ export default function BudgetRequestForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      <div ref={fieldRefs.approvalSchema}>
+        <label className="block mb-1.5 font-medium">Approval Schema *</label>
+        <Select
+          value={formData.approvalSchemaId}
+          onChange={(event) =>
+            onFormDataChange((previous) => ({
+              ...previous,
+              approvalSchemaId: event.target.value,
+            }))
+          }
+          required
+          aria-invalid={!formData.approvalSchemaId}
+        >
+          <option value="">-</option>
+          {schemasForDept.map((schema) => (
+            <option key={schema.id} value={schema.id}>
+              {schema.name}
+            </option>
+          ))}
+        </Select>
+        {formData.departmentId && schemasForDept.length === 0 ? (
+          <p className="mt-1.5 text-xs text-amber-600">
+            No approval schema is configured for the selected department.
+          </p>
+        ) : null}
+        {formData.approvalSchemaId ? (
+          <ApprovalSchemaLevelsPreview levels={selectedApprovalLevels} className="mt-3" />
+        ) : null}
+      </div>
+      
       <div ref={fieldRefs.budgetPlan}>
         <label className="block mb-1.5 font-medium">Budget Plan (Approved) *</label>
         <Select
@@ -281,7 +311,21 @@ export default function BudgetRequestForm({
         />
       </div>
 
-      <div ref={fieldRefs.approvalSchema}>
+      <div>
+        <label className="block mb-1.5 font-medium">Notes</label>
+        <Input
+          type="text"
+          value={formData.notes}
+          onChange={(event) =>
+            onFormDataChange((previous) => ({
+              ...previous,
+              notes: event.target.value,
+            }))
+          }
+        />
+      </div>
+
+      {/* <div ref={fieldRefs.approvalSchema}>
         <label className="block mb-1.5 font-medium">Approval Schema *</label>
         <Select
           value={formData.approvalSchemaId}
@@ -309,21 +353,7 @@ export default function BudgetRequestForm({
         {formData.approvalSchemaId ? (
           <ApprovalSchemaLevelsPreview levels={selectedApprovalLevels} className="mt-3" />
         ) : null}
-      </div>
-
-      <div>
-        <label className="block mb-1.5 font-medium">Notes</label>
-        <Input
-          type="text"
-          value={formData.notes}
-          onChange={(event) =>
-            onFormDataChange((previous) => ({
-              ...previous,
-              notes: event.target.value,
-            }))
-          }
-        />
-      </div>
+      </div> */}
 
       <div className="flex justify-end gap-3 pt-4 border-t">
         <ButtonLink href={cancelHref} variant="outline">
