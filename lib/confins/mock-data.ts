@@ -131,22 +131,6 @@ const MOCK_EMPLOYEES: ConfinsEmployee[] = [
       },
     ],
   },
-  {
-    Username: 'irwanphan@wsustudio.com',
-    EmpNo: 'EM-000X',
-    EmpName: 'Irwan Phan',
-    IsActive: true,
-    Roles: [
-      {
-        BusinessUnitName: 'IT & INFO SEC',
-        SupervisorName: null,
-        JobTitleName: 'CONSULTANT',
-        OfficeName: 'HEAD OFFICE',
-        RoleName: 'GUEST',
-        IsActive: true,
-      },
-    ],
-  },
 ];
 
 const MOCK_OFFICES: ConfinsOffice[] = [

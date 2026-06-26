@@ -72,7 +72,7 @@ async function postWithFallback<T>(
   let lastError: unknown = null;
   for (const path of paths) {
     try {
-      return await client.post<T>({ path, body });
+      return await client.post<T>({ path, body, liveOnly: true });
     } catch (error) {
       lastError = error;
     }

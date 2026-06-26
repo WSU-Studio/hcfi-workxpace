@@ -12,6 +12,10 @@ Daily job that updates Workxpace users whose email exists in the Confins Organiz
 
 **Not synced:** `name` (stays from Entra/manual), `roleId`, access flags, `isActive`.
 
+Employee master sync **always calls the live Confins API** (`liveOnly`) — it ignores the
+**Activate Mock API** toggle and mock fallback. Mock mode only affects other Confins
+endpoints (e.g. budget reconciliation).
+
 Users in Workxpace with no Confins match are skipped (counted in `notInConfins`).
 
 ## API endpoint (shared by Option A and B)

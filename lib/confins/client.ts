@@ -8,6 +8,11 @@ type ConfinsEnvelope<T> = {
 type ConfinsRequestOptions = {
   path: string;
   body: Record<string, unknown>;
+  /**
+   * Employee master sync / SSO lookup must always hit the live Confins API.
+   * Ignores "Activate Mock API" and mock fallback — fails loudly if API is down.
+   */
+  liveOnly?: boolean;
 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -32,10 +37,14 @@ export class ConfinsClient {
   }
 
   async post<T>(options: ConfinsRequestOptions): Promise<T[]> {
-    const mockEnabled = await this.isMockEnabled();
-    if (mockEnabled) {
-      const { getConfinsMockData } = await import('./mock-data');
-      return (await getConfinsMockData(options.path)) as T[];
+    const { liveOnly = false } = options;
+
+    if (!liveOnly) {
+      const mockEnabled = await this.isMockEnabled();
+      if (mockEnabled) {
+        const { getConfinsMockData } = await import('./mock-data');
+        return (await getConfinsMockData(options.path)) as T[];
+      }
     }
 
     if (!this.baseUrl) {
@@ -76,7 +85,7 @@ export class ConfinsClient {
       if (error instanceof SyntaxError) {
         throw new Error('Invalid JSON from Confins');
       }
-      if (isMockFallbackEnabled()) {
+      if (!liveOnly && isMockFallbackEnabled()) {
         const { getConfinsMockData } = await import('./mock-data');
         return (await getConfinsMockData(options.path)) as T[];
       }
