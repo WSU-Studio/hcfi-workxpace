@@ -4,10 +4,12 @@ import {
   buildConfinsEmployeeEmailMap,
   fetchAllConfinsEmployees,
   normalizeConfinsEmail,
-  pickBusinessUnitName,
+  pickActiveConfinsRole,
   type ConfinsEmployeeRow,
   type DepartmentIdResolver,
+  type RoleIdResolver,
   createDepartmentIdResolver,
+  createRoleIdResolver,
 } from '@/lib/confins/employee-lookup';
 
 export type ConfinsEmployeeSyncSummary = {
@@ -17,12 +19,18 @@ export type ConfinsEmployeeSyncSummary = {
   matchedInConfins: number;
   /** Users with no Confins row for their email. */
   notInConfins: number;
-  /** Rows where `employeeId` and/or `departmentId` were written. */
+  /** Rows where `employeeId`, `departmentId`, and/or `roleId` were written. */
   updated: number;
   /** Matched users already up to date — no DB write. */
   unchanged: number;
   /** Per-user failures (EmpNo collision, missing department, etc.). */
   errors: { email: string; reason: string }[];
+};
+
+type UserPatchData = {
+  employeeId: string;
+  departmentId: string;
+  roleId: string;
 };
 
 async function resolveEmployeeIdForUpdate(
@@ -53,16 +61,36 @@ async function resolveEmployeeIdForUpdate(
   return { employeeId: candidate };
 }
 
+async function applyUserPatch(
+  userId: string,
+  currentRoleId: string,
+  data: UserPatchData,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data,
+    });
+
+    if (data.roleId !== currentRoleId) {
+      await tx.userRole.deleteMany({ where: { userId } });
+      await tx.userRole.create({ data: { userId, roleId: data.roleId } });
+    }
+  });
+}
+
 /**
  * Daily batch sync: update Workxpace users whose email exists in Confins.
  *
  * Fields synced (Confins → Workxpace):
  *   - `EmpNo` → `users.employeeId`
  *   - `Roles[].BusinessUnitName` → `users.departmentId`
+ *   - `Roles[].RoleName` → `users.roleId` (match/create `roles.roleCode`)
+ *   - `Roles[].JobTitleName` → `roles.roleName` when role is auto-created
  *
  * NOT synced (by design):
  *   - `name` — remains from Entra / manual entry
- *   - `roleId`, access flags — admin-managed in Workxpace
+ *   - access flags — admin-managed in Workxpace
  *   - `isActive` — not changed by this job (confirm with HCFI before enabling)
  *
  * Users without a Confins match are skipped silently.
@@ -86,6 +114,7 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
         email: true,
         employeeId: true,
         departmentId: true,
+        roleId: true,
       },
     }),
   ]);
@@ -93,7 +122,10 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
   summary.totalUsers = users.length;
 
   const emailMap = buildConfinsEmployeeEmailMap(employees);
-  const resolveDepartmentId: DepartmentIdResolver = await createDepartmentIdResolver(client);
+  const [resolveDepartmentId, resolveRoleId] = await Promise.all([
+    createDepartmentIdResolver(client),
+    createRoleIdResolver(),
+  ]);
 
   for (const user of users) {
     const email = normalizeConfinsEmail(user.email);
@@ -111,6 +143,7 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
         confinsRow,
         user,
         resolveDepartmentId,
+        resolveRoleId,
       );
 
       if (patch.kind === 'unchanged') {
@@ -121,9 +154,10 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
       if (patch.kind === 'error') {
         summary.errors.push({ email, reason: patch.reason });
         if (patch.partial) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: patch.partial,
+          await applyUserPatch(user.id, user.roleId, {
+            employeeId: patch.partial.employeeId ?? user.employeeId,
+            departmentId: patch.partial.departmentId ?? user.departmentId,
+            roleId: patch.partial.roleId ?? user.roleId,
           });
           summary.updated += 1;
         } else {
@@ -132,10 +166,7 @@ export async function syncAllUsersFromConfins(): Promise<ConfinsEmployeeSyncSumm
         continue;
       }
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: patch.data,
-      });
+      await applyUserPatch(user.id, user.roleId, patch.data);
       summary.updated += 1;
     } catch (error) {
       summary.errors.push({
@@ -153,21 +184,30 @@ type UserRow = {
   email: string;
   employeeId: string;
   departmentId: string;
+  roleId: string;
 };
 
 type UserPatchResult =
   | { kind: 'unchanged' }
-  | { kind: 'error'; reason: string; partial?: { departmentId: string } }
-  | { kind: 'update'; data: { employeeId: string; departmentId: string } };
+  | { kind: 'error'; reason: string; partial?: Partial<UserPatchData> }
+  | { kind: 'update'; data: UserPatchData };
 
 async function buildUserPatchFromConfinsRow(
   row: ConfinsEmployeeRow,
   user: UserRow,
   resolveDepartmentId: DepartmentIdResolver,
+  resolveRoleId: RoleIdResolver,
 ): Promise<UserPatchResult> {
-  const businessUnitName = pickBusinessUnitName(row.Roles);
+  const activeRole = pickActiveConfinsRole(row.Roles);
+  const businessUnitName = activeRole?.BusinessUnitName?.trim() ?? null;
+  const confinsRoleCode = activeRole?.RoleName?.trim() ?? null;
+  const jobTitleName = activeRole?.JobTitleName?.trim() ?? null;
+
   const departmentId = businessUnitName
     ? await resolveDepartmentId(businessUnitName)
+    : null;
+  const roleId = confinsRoleCode
+    ? await resolveRoleId(confinsRoleCode, jobTitleName)
     : null;
 
   const { employeeId, skipped: empSkipped } = await resolveEmployeeIdForUpdate(
@@ -176,28 +216,26 @@ async function buildUserPatchFromConfinsRow(
     user.employeeId,
   );
 
-  if (empSkipped && !departmentId) {
-    return { kind: 'error', reason: empSkipped };
-  }
-
   const nextDepartmentId = departmentId ?? user.departmentId;
+  const nextRoleId = roleId ?? user.roleId;
   const employeeChanged = employeeId !== user.employeeId;
   const departmentChanged = nextDepartmentId !== user.departmentId;
+  const roleChanged = nextRoleId !== user.roleId;
 
-  if (!employeeChanged && !departmentChanged) {
+  if (!employeeChanged && !departmentChanged && !roleChanged) {
     return { kind: 'unchanged' };
   }
 
-  if (empSkipped && departmentChanged) {
-    return {
-      kind: 'error',
-      reason: empSkipped,
-      partial: { departmentId: nextDepartmentId },
-    };
-  }
+  if (empSkipped) {
+    const partial: Partial<UserPatchData> = {};
+    if (departmentChanged) partial.departmentId = nextDepartmentId;
+    if (roleChanged) partial.roleId = nextRoleId;
 
-  if (empSkipped && !departmentChanged) {
-    return { kind: 'error', reason: empSkipped };
+    if (Object.keys(partial).length === 0) {
+      return { kind: 'error', reason: empSkipped };
+    }
+
+    return { kind: 'error', reason: empSkipped, partial };
   }
 
   return {
@@ -205,6 +243,7 @@ async function buildUserPatchFromConfinsRow(
     data: {
       employeeId,
       departmentId: nextDepartmentId,
+      roleId: nextRoleId,
     },
   };
 }

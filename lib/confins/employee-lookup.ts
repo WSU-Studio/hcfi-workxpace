@@ -50,18 +50,39 @@ export interface ConfinsEmployeeProfile {
 
 export type DepartmentIdResolver = (businessUnitName: string) => Promise<string | null>;
 
+export type RoleIdResolver = (
+  roleCode: string,
+  jobTitleName: string | null,
+) => Promise<string | null>;
+
 export function normalizeConfinsEmail(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/** Pick the primary active Confins role row for an employee. */
+export function pickActiveConfinsRole(
+  roles: ConfinsEmployeeRole[] | null | undefined,
+): ConfinsEmployeeRole | null {
+  if (!Array.isArray(roles) || roles.length === 0) return null;
+
+  const hasData = (role: ConfinsEmployeeRole) =>
+    Boolean(
+      role.BusinessUnitName?.trim() ||
+        role.RoleName?.trim() ||
+        role.JobTitleName?.trim(),
+    );
+
+  return (
+    roles.find((role) => role.IsActive !== false && hasData(role)) ??
+    roles.find((role) => hasData(role)) ??
+    null
+  );
 }
 
 export function pickBusinessUnitName(
   roles: ConfinsEmployeeRole[] | null | undefined,
 ): string | null {
-  if (!Array.isArray(roles) || roles.length === 0) return null;
-  const activeRole =
-    roles.find((role) => role.IsActive !== false && role.BusinessUnitName?.trim()) ??
-    roles.find((role) => role.BusinessUnitName?.trim());
-  return activeRole?.BusinessUnitName?.trim() ?? null;
+  return pickActiveConfinsRole(roles)?.BusinessUnitName?.trim() ?? null;
 }
 
 async function postWithFallback<T>(
@@ -169,6 +190,49 @@ export async function createDepartmentIdResolver(
     const normalized = businessUnitName.trim().toLowerCase();
     if (!normalized) return null;
     return byName.get(normalized) ?? null;
+  };
+}
+
+/**
+ * Resolve Confins `RoleName` → Workxpace `roles.id`.
+ *
+ * Match key: `roles.roleCode` ↔ Confins `RoleName`.
+ * If missing, auto-create:
+ *   - `roleCode` ← `RoleName`
+ *   - `roleName` ← `JobTitleName` (falls back to `RoleName`)
+ */
+export async function createRoleIdResolver(): Promise<RoleIdResolver> {
+  const dbRoles = await prisma.role.findMany({
+    select: { id: true, roleCode: true },
+  });
+
+  const byCode = new Map<string, string>();
+  for (const role of dbRoles) {
+    byCode.set(role.roleCode.trim().toLowerCase(), role.id);
+  }
+
+  return async (roleCode: string, jobTitleName: string | null) => {
+    const code = roleCode.trim();
+    if (!code) return null;
+
+    const key = code.toLowerCase();
+    const cached = byCode.get(key);
+    if (cached) return cached;
+
+    const roleName = jobTitleName?.trim() || code;
+    const role = await prisma.role.upsert({
+      where: { roleCode: code },
+      update: {},
+      create: {
+        roleCode: code,
+        roleName,
+        description: 'Synced from Confins (employee sync)',
+      },
+      select: { id: true, roleCode: true },
+    });
+
+    byCode.set(role.roleCode.trim().toLowerCase(), role.id);
+    return role.id;
   };
 }
 
