@@ -14,6 +14,7 @@ import LoadingSpin from '@/components/ui/LoadingSpin';
 import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import {
   getMultiStepApprovalProgress,
   getRequestStatusDisplay,
@@ -194,7 +195,8 @@ export default function PaymentRequestDetailPage() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6 print:max-w-none">
+    <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start print:block print:max-w-none">
+      <div className="min-w-0 flex-1 space-y-6 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/payment-requests" className="text-blue-600 hover:underline">
           ← Back
@@ -613,6 +615,18 @@ export default function PaymentRequestDetailPage() {
           router.push(`/payment-requests/${id}/edit`);
         }}
       />
+      </div>
+
+      <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96 print:hidden">
+        <EntityCommentPanel
+          entityBasePath="payment-requests"
+          entityId={id}
+          requestStatus={data.status}
+          approvalLevels={orderedLevels}
+          histories={data.histories ?? []}
+          inputId="pr-comment-input"
+        />
+      </aside>
     </div>
   );
 }
