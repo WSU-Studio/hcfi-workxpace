@@ -12,7 +12,8 @@ import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
-import { PenSquare } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import { PenSquare, Printer } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 
@@ -261,10 +262,30 @@ export default function ReviewBudgetPlanPage() {
       minute: '2-digit',
     });
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
   return (
     <div className="max-w-4xl space-y-6">
-      <Link href={`/budget-plans/${id}`} className="text-blue-600 hover:underline">← Back</Link>
-      <h1 className="text-2xl font-semibold">Review Budget Plan</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="flex flex-col gap-2">
+          <Link href={`/budget-plans/${id}`} className="text-blue-600 hover:underline">← Back</Link>
+          <h1 className="text-2xl font-semibold">Review Budget Plan</h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2"
+            aria-label="Print budget plan review"
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Print
+          </Button>
+        </div>
+      </div>
 
       <Card className="p-6 space-y-4">
         <div className="grid grid-cols-2 gap-4">

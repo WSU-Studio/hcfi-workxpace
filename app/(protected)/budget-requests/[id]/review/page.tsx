@@ -15,8 +15,9 @@ import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import Button from '@/components/ui/Button';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
-import { Eye, PenSquare } from 'lucide-react';
+import { Eye, PenSquare, Printer } from 'lucide-react';
 import {
   getMultiStepApprovalProgress,
   getRequestorSubmissionStepProgress,
@@ -259,6 +260,23 @@ export default function ReviewBudgetRequestPage() {
   const isFinalApprovalStep =
     orderedLevels.length > 0 && nextStepIndex === orderedLevels.length - 1;
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
+  const reviewPrintButton = (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={handlePrint}
+      className="inline-flex items-center gap-2"
+      aria-label="Print budget request review"
+    >
+      <Printer className="h-4 w-4" aria-hidden />
+      Print
+    </Button>
+  );
+
   const reviewModals = (
     <>
       <Modal
@@ -351,11 +369,12 @@ export default function ReviewBudgetRequestPage() {
       <>
         <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">
           <div className="mx-auto w-full space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
               <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">
                 ← Back
               </Link>
               <div className="flex flex-wrap items-center gap-2">
+                {reviewPrintButton}
                 <Link
                   href={`/budget-requests/${id}/review/detail`}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
@@ -729,8 +748,13 @@ export default function ReviewBudgetRequestPage() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">← Back</Link>
-      <h1 className="text-2xl font-semibold">Review Budget Request</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="flex flex-col gap-2">
+          <Link href={`/budget-requests/${id}`} className="text-blue-600 hover:underline">← Back</Link>
+          <h1 className="text-2xl font-semibold">Review Budget Request</h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{reviewPrintButton}</div>
+      </div>
 
       <Card className="space-y-4">
         <h3 className="font-medium">Header Information</h3>

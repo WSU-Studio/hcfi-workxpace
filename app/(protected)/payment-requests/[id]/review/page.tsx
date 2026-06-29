@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -23,6 +24,7 @@ import {
   emptyRequestClassification,
   type RequestClassificationValue,
 } from '@/lib/request-classification';
+import { Printer } from 'lucide-react';
 
 export default function ReviewPaymentRequestPage() {
   const params = useParams();
@@ -201,12 +203,32 @@ export default function ReviewPaymentRequestPage() {
       minute: '2-digit',
     });
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
+
   return (
     <div className="max-w-4xl space-y-6">
-      <Link href={`/payment-requests/${id}`} className="text-blue-600 hover:underline">
-        ← Back
-      </Link>
-      <h1 className="text-2xl font-semibold">Review Payment Request</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="flex flex-col gap-2">
+          <Link href={`/payment-requests/${id}`} className="text-blue-600 hover:underline">
+            ← Back
+          </Link>
+          <h1 className="text-2xl font-semibold">Review Payment Request</h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2"
+            aria-label="Print payment request review"
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Print
+          </Button>
+        </div>
+      </div>
 
       <Card className="space-y-4"
       header={<h3 className="font-medium">Request information</h3>}>
