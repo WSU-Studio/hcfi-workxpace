@@ -16,6 +16,7 @@ import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
+import BudgetRequestPeriodAllocationSummary from '@/components/budget-requests/BudgetRequestPeriodAllocationSummary';
 import {
   BudgetRequestClassificationSection,
   BudgetRequestDetailSummarySection,
@@ -30,8 +31,6 @@ import {
   getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
-
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 type HistoryEntry = {
   id: string;
@@ -119,7 +118,6 @@ export default function BudgetRequestDetailPage() {
   const whtAmount = Number(data.whtAmount ?? 0);
   const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
   const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
-  const allocationsTotal = data.allocations?.reduce((sum, allocation) => sum + Number(allocation.allocation ?? 0), 0) ?? 0;
   const allocatedMonths = Array.from(new Set((data.allocations || []).map((a) => a.month))).sort((a, b) => a - b);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -405,30 +403,11 @@ export default function BudgetRequestDetailPage() {
             <MonthChecklistSelector selectedMonths={allocatedMonths} readOnly />
           </div>
 
-          {/* <Card collapsible collapsed 
-          className="bg-orange-50/80"
-          header={<h3 className="font-medium">Dev Only: Allocate Budget Per Month (only visible in dev mode)</h3>}>
-            <Table>
-              <thead>
-                <TableHeaderRow>
-                  <TableHead>Month</TableHead>
-                  <TableHead className="text-right">Allocation</TableHead>
-                </TableHeaderRow>
-              </thead>
-              <tbody>
-                {(data.allocations || []).map((allocation) => (
-                  <TableBodyRow key={`${allocation.year}-${allocation.month}`}>
-                    <TableCell>{MONTH_NAMES[allocation.month - 1]} {allocation.year}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(allocation.allocation ?? 0))}</TableCell>
-                  </TableBodyRow>
-                ))}
-                <TableBodyRow className="bg-gray-50 font-medium">
-                  <TableCell>Total Allocation</TableCell>
-                  <TableCell className="text-right">{formatCurrency(allocationsTotal)}</TableCell>
-                </TableBodyRow>
-              </tbody>
-            </Table>
-          </Card> */}
+          <BudgetRequestPeriodAllocationSummary
+            grandTotal={grandTotal}
+            monthCount={allocatedMonths.length}
+            allocations={data.allocations}
+          />
 
           {data.lineItems?.length ? (
             <BudgetRequestLineItemsSection lineItems={data.lineItems} totals={amountTotals} />

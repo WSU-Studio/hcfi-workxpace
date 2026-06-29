@@ -12,6 +12,7 @@ import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
 } from '@/components/budget-requests/BudgetRequestItemsEditor';
+import BudgetRequestPeriodAllocationSummary from '@/components/budget-requests/BudgetRequestPeriodAllocationSummary';
 import {
   BudgetRequestFormOptions,
   BudgetRequestFormValues,
@@ -308,6 +309,10 @@ export default function BudgetRequestForm({
             invoiceAmount: taxSummary.invoiceAmount,
             grandTotal: taxSummary.grandTotal,
           }}
+        />
+        <BudgetRequestPeriodAllocationSummary
+          grandTotal={taxSummary.grandTotal}
+          monthCount={selectedMonths.length}
         />
       </div>
 
