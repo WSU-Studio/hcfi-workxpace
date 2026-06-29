@@ -63,6 +63,8 @@ export interface PaymentRequestFormValues {
   currency: string;
   payeeName: string;
   bankAccount: string;
+  vendorInvoiceNo: string;
+  dateNeeded: string;
   paymentPurpose: string;
 }
 
@@ -94,8 +96,34 @@ export function createDefaultFormValues(): PaymentRequestFormValues {
     currency: 'IDR',
     payeeName: '',
     bankAccount: '',
+    vendorInvoiceNo: '',
+    dateNeeded: '',
     paymentPurpose: '',
   };
+}
+
+export function formatDateInputValue(value: string | Date | null | undefined): string {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+  return Number.isNaN(value.getTime()) ? '' : value.toISOString().slice(0, 10);
+}
+
+export function parseDateInputValue(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+export function parseDateInputToDate(value: unknown): Date | null {
+  if (typeof value !== 'string') return null;
+  const normalized = parseDateInputValue(value);
+  if (!normalized) return null;
+  return new Date(`${normalized}T00:00:00.000Z`);
 }
 
 export function mapBrLineItemsToEditor(
@@ -158,6 +186,8 @@ export function clearBudgetRequestSelection(
     approvalSchemaId: '',
     payeeName: '',
     bankAccount: '',
+    vendorInvoiceNo: '',
+    dateNeeded: '',
     paymentPurpose: '',
     currency: 'IDR',
     fiscalYear: context.fiscalYears[0]?.year ?? new Date().getFullYear(),
@@ -254,6 +284,8 @@ export function buildPaymentRequestSubmitPayload(
     currency: formData.currency,
     payeeName: formData.payeeName.trim(),
     bankAccount: formData.bankAccount.trim() || null,
+    vendorInvoiceNo: formData.vendorInvoiceNo.trim() || null,
+    dateNeeded: parseDateInputValue(formData.dateNeeded),
     paymentPurpose: formData.paymentPurpose || null,
     costCenterId: stored.costCenter,
     categoryId: stored.category,

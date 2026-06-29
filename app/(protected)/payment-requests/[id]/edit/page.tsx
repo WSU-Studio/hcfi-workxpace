@@ -11,6 +11,7 @@ import {
   buildEmptyLineItem,
   buildPaymentRequestSubmitPayload,
   classificationFromPaymentRequestRow,
+  formatDateInputValue,
   mapPaymentRequestLineToEditor,
   PaymentRequestFormOptions,
   validatePaymentRequestForm,
@@ -30,6 +31,8 @@ type PaymentRequestApi = {
   currency: string | null;
   payeeName: string | null;
   bankAccount: string | null;
+  vendorInvoiceNo?: string | null;
+  dateNeeded?: string | null;
   paymentPurpose: string | null;
   requestorId: string | null;
   vatPercent?: unknown;
@@ -144,6 +147,8 @@ export default function EditPaymentRequestPage() {
           currency: data.currency ?? 'IDR',
           payeeName: data.payeeName ?? '',
           bankAccount: data.bankAccount ?? '',
+          vendorInvoiceNo: data.vendorInvoiceNo ?? '',
+          dateNeeded: formatDateInputValue(data.dateNeeded),
           paymentPurpose: data.paymentPurpose ?? '',
         });
         setLineItems(
