@@ -126,6 +126,15 @@ export function mapApiLineToEditor(
   };
 }
 
+/** Grand Total Period Allocation = grand total (inc. tax) × selected month count. */
+export function computeGrandTotalPeriodAllocation(
+  grandTotal: number,
+  monthCount: number,
+): number {
+  if (monthCount <= 0 || grandTotal <= 0) return 0;
+  return grandTotal * monthCount;
+}
+
 export function computeTaxSummary(
   lineItems: BudgetRequestLineItemInput[],
   taxConfig: { vatPercent: number; whtPercent: number },

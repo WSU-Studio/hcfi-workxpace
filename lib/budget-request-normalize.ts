@@ -75,14 +75,11 @@ export function normalizeBudgetRequestBody(
   const normalizedInvoiceAmount = toNumber(invoiceAmount) || totalAmount + normalizedVatAmount;
   const normalizedGrandTotal = toNumber(grandTotal) || normalizedInvoiceAmount - normalizedWhtAmount;
 
-  const totalAmountCents = Math.round(totalAmount * 100);
-  const monthCount = normalizedMonths.length;
-  const baseCents = Math.floor(totalAmountCents / monthCount);
-  const remainder = totalAmountCents - baseCents * monthCount;
-  const monthlyAllocations = normalizedMonths.map((month, index) => ({
+  const grandTotalCents = Math.round(normalizedGrandTotal * 100);
+  const monthlyAllocations = normalizedMonths.map((month) => ({
     year,
     month,
-    allocation: (baseCents + (index === monthCount - 1 ? remainder : 0)) / 100,
+    allocation: grandTotalCents / 100,
   }));
 
   return {
