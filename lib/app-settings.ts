@@ -66,6 +66,10 @@ export const getApplicationSettings = async (): Promise<ApplicationSettings> => 
         map.get(APP_SETTING_KEYS.confinsMockBudgetRealJson),
         DEFAULT_APPLICATION_SETTINGS.confinsMockBudgetRealJson
       ),
+      enableDocumentDownload: parseBooleanValue(
+        map.get(APP_SETTING_KEYS.enableDocumentDownload),
+        DEFAULT_APPLICATION_SETTINGS.enableDocumentDownload
+      ),
     };
   } catch {
     return DEFAULT_APPLICATION_SETTINGS;
@@ -98,6 +102,19 @@ export const updateApplicationSettings = async (
         create: {
           key: APP_SETTING_KEYS.confinsMockBudgetRealJson,
           value: input.confinsMockBudgetRealJson,
+        },
+      })
+    );
+  }
+
+  if (typeof input.enableDocumentDownload === 'boolean') {
+    writes.push(
+      delegate.upsert({
+        where: { key: APP_SETTING_KEYS.enableDocumentDownload },
+        update: { value: input.enableDocumentDownload },
+        create: {
+          key: APP_SETTING_KEYS.enableDocumentDownload,
+          value: input.enableDocumentDownload,
         },
       })
     );

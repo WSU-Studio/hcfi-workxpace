@@ -103,6 +103,14 @@ export default function SettingsPage() {
       )}
 
       <SettingToggleCard
+        title="Enable Document Download"
+        description="When enabled, users can download Budget Plan, Budget Request, and Payment Request detail pages as PDF from the detail toolbar."
+        enabled={settings.enableDocumentDownload}
+        onChange={(value) => setSettings((prev) => ({ ...prev, enableDocumentDownload: value }))}
+        disabled={isSaving}
+      />
+
+      <SettingToggleCard
         title="Activate Mock API"
         description="When enabled, CONFINS integration reads mock data instead of external API. Suitable for testing or development fallback."
         enabled={settings.confinsUseMock}

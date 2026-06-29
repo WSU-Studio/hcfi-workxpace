@@ -58,6 +58,7 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as {
       confinsUseMock?: unknown;
       confinsMockBudgetRealJson?: unknown;
+      enableDocumentDownload?: unknown;
     };
 
     let confinsMockBudgetRealJson: string | undefined;
@@ -72,6 +73,8 @@ export async function PUT(request: Request) {
     const updated = await updateApplicationSettings({
       confinsUseMock: typeof body.confinsUseMock === 'boolean' ? body.confinsUseMock : undefined,
       confinsMockBudgetRealJson,
+      enableDocumentDownload:
+        typeof body.enableDocumentDownload === 'boolean' ? body.enableDocumentDownload : undefined,
     });
 
     return NextResponse.json({ settings: updated });
