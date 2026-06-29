@@ -22,6 +22,7 @@ import {
   BudgetRequestLineItemsSection,
 } from '@/components/budget-requests/BudgetRequestDetailSections';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
   getMultiStepApprovalProgress,
@@ -101,6 +102,7 @@ export default function BudgetRequestDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
+  const enableDocumentDownload = useEnableDocumentDownload();
 
   useEffect(() => {
     fetch(`/api/budget-requests/${id}`, { credentials: 'include' })
@@ -217,17 +219,19 @@ export default function BudgetRequestDetailPage() {
                 <Printer className="h-4 w-4" aria-hidden />
                 Print
               </Button>
-              <Button
-                type="button"
-                onClick={handleDownloadPdf}
-                className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="Download budget request detail as PDF"
-                aria-busy={isExporting}
-                disabled={isExporting}
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                {isExporting ? 'Generating PDF...' : 'Download PDF'}
-              </Button>
+              {enableDocumentDownload ? (
+                <Button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Download budget request detail as PDF"
+                  aria-busy={isExporting}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  {isExporting ? 'Generating PDF...' : 'Download PDF'}
+                </Button>
+              ) : null}
               <Link
                 href={`/budget-requests/${id}/detail`}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 h-10 text-sm font-medium text-gray-800 hover:bg-gray-50"
@@ -341,17 +345,19 @@ export default function BudgetRequestDetailPage() {
             <Printer className="h-4 w-4" aria-hidden />
             Print
           </Button>
-          <Button
-            type="button"
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Download budget request detail as PDF"
-            aria-busy={isExporting}
-            disabled={isExporting}
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            {isExporting ? 'Generating PDF...' : 'Download PDF'}
-          </Button>
+          {enableDocumentDownload ? (
+            <Button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Download budget request detail as PDF"
+              aria-busy={isExporting}
+              disabled={isExporting}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {isExporting ? 'Generating PDF...' : 'Download PDF'}
+            </Button>
+          ) : null}
           {canEditAsRequestor ? (
             requiresEditConfirmation(data.status) ? (
               <button

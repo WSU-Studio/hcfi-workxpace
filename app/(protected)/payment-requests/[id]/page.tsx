@@ -16,6 +16,7 @@ import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/com
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
 import {
   getMultiStepApprovalProgress,
   getRequestorSubmissionStepProgress,
@@ -114,6 +115,7 @@ export default function PaymentRequestDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
+  const enableDocumentDownload = useEnableDocumentDownload();
 
   useEffect(() => {
     fetch(`/api/payment-requests/${id}`, { credentials: 'include' })
@@ -219,17 +221,19 @@ export default function PaymentRequestDetailPage() {
             <Printer className="h-4 w-4" aria-hidden />
             Print
           </Button>
-          <Button
-            type="button"
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Download payment request detail as PDF"
-            aria-busy={isExporting}
-            disabled={isExporting}
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            {isExporting ? 'Generating PDF...' : 'Download PDF'}
-          </Button>
+          {enableDocumentDownload ? (
+            <Button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Download payment request detail as PDF"
+              aria-busy={isExporting}
+              disabled={isExporting}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {isExporting ? 'Generating PDF...' : 'Download PDF'}
+            </Button>
+          ) : null}
           {canEditAsRequestor ? (
             requiresEditConfirmation(data.status) ? (
               <button

@@ -27,6 +27,7 @@ import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
 import BudgetPlanCommentPanel from '@/components/budget-plans/BudgetPlanCommentPanel';
+import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -92,6 +93,7 @@ export default function BudgetPlanDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
+  const enableDocumentDownload = useEnableDocumentDownload();
 
   useEffect(() => {
     if (!id) return;
@@ -232,17 +234,19 @@ export default function BudgetPlanDetailPage() {
             <Printer className="h-4 w-4" aria-hidden />
             Print
           </Button>
-          <Button
-            type="button"
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Download budget plan detail as PDF"
-            aria-busy={isExporting}
-            disabled={isExporting}
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            {isExporting ? 'Generating PDF...' : 'Download PDF'}
-          </Button>
+          {enableDocumentDownload ? (
+            <Button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Download budget plan detail as PDF"
+              aria-busy={isExporting}
+              disabled={isExporting}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {isExporting ? 'Generating PDF...' : 'Download PDF'}
+            </Button>
+          ) : null}
           {canEdit ? (
             requiresEditConfirmation(plan.status) ? (
               <button

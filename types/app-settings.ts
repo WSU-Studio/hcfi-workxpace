@@ -10,6 +10,8 @@ export const APP_SETTING_KEYS = {
    *   `lib/integrations/confins/fixtures/budget-real-egl-sample.json`.
    */
   confinsMockBudgetRealJson: 'confinsMockBudgetRealJson',
+  /** Show PDF download on Budget Plan, Budget Request, and Payment Request detail pages. */
+  enableDocumentDownload: 'enableDocumentDownload',
 } as const;
 
 export type AppSettingKey = (typeof APP_SETTING_KEYS)[keyof typeof APP_SETTING_KEYS];
@@ -18,11 +20,13 @@ export type ApplicationSettings = {
   confinsUseMock: boolean;
   /** String JSON (pretty-printed). Kosong = pakai fixture bundled. */
   confinsMockBudgetRealJson: string;
+  enableDocumentDownload: boolean;
 };
 
 export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {
   confinsUseMock: false,
   confinsMockBudgetRealJson: '',
+  enableDocumentDownload: false,
 };
 
 /** Batas ukuran JSON mock yang boleh disimpan ke settings (cegah abuse storage). */
