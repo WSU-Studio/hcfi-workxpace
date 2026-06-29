@@ -57,6 +57,8 @@ export default function ReviewPaymentRequestPage() {
     }[];
     payeeName: string;
     bankAccount?: string | null;
+    vendorInvoiceNo?: string | null;
+    dateNeeded?: string | null;
     paymentPurpose: string | null;
     canReview?: boolean;
     project?: { code: string; name: string } | null;
@@ -278,6 +280,13 @@ export default function ReviewPaymentRequestPage() {
           </div>
           <div>
             <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
+          </div>
+          <div>
+            <span className="text-gray-500">Vendor Invoice No:</span> {data.vendorInvoiceNo || '-'}
+          </div>
+          <div>
+            <span className="text-gray-500">Date Needed:</span>{' '}
+            {data.dateNeeded ? formatDate(data.dateNeeded) : '-'}
           </div>
           {data.paymentPurpose ? (
             <div className="md:col-span-2">

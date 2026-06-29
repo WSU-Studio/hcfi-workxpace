@@ -83,6 +83,8 @@ export default function PaymentRequestDetailPage() {
     }[];
     payeeName: string;
     bankAccount?: string | null;
+    vendorInvoiceNo?: string | null;
+    dateNeeded?: string | null;
     paymentPurpose: string | null;
     requestorId?: string | null;
     requestorName?: string | null;
@@ -313,6 +315,13 @@ export default function PaymentRequestDetailPage() {
           </div>
           <div>
             <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
+          </div>
+          <div>
+            <span className="text-gray-500">Vendor Invoice No:</span> {data.vendorInvoiceNo || '-'}
+          </div>
+          <div>
+            <span className="text-gray-500">Date Needed:</span>{' '}
+            {data.dateNeeded ? formatDate(data.dateNeeded) : '-'}
           </div>
         </div>
 
