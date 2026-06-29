@@ -183,6 +183,7 @@ export function applyPlanToFormValues(
   return {
     ...previous,
     budgetPlanId: planId,
+    approvalSchemaId: previous.approvalSchemaId,
     subject: plan ? `${plan.subject} - Request` : previous.subject,
     description: plan ? (plan.description ?? '') : previous.description,
     fiscalYear: plan?.fiscalYear ?? previous.fiscalYear,

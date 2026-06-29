@@ -104,10 +104,6 @@ export default function NewBudgetRequestPage() {
     });
   }, [canCrossDepartment, userDepartmentId, options.departments, setFormData]);
 
-  const schemasForDept = options.approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
-
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
     setError(message);
     notifyFormError(message, { fieldRef: field ? fieldRefs[field] : errorBannerRef });
@@ -122,7 +118,7 @@ export default function NewBudgetRequestPage() {
       selectedMonths,
       lineItems,
       totalAmount: taxSummary.totalAmount,
-      schemasForDepartment: schemasForDept,
+      schemasForDepartment: options.approvalSchemas,
     });
 
     if (validationError) {

@@ -70,9 +70,6 @@ export default function BudgetRequestForm({
   submitLabel,
 }: BudgetRequestFormProps) {
   const { plans, fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
-  const schemasForDept = approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
   const selectedPlan = plans.find((plan) => plan.id === formData.budgetPlanId);
 
   const selectedApprovalLevels = useMemo(() => {
@@ -102,15 +99,15 @@ export default function BudgetRequestForm({
           aria-invalid={!formData.approvalSchemaId}
         >
           <option value="">-</option>
-          {schemasForDept.map((schema) => (
+          {approvalSchemas.map((schema) => (
             <option key={schema.id} value={schema.id}>
               {schema.name}
             </option>
           ))}
         </Select>
-        {formData.departmentId && schemasForDept.length === 0 ? (
+        {approvalSchemas.length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
-            No approval schema is configured for the selected department.
+            No approval schema is configured for budget requests.
           </p>
         ) : null}
         {formData.approvalSchemaId ? (
