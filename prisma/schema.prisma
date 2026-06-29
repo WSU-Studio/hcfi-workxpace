@@ -510,6 +510,8 @@ model PaymentRequest {
   currency         String           @default("IDR")
   payeeName        String
   bankAccount      String?
+  vendorInvoiceNo  String?
+  dateNeeded       DateTime?
   paymentPurpose   String?          @db.Text
   notes            String?          @db.Text
   supportingDocs   Json?
