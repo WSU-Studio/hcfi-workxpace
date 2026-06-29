@@ -216,6 +216,37 @@ export default function PaymentRequestForm({
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block font-medium">Vendor Invoice No</label>
+          <Input
+            type="text"
+            value={formData.vendorInvoiceNo}
+            onChange={(event) =>
+              onFormDataChange((previous) => ({
+                ...previous,
+                vendorInvoiceNo: event.target.value,
+              }))
+            }
+            placeholder="Vendor invoice number"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block font-medium">Date Needed</label>
+          <Input
+            type="date"
+            value={formData.dateNeeded}
+            onChange={(event) =>
+              onFormDataChange((previous) => ({
+                ...previous,
+                dateNeeded: event.target.value,
+              }))
+            }
+          />
+        </div>
+      </div>
+
       <div>
         <label className="mb-1.5 block font-medium">Subject *</label>
         <Input

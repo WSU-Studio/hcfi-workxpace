@@ -21,6 +21,7 @@ import {
   parseClassificationBody,
   type StoredRequestClassification,
 } from '@/lib/request-classification';
+import { parseDateInputToDate } from '@/lib/payment-requests/form';
 
 export const dynamic = 'force-dynamic';
 
@@ -205,6 +206,8 @@ export async function POST(req: Request) {
       currency,
       payeeName,
       bankAccount,
+      vendorInvoiceNo,
+      dateNeeded,
       paymentPurpose,
       fiscalYear: bodyFiscalYear,
       originOffice: bodyOriginOffice,
@@ -366,6 +369,9 @@ export async function POST(req: Request) {
         currency: typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'IDR',
         payeeName: payeeName.trim(),
         bankAccount: typeof bankAccount === 'string' && bankAccount.trim() ? bankAccount.trim() : null,
+        vendorInvoiceNo:
+          typeof vendorInvoiceNo === 'string' && vendorInvoiceNo.trim() ? vendorInvoiceNo.trim() : null,
+        dateNeeded: parseDateInputToDate(dateNeeded),
         paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
         notes: typeof notes === 'string' ? notes : null,
         approvalSchemaId: approvalSchemaId || null,
