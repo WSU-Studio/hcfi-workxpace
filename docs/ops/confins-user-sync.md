@@ -64,9 +64,12 @@ Both paths call the same `runConfinsEmployeeSync()` logic.
 | Variable | Where | Description |
 |---|---|---|
 | `CRON_SECRET` | Production `.env` + GitHub Secrets | Shared bearer token for cron endpoints |
+| `PORT` | GitHub Secrets (Option A only) | PM2 port for localhost curl on self-hosted runner |
 | `CONFINS_BASE_URL` | Production `.env` | Confins API base URL |
 | `ADINSKEY` | Production `.env` | Confins auth header |
-| `NEXTAUTH_URL` | GitHub Secrets (Option A only) | Public app URL for workflow curl |
+
+`NEXTAUTH_URL` is **not** used by the sync workflow. The job runs on the
+**self-hosted runner** and calls `http://127.0.0.1:{PORT}/...` locally.
 
 Generate a strong secret:
 
@@ -82,6 +85,8 @@ Use the **same value** in GitHub Secrets (`CRON_SECRET`) and production server `
 
 **File:** `.github/workflows/sync-confins-users.yml`
 
+- Runs on the **self-hosted runner** (same server as PM2)
+- Calls `http://127.0.0.1:{PORT}/api/cron/sync-confins-employees` — no public DNS needed
 - Runs daily at **02:00 WIB** (19:00 UTC)
 - Can be triggered manually: **Actions → Sync Confins Employees → Run workflow**
 
@@ -89,10 +94,11 @@ Use the **same value** in GitHub Secrets (`CRON_SECRET`) and production server `
 
 1. Add GitHub Secrets to the **production** environment:
    - `CRON_SECRET` — same as server `.env`
-   - `NEXTAUTH_URL` — e.g. `https://ebudget.hyundaicapital.co.id` (no trailing slash)
+   - `PORT` — PM2 app port (e.g. `3090`)
 2. Add `CRON_SECRET` to production `.env` (via deploy workflow or manual)
-3. Deploy the app
-4. Test manually from GitHub Actions before waiting for the schedule
+3. Ensure the **self-hosted GitHub Actions runner** is online on the production server
+4. Deploy the app
+5. Test manually from GitHub Actions before waiting for the schedule
 
 ### Manual test (from your machine)
 
@@ -153,6 +159,8 @@ Running Option A and B together causes **double sync** (2x Confins API load, red
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| curl exit `6` (couldn't resolve host) | Workflow used public URL / `ubuntu-latest` | Use self-hosted runner + `127.0.0.1:{PORT}` (current workflow) |
+| curl exit `7` (connection refused) | PM2 not running or wrong `PORT` secret | `pm2 status`, align `PORT` secret with `.env` |
 | `401 Unauthorized` | `CRON_SECRET` mismatch | Align GitHub Secret and server `.env` |
 | `503 CRON_SECRET is not configured` | Missing env on server | Add to `.env`, restart PM2 |
 | `matchedInConfins: 0` | Email mismatch | Confins `Username` must match Workxpace `email` exactly |

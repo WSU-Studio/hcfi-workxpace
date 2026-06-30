@@ -1,12 +1,15 @@
 # Sync Confins Employees (Option A — GitHub Actions scheduler)
 #
-# Calls the same API endpoint used by Option B (server crontab). To migrate:
-#   1. Set up crontab on the HCFI production server (see docs/ops/confins-user-sync.md)
-#   2. Disable or delete this workflow's `schedule` trigger
+# Runs on the **self-hosted runner** (same machine as PM2) and calls localhost.
+# Do NOT use ubuntu-latest + public NEXTAUTH_URL — HCFI production is not on
+# public DNS, which causes curl exit code 6 (couldn't resolve host).
 #
 # Required GitHub Secrets (production environment):
-#   - NEXTAUTH_URL   e.g. https://ebudget.hyundaicapital.co.id
-#   - CRON_SECRET    shared bearer token (must match production .env)
+#   - PORT         PM2 app port, e.g. 3090
+#   - CRON_SECRET  shared bearer token (must match production .env)
+#
+# Option B (server crontab) is documented in docs/ops/confins-user-sync.md.
+# Do not run both schedulers at the same time.
 
 name: Sync Confins Employees
 
@@ -18,30 +21,48 @@ on:
 
 jobs:
   sync:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: production
 
     steps:
       - name: Trigger Confins employee sync
         env:
-          SYNC_URL: ${{ secrets.NEXTAUTH_URL }}/api/cron/sync-confins-employees
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_PORT: ${{ secrets.PORT }}
         run: |
-          if [ -z "$CRON_SECRET" ]; then
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
             echo "Error: CRON_SECRET is not set in GitHub environment secrets."
             exit 1
           fi
 
-          echo "Calling $SYNC_URL"
-          response=$(curl -sf -w "\n%{http_code}" -X POST "$SYNC_URL" \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            -H "Content-Type: application/json")
+          if [ -z "${APP_PORT:-}" ]; then
+            echo "Error: PORT is not set in GitHub environment secrets."
+            exit 1
+          fi
 
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
+          SYNC_URL="http://127.0.0.1:${APP_PORT}/api/cron/sync-confins-employees"
+          echo "Calling $SYNC_URL"
+
+          http_code=$(curl -sS -o /tmp/confins-sync-body.json -w "%{http_code}" -X POST "$SYNC_URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            --connect-timeout 30 \
+            --max-time 120) || {
+              curl_exit=$?
+              echo "curl failed with exit code $curl_exit"
+              case "$curl_exit" in
+                6) echo "Hint: could not resolve host — use self-hosted runner + 127.0.0.1, not a public URL." ;;
+                7) echo "Hint: connection refused — is PM2 running on port $APP_PORT?" ;;
+                28) echo "Hint: request timed out — sync may still be running on the server." ;;
+              esac
+              exit "$curl_exit"
+            }
 
           echo "HTTP $http_code"
-          echo "$body"
+          cat /tmp/confins-sync-body.json
+          echo ""
 
           if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
             exit 1
