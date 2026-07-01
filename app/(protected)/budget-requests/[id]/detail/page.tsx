@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetRequestExpandedDetailView from '@/components/budget-requests/BudgetRequestExpandedDetailView';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import { formatBudgetRequestOriginOfficeLabel } from '@/lib/budget-requests/display';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import { getMultiStepApprovalProgress } from '@/lib/budget-plan-approval-display';
 
@@ -36,7 +37,9 @@ type BudgetRequestDetailApi = {
   whtAmount?: number;
   invoiceAmount?: number;
   grandTotal?: number;
-  budgetPlan: {
+  originOffice?: string | null;
+  project?: { name: string } | null;
+  budgetPlan?: {
     code: string;
     subject: string;
     coaId?: string | null;
@@ -47,7 +50,7 @@ type BudgetRequestDetailApi = {
     costCenter?: { name: string } | null;
     categoryKeyIndex?: { name: string } | null;
     opexAllocation?: { name: string } | null;
-  };
+  } | null;
   department: { name: string };
   lineItems: {
     item: string;
@@ -107,12 +110,7 @@ export default function BudgetRequestExpandedDetailPage() {
 
   const opexType = data.budgetPlan?.opexType || '-';
 
-  const originOfficeLabel = (() => {
-    const officeCode = data.budgetPlan?.originOffice;
-    if (!officeCode) return '-';
-    const office = data.originOffices?.find((item) => item.code === officeCode);
-    return office ? `${office.code} - ${office.name}` : officeCode;
-  })();
+  const originOfficeLabel = formatBudgetRequestOriginOfficeLabel(data, data.originOffices);
 
   const orderedLevels = [...(data.approvalSchema?.approvalLevels ?? [])].sort(
     (a, b) => a.stepOrder - b.stepOrder,

@@ -24,6 +24,7 @@ import {
 } from '@/components/budget-requests/BudgetRequestDetailSections';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
+import { formatBudgetRequestOriginOfficeLabel } from '@/lib/budget-requests/display';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
   getMultiStepApprovalProgress,
@@ -148,12 +149,7 @@ export default function BudgetRequestDetailPage() {
     return account ? `${account.accountCode} - ${account.accountName}` : coaId;
   })();
   const opexType = data.budgetPlan?.opexType || '-';
-  const originOfficeLabel = (() => {
-    const officeCode = data.budgetPlan?.originOffice;
-    if (!officeCode) return '-';
-    const office = data.originOffices?.find((item) => item.code === officeCode);
-    return office ? `${office.code} - ${office.name}` : officeCode;
-  })();
+  const originOfficeLabel = formatBudgetRequestOriginOfficeLabel(data, data.originOffices);
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();

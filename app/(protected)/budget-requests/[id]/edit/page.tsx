@@ -27,6 +27,8 @@ type BudgetRequestApi = {
   approvalSchemaId: string | null;
   fiscalYear: number;
   departmentId: string;
+  originOffice?: string | null;
+  projectId?: string | null;
   requestorId: string | null;
   status: string;
   vatPercent?: unknown;
@@ -128,9 +130,9 @@ export default function EditBudgetRequestPage() {
         setFormData({
           budgetPlanId: data.budgetPlanId ?? '',
           fiscalYear: data.fiscalYear,
-          originOffice: plan?.originOffice ?? '',
+          originOffice: data.originOffice ?? plan?.originOffice ?? '',
           departmentId: data.departmentId,
-          projectId: plan?.projectId ?? '',
+          projectId: data.projectId ?? plan?.projectId ?? '',
           subject: data.subject,
           description: data.description ?? '',
           notes: data.notes ?? '',

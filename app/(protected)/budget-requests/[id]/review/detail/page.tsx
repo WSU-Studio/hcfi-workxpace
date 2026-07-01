@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetRequestReviewWorkspace from '@/components/budget-requests/BudgetRequestReviewWorkspace';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import { formatBudgetRequestOriginOfficeLabel } from '@/lib/budget-requests/display';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
   getMultiStepApprovalProgress,
@@ -58,12 +59,7 @@ export default function BudgetRequestReviewDetailPage() {
   const isFinalApprovalStep =
     orderedLevels.length > 0 && nextStepIndex === orderedLevels.length - 1;
 
-  const originOfficeLabel = (() => {
-    const officeCode = data.budgetPlan?.originOffice;
-    if (!officeCode) return '-';
-    const office = data.originOffices?.find((item) => item.code === officeCode);
-    return office ? `${office.code} - ${office.name}` : officeCode;
-  })();
+  const originOfficeLabel = formatBudgetRequestOriginOfficeLabel(data, data.originOffices);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-6 xl:flex-row xl:items-start">

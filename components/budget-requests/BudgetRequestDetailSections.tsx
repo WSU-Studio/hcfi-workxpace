@@ -12,7 +12,9 @@ export type BudgetRequestDetailSectionsData = {
   requestorName?: string | null;
   fiscalYear: number;
   status: string;
-  budgetPlan: {
+  originOffice?: string | null;
+  project?: { name: string } | null;
+  budgetPlan?: {
     code: string;
     subject: string;
     opexType?: string | null;
@@ -21,7 +23,7 @@ export type BudgetRequestDetailSectionsData = {
     costCenter?: { name: string } | null;
     categoryKeyIndex?: { name: string } | null;
     opexAllocation?: { name: string } | null;
-  };
+  } | null;
   department: { name: string };
   lineItems: {
     item: string;
@@ -71,7 +73,8 @@ export function BudgetRequestDetailSummarySection({
         <span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}
       </div>
       <div>
-        <span className="text-gray-500">Project:</span> {data.budgetPlan?.project?.name ?? '-'}
+        <span className="text-gray-500">Project:</span>{' '}
+        {data.project?.name ?? data.budgetPlan?.project?.name ?? '-'}
       </div>
       <div>
         <span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear}

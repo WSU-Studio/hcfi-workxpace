@@ -210,8 +210,8 @@ export function applyBudgetRequestToFormValues(
     description: budgetRequest.description?.trim() ? budgetRequest.description : '',
     departmentId: budgetRequest.departmentId,
     fiscalYear: budgetRequest.fiscalYear,
-    originOffice: budgetRequest.budgetPlan?.originOffice ?? previous.originOffice,
-    projectId: budgetRequest.budgetPlan?.projectId ?? '',
+    originOffice: budgetRequest.originOffice ?? budgetRequest.budgetPlan?.originOffice ?? previous.originOffice,
+    projectId: budgetRequest.projectId ?? budgetRequest.budgetPlan?.projectId ?? '',
   };
 }
 
