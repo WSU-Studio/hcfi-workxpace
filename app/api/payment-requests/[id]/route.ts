@@ -241,8 +241,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
       resolvedDepartmentId = br.departmentId;
       resolvedFiscalYear = br.fiscalYear;
-      resolvedOriginOffice = br.budgetPlan?.originOffice?.trim() || null;
-      resolvedProjectId = br.budgetPlan?.projectId ?? null;
+      resolvedOriginOffice =
+        br.originOffice?.trim() || br.budgetPlan?.originOffice?.trim() || null;
+      resolvedProjectId = br.projectId ?? br.budgetPlan?.projectId ?? null;
       linkedBudgetRequestClassification = {
         category: br.category,
         categoryKeyIndex: br.categoryKeyIndex,

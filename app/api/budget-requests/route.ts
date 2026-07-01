@@ -4,6 +4,7 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
+import { normalizeOptionalString } from '@/lib/budget-requests/display';
 import {
   canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
@@ -142,6 +143,8 @@ export async function POST(req: Request) {
       type,
       opexAllocation,
       opexType,
+      originOffice,
+      projectId,
     } = body;
 
     if (!subject || !departmentId) {
@@ -216,6 +219,9 @@ export async function POST(req: Request) {
     });
     const code = `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
+    const normalizedOriginOffice = normalizeOptionalString(originOffice);
+    const normalizedProjectId = normalizeOptionalString(projectId);
+
     const br = await prisma.budgetRequest.create({
       data: {
         code,
@@ -223,7 +229,9 @@ export async function POST(req: Request) {
         subject,
         description: description ?? null,
         fiscalYear: year,
+        originOffice: normalizedOriginOffice,
         departmentId,
+        projectId: normalizedProjectId,
         requestorId: session.user.id,
         requestDate: new Date(),
         totalAmount,

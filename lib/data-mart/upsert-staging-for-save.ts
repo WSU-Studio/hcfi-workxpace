@@ -134,7 +134,10 @@ export async function upsertDataMartStaging(
   ]);
 
   const originOfficeMerged =
-    pickFirstString(snap, ['OriginOffice', 'originOffice']) ?? br.budgetPlan?.originOffice ?? null;
+    pickFirstString(snap, ['OriginOffice', 'originOffice']) ??
+    br.originOffice ??
+    br.budgetPlan?.originOffice ??
+    null;
   const departmentNameMerged =
     pickFirstString(snap, ['DepartmentName', 'departmentName']) ?? br.department?.name ?? null;
 
@@ -182,8 +185,8 @@ export async function upsertDataMartStaging(
     opexAllocation: br.opexAllocation,
     budgetRequestType: br.type,
     expenseTypeFp: br.type,
-    projectCode: br.budgetPlan?.project?.code ?? null,
-    projectName: br.budgetPlan?.project?.name ?? null,
+    projectCode: br.project?.code ?? br.budgetPlan?.project?.code ?? null,
+    projectName: br.project?.name ?? br.budgetPlan?.project?.name ?? null,
     departmentId: saved.departmentId ?? br.departmentId,
     departmentName: departmentNameMerged,
     originOffice: originOfficeMerged,

@@ -4,6 +4,7 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
+import { normalizeOptionalString } from '@/lib/budget-requests/display';
 import accountOptions from '@/data/accounts.json';
 import {
   canUserActOnCurrentStep,
@@ -53,6 +54,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           },
         },
         department: true,
+        project: { select: { id: true, code: true, name: true } },
         lineItems: true,
         allocations: {
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
@@ -199,6 +201,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       type,
       opexAllocation,
       opexType,
+      originOffice,
+      projectId,
     } = body;
     if (!subject || typeof subject !== 'string') {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
@@ -271,6 +275,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       monthlyAllocations,
     } = normalizedPayload;
 
+    const normalizedOriginOffice = normalizeOptionalString(originOffice);
+    const normalizedProjectId = normalizeOptionalString(projectId);
+
     const updated = await prisma.$transaction(async (tx) => {
       await tx.budgetRequestLineItem.deleteMany({ where: { budgetRequestId: id } });
       await tx.budgetRequestAllocation.deleteMany({ where: { budgetRequestId: id } });
@@ -281,7 +288,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           subject,
           description: description ?? null,
           fiscalYear: year,
+          originOffice: normalizedOriginOffice,
           departmentId: nextDepartmentId,
+          projectId: normalizedProjectId,
           status: 'Draft',
           totalAmount,
           vatPercent: normalizedVatPercent,
@@ -326,6 +335,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             },
           },
           department: true,
+          project: { select: { id: true, code: true, name: true } },
           approvalSchema: {
             include: {
               approvalLevels: {
