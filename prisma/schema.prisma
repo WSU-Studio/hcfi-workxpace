@@ -413,7 +413,7 @@ model BudgetPlanAllocation {
 model BudgetRequest {
   id               String                 @id @default(cuid())
   code             String                 @unique
-  budgetPlanId     String
+  budgetPlanId     String?
   subject          String
   description      String?                @db.Text
   fiscalYear       Int
@@ -440,7 +440,7 @@ model BudgetRequest {
   opexType         String?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
-  budgetPlan       BudgetPlan             @relation(fields: [budgetPlanId], references: [id])
+  budgetPlan       BudgetPlan?            @relation(fields: [budgetPlanId], references: [id], onDelete: SetNull)
   department       Department             @relation(fields: [departmentId], references: [id])
   approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
   lineItems        BudgetRequestLineItem[]
