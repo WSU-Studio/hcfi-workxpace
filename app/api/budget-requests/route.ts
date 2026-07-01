@@ -144,12 +144,15 @@ export async function POST(req: Request) {
       opexType,
     } = body;
 
-    if (!budgetPlanId || !subject || !departmentId) {
+    if (!subject || !departmentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
+
+    const normalizedBudgetPlanId =
+      typeof budgetPlanId === 'string' && budgetPlanId.trim().length > 0 ? budgetPlanId : null;
 
     // Defense in depth: enforce the cross-department permission server-side.
     const departmentVerdict = assertCanActOnDepartment(session, departmentId);
@@ -176,11 +179,29 @@ export async function POST(req: Request) {
 
     const [dept, selectedPlan] = await Promise.all([
       prisma.department.findUnique({ where: { id: departmentId } }),
-      prisma.budgetPlan.findUnique({
-        where: { id: budgetPlanId },
-        select: { categoryId: true, coaId: true, opexType: true, opexAllocationId: true },
-      }),
+      normalizedBudgetPlanId
+        ? prisma.budgetPlan.findUnique({
+            where: { id: normalizedBudgetPlanId },
+            select: {
+              id: true,
+              status: true,
+              categoryId: true,
+              coaId: true,
+              opexType: true,
+              opexAllocationId: true,
+            },
+          })
+        : Promise.resolve(null),
     ]);
+    if (!dept) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 400 });
+    }
+    if (normalizedBudgetPlanId && !selectedPlan) {
+      return NextResponse.json({ error: 'Budget plan not found' }, { status: 400 });
+    }
+    if (selectedPlan && selectedPlan.status !== 'Approved') {
+      return NextResponse.json({ error: 'Budget plan must be approved' }, { status: 400 });
+    }
     const now = new Date();
     const codeYear = String(now.getFullYear());
     const codeMonth = String(now.getMonth() + 1).padStart(2, '0');
@@ -198,7 +219,7 @@ export async function POST(req: Request) {
     const br = await prisma.budgetRequest.create({
       data: {
         code,
-        budgetPlanId,
+        budgetPlanId: normalizedBudgetPlanId,
         subject,
         description: description ?? null,
         fiscalYear: year,

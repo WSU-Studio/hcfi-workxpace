@@ -20,7 +20,7 @@ import {
 
 type BudgetRequestApi = {
   id: string;
-  budgetPlanId: string;
+  budgetPlanId: string | null;
   subject: string;
   description: string | null;
   notes: string | null;
@@ -126,7 +126,7 @@ export default function EditBudgetRequestPage() {
 
         const plan = data.budgetPlan;
         setFormData({
-          budgetPlanId: data.budgetPlanId,
+          budgetPlanId: data.budgetPlanId ?? '',
           fiscalYear: data.fiscalYear,
           originOffice: plan?.originOffice ?? '',
           departmentId: data.departmentId,
@@ -189,8 +189,10 @@ export default function EditBudgetRequestPage() {
       return;
     }
 
-    const plan = options.plans.find((item) => item.id === formData.budgetPlanId);
-    if (!plan) {
+    const plan = formData.budgetPlanId
+      ? options.plans.find((item) => item.id === formData.budgetPlanId)
+      : undefined;
+    if (formData.budgetPlanId && !plan) {
       reportError('Invalid budget plan', 'budgetPlan');
       return;
     }
@@ -239,7 +241,7 @@ export default function EditBudgetRequestPage() {
       <h1 className="text-2xl font-semibold">Edit Budget Request</h1>
       {options.plans.length === 0 && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          No approved budget plans. Create and approve a budget plan first.
+          No approved budget plans available. You can save this request without linking a plan.
         </div>
       )}
       {error && (
@@ -277,7 +279,6 @@ export default function EditBudgetRequestPage() {
           cancelHref={`/budget-requests/${id}`}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
-          submitDisabled={options.plans.length === 0}
         />
       </Card>
     </div>

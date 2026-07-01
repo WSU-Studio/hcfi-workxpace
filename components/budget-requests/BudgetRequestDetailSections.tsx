@@ -64,7 +64,8 @@ export function BudgetRequestDetailSummarySection({
         <span className="text-gray-500">Requestor:</span> {data.requestorName ?? '-'}
       </div>
       <div>
-        <span className="text-gray-500">Budget Plan:</span> {data.budgetPlan?.code} - {data.budgetPlan?.subject}
+        <span className="text-gray-500">Budget Plan:</span>{' '}
+        {data.budgetPlan ? `${data.budgetPlan.code} - ${data.budgetPlan.subject}` : '-'}
       </div>
       <div>
         <span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}

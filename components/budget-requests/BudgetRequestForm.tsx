@@ -116,11 +116,10 @@ export default function BudgetRequestForm({
       </div>
       
       <div ref={fieldRefs.budgetPlan}>
-        <label className="block mb-1.5 font-medium">Budget Plan (Approved) *</label>
+        <label className="block mb-1.5 font-medium">Budget Plan (Approved)</label>
         <Select
           value={formData.budgetPlanId}
           onChange={(event) => onPlanSelect(event.target.value)}
-          required
         >
           <option value="">-</option>
           {plans.map((plan) => (

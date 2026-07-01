@@ -168,7 +168,7 @@ export default function NewBudgetRequestPage() {
       <h1 className="text-2xl font-semibold">Create Budget Request</h1>
       {options.plans.length === 0 && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg">
-          No approved budget plans. Create and approve a budget plan first.
+          No approved budget plans available. You can still submit an unplanned budget request without linking a plan.
         </div>
       )}
       {error && (
@@ -206,7 +206,6 @@ export default function NewBudgetRequestPage() {
           cancelHref="/budget-requests"
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
-          submitDisabled={options.plans.length === 0}
         />
       </Card>
     </div>

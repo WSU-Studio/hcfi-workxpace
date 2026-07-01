@@ -178,6 +178,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         status: true,
         fiscalYear: true,
         budgetPlanId: true,
+        departmentId: true,
       },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -206,24 +207,51 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
 
-    const nextBudgetPlanId = bodyPlanId || existing.budgetPlanId;
-    const plan = await prisma.budgetPlan.findUnique({
-      where: { id: nextBudgetPlanId },
-      select: {
-        id: true,
-        departmentId: true,
-        status: true,
-        categoryId: true,
-        categoryKeyIndexId: true,
-        costCenterId: true,
-        coaId: true,
-        opexType: true,
-        opexAllocationId: true,
-      },
-    });
-    if (!plan) return NextResponse.json({ error: 'Budget plan not found' }, { status: 400 });
-    if (plan.status !== 'Approved') {
-      return NextResponse.json({ error: 'Budget plan must be approved' }, { status: 400 });
+    const nextBudgetPlanId =
+      typeof bodyPlanId === 'string'
+        ? bodyPlanId.trim() || null
+        : existing.budgetPlanId;
+
+    let plan: {
+      id: string;
+      departmentId: string;
+      status: string;
+      categoryId: string | null;
+      categoryKeyIndexId: string | null;
+      costCenterId: string | null;
+      coaId: string | null;
+      opexType: string | null;
+      opexAllocationId: string | null;
+    } | null = null;
+
+    if (nextBudgetPlanId) {
+      plan = await prisma.budgetPlan.findUnique({
+        where: { id: nextBudgetPlanId },
+        select: {
+          id: true,
+          departmentId: true,
+          status: true,
+          categoryId: true,
+          categoryKeyIndexId: true,
+          costCenterId: true,
+          coaId: true,
+          opexType: true,
+          opexAllocationId: true,
+        },
+      });
+      if (!plan) return NextResponse.json({ error: 'Budget plan not found' }, { status: 400 });
+      if (plan.status !== 'Approved') {
+        return NextResponse.json({ error: 'Budget plan must be approved' }, { status: 400 });
+      }
+    }
+
+    const nextDepartmentId =
+      plan?.departmentId ??
+      (typeof body.departmentId === 'string' && body.departmentId.trim().length > 0
+        ? body.departmentId
+        : existing.departmentId);
+    if (!nextDepartmentId) {
+      return NextResponse.json({ error: 'Department is required' }, { status: 400 });
     }
 
     const normalizedPayload = normalizeBudgetRequestBody(body, existing.fiscalYear);
@@ -253,7 +281,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           subject,
           description: description ?? null,
           fiscalYear: year,
-          departmentId: plan.departmentId,
+          departmentId: nextDepartmentId,
           status: 'Draft',
           totalAmount,
           vatPercent: normalizedVatPercent,
@@ -264,13 +292,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           grandTotal: normalizedGrandTotal,
           notes: notes ?? null,
           approvalSchemaId: approvalSchemaId || null,
-          category: (category as string) || plan.categoryId || null,
-          categoryKeyIndex: (categoryKeyIndex as string) || plan.categoryKeyIndexId || null,
-          costCenter: (costCenter as string) || plan.costCenterId || null,
-          coa: (coa as string) || plan.coaId || null,
-          type: (type as string) || plan.opexType || null,
-          opexAllocation: (opexAllocation as string) || plan.opexAllocationId || null,
-          opexType: (opexType as string) || plan.opexType || null,
+          category: (category as string) || plan?.categoryId || null,
+          categoryKeyIndex: (categoryKeyIndex as string) || plan?.categoryKeyIndexId || null,
+          costCenter: (costCenter as string) || plan?.costCenterId || null,
+          coa: (coa as string) || plan?.coaId || null,
+          type: (type as string) || plan?.opexType || null,
+          opexAllocation: (opexAllocation as string) || plan?.opexAllocationId || null,
+          opexType: (opexType as string) || plan?.opexType || null,
           lineItems: {
             create: normalizedLineItems.map((li) => ({
               item: li.item ?? '',

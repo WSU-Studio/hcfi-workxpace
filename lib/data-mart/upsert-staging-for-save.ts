@@ -140,12 +140,14 @@ export async function upsertDataMartStaging(
 
   const dataInterfaceSource = deriveDataInterfaceSource(saved.paymentSource, snap);
 
-  const planAllocation = await tx.budgetPlanAllocation.findUnique({
-    where: {
-      budgetPlanId_month: { budgetPlanId: br.budgetPlanId, month: saved.month },
-    },
-    select: { allocation: true },
-  });
+  const planAllocation = br.budgetPlanId
+    ? await tx.budgetPlanAllocation.findUnique({
+        where: {
+          budgetPlanId_month: { budgetPlanId: br.budgetPlanId, month: saved.month },
+        },
+        select: { allocation: true },
+      })
+    : null;
   const planAmount = planAllocation?.allocation ?? null;
 
   const lines = br.lineItems ?? [];

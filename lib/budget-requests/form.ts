@@ -215,7 +215,7 @@ export function validateBudgetRequestForm({
   lineItems,
   totalAmount,
   schemasForDepartment,
-  requireBudgetPlan = true,
+  requireBudgetPlan = false,
 }: ValidateBudgetRequestFormInput): BudgetRequestValidationError | null {
   if (requireBudgetPlan && !formData.budgetPlanId) {
     return { message: 'Select a budget plan before submitting', field: 'budgetPlan' };
@@ -223,6 +223,10 @@ export function validateBudgetRequestForm({
 
   if (!formData.subject) {
     return { message: 'Subject is required', field: 'subject' };
+  }
+
+  if (!formData.departmentId) {
+    return { message: 'Department is required', field: 'budgetPlan' };
   }
 
   if (!formData.approvalSchemaId) {
