@@ -188,6 +188,7 @@ model Project {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   budgetPlans     BudgetPlan[]
+  budgetRequests  BudgetRequest[]
   paymentRequests PaymentRequest[]
 
   @@map("projects")
@@ -417,7 +418,9 @@ model BudgetRequest {
   subject          String
   description      String?                @db.Text
   fiscalYear       Int
+  originOffice     String?
   departmentId     String
+  projectId        String?
   requestorId      String?
   requestDate      DateTime
   status           String                 @default("Draft") // Draft | Pending | Approved
@@ -442,6 +445,7 @@ model BudgetRequest {
   updatedAt        DateTime               @updatedAt
   budgetPlan       BudgetPlan?            @relation(fields: [budgetPlanId], references: [id], onDelete: SetNull)
   department       Department             @relation(fields: [departmentId], references: [id])
+  project          Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
   approvalSchema   ApprovalSchema?        @relation(fields: [approvalSchemaId], references: [id])
   lineItems        BudgetRequestLineItem[]
   allocations      BudgetRequestAllocation[]
@@ -452,6 +456,7 @@ model BudgetRequest {
 
   @@index([budgetPlanId])
   @@index([departmentId])
+  @@index([projectId])
   @@index([status])
   @@map("budget_requests")
 }
