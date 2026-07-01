@@ -11,12 +11,13 @@ export function computePeriodParts(fiscalYear: number, month: number): {
   return { period, quarter };
 }
 
-type BudgetForSnapshot = {
+/** Fields required to build the JSON budget-request snapshot. */
+export type BudgetRequestSnapshotSource = {
   id: string;
   code: string;
   subject: string;
   fiscalYear: number;
-  departmentId: string;
+  originOffice: string | null;
   category: string | null;
   categoryKeyIndex: string | null;
   costCenter: string | null;
@@ -26,6 +27,7 @@ type BudgetForSnapshot = {
   opexType: string | null;
   grandTotal: Prisma.Decimal;
   department: { code: string; name: string } | null;
+  project: { code: string; name: string } | null;
   budgetPlan: {
     code: string;
     subject: string;
@@ -34,8 +36,31 @@ type BudgetForSnapshot = {
   } | null;
 };
 
+/** Budget request row loaded for reconciliation → data mart staging. */
+export type BudgetForReconciliation = BudgetRequestSnapshotSource & {
+  budgetPlanId: string | null;
+  departmentId: string;
+  status: string;
+  updatedAt: Date;
+  lineItems: { qty: number }[];
+};
+
+export const budgetForReconciliationInclude = {
+  department: true,
+  project: { select: { code: true, name: true } },
+  budgetPlan: {
+    select: {
+      code: true,
+      subject: true,
+      originOffice: true,
+      project: { select: { code: true, name: true } },
+    },
+  },
+  lineItems: true,
+};
+
 export function buildBudgetRequestSnapshot(
-  br: BudgetForSnapshot,
+  br: BudgetRequestSnapshotSource,
   requestorName: string | null
 ): Prisma.InputJsonValue {
   return {

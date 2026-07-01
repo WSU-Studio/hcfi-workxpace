@@ -32,6 +32,8 @@ export interface ApprovedBudgetRequestOption {
   departmentId: string;
   grandTotal: number;
   fiscalYear: number;
+  originOffice?: string | null;
+  projectId?: string | null;
   vatPercent: number;
   whtPercent: number;
   lineItems: {

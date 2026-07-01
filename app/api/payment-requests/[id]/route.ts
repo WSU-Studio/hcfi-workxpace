@@ -223,6 +223,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           status: true,
           departmentId: true,
           fiscalYear: true,
+          originOffice: true,
+          projectId: true,
           category: true,
           categoryKeyIndex: true,
           costCenter: true,

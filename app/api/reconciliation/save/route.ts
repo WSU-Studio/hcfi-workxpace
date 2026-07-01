@@ -9,6 +9,10 @@ import {
   upsertDataMartStaging,
   type SaveRowWithStaging,
 } from '@/lib/data-mart/upsert-staging-for-save';
+import {
+  budgetForReconciliationInclude,
+  type BudgetForReconciliation,
+} from '@/lib/data-mart/staging';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,11 +39,7 @@ export async function POST(request: Request) {
     const budgetIds = [...new Set(rows.map((r) => r.budgetRequestId))];
     const budgetRows = await prisma.budgetRequest.findMany({
       where: { id: { in: budgetIds } },
-      include: {
-        department: true,
-        lineItems: true,
-        budgetPlan: { include: { project: true } },
-      },
+      include: budgetForReconciliationInclude,
     });
     const budgetById = new Map(budgetRows.map((b) => [b.id, b]));
     const requestorIds = [
@@ -99,7 +99,13 @@ export async function POST(request: Request) {
         const requestorId = br.requestorId;
         const requestorName = requestorId ? userNameById.get(requestorId) ?? null : null;
 
-        await upsertDataMartStaging(tx, saved, row, br, requestorName);
+        await upsertDataMartStaging(
+          tx,
+          saved,
+          row,
+          br as BudgetForReconciliation,
+          requestorName,
+        );
       }
     });
 

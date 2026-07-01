@@ -4,7 +4,7 @@ import {
   pickFirstDate,
   pickFirstString,
 } from '@/lib/data-mart/confins-json-pickers';
-import { buildBudgetRequestSnapshot, computePeriodParts } from '@/lib/data-mart/staging';
+import { buildBudgetRequestSnapshot, computePeriodParts, type BudgetForReconciliation } from '@/lib/data-mart/staging';
 
 export type SaveRowWithStaging = {
   confinsPaymentDocId: string;
@@ -36,14 +36,6 @@ export type SaveRowWithStaging = {
 };
 
 type Tx = Prisma.TransactionClient;
-
-type BudgetInclude = Prisma.BudgetRequestGetPayload<{
-  include: {
-    department: true;
-    budgetPlan: { include: { project: true } };
-    lineItems: true;
-  };
-}>;
 
 function pickCurrencyFromSnapshot(snapshot: Record<string, unknown> | null | undefined): string | null {
   if (!snapshot || typeof snapshot !== 'object') return null;
@@ -78,7 +70,7 @@ export async function upsertDataMartStaging(
     savedAt: Date;
   },
   row: SaveRowWithStaging,
-  br: BudgetInclude,
+  br: BudgetForReconciliation,
   requestorName: string | null
 ) {
   const { period, quarter } = computePeriodParts(saved.fiscalYear, saved.month);
