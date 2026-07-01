@@ -42,7 +42,7 @@ export class ConfinsMasterSyncService {
     let lastError: unknown = null;
     for (const path of paths) {
       try {
-        return await this.client.post<T>({ path, body });
+        return await this.client.post<T>({ path, body, liveOnly: true });
       } catch (error) {
         lastError = error;
       }
