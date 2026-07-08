@@ -377,6 +377,23 @@ model OriginOfficeMaster {
   @@map("origin_office_masters")
 }
 
+// Chart of Accounts (COA) allocation master. Sourced from Confins
+// (GetListCoaAllocMasterByIsActiveX) via sync, but also supports manual CRUD
+// in Workspace Management. `accountCode` (PaymentAllocCode) is the stable key
+// that BP/BR/PR persist in their `coa` classification field.
+model CoaMaster {
+  id          String   @id @default(cuid())
+  accountCode String   @unique
+  accountName String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([accountCode])
+  @@map("coa_masters")
+}
+
 model OpexMaster {
   id          String      @id @default(cuid())
   name        String      @unique
