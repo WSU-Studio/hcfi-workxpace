@@ -2,10 +2,10 @@ import { forwardRef, SelectHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 export const selectFieldClassName =
-  'h-10 w-full rounded-lg border border-gray-400 bg-white px-2.5 transition-all duration-300 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer';
+  'h-10 w-full rounded-lg border border-gray-400 bg-white px-2.5 transition-all duration-300 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-blue-500';
 
 const redonlyFieldClassName =
-  'h-10 w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 transition-all duration-300 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer pointer-events-none';
+  'h-10 w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 transition-all duration-300 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer pointer-events-none hover:border-slate-300';
 
 export type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   readonly?: boolean;
