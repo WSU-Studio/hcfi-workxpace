@@ -6,6 +6,7 @@ import ButtonLink from '@/components/ui/ButtonLink';
 import ApprovalSchemaLevelsPreview from '@/components/approval/ApprovalSchemaLevelsPreview';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
@@ -72,6 +73,37 @@ export default function BudgetRequestForm({
   const { plans, fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
   const selectedPlan = plans.find((plan) => plan.id === formData.budgetPlanId);
 
+  const approvalSchemaOptions = useMemo(
+    () =>
+      approvalSchemas.map((schema) => ({
+        value: schema.id,
+        label: schema.name,
+      })),
+    [approvalSchemas],
+  );
+
+  const planOptions = useMemo(
+    () => [
+      { value: '', label: '—' },
+      ...plans.map((plan) => ({
+        value: plan.id,
+        label: `${plan.code} - ${plan.subject} - ${plan.fiscalYear}`,
+        searchText: `${plan.code} ${plan.subject} ${plan.fiscalYear}`,
+      })),
+    ],
+    [plans],
+  );
+
+  const originOfficeOptions = useMemo(
+    () =>
+      originOffices.map((office) => ({
+        value: office.code,
+        label: `${office.code} - ${office.name}${office.isActive ? '' : ' (Inactive)'}`,
+        searchText: `${office.code} ${office.name}`,
+      })),
+    [originOffices],
+  );
+
   const selectedApprovalLevels = useMemo(() => {
     if (!formData.approvalSchemaId) return [];
     const selectedSchema = approvalSchemas.find(
@@ -87,24 +119,16 @@ export default function BudgetRequestForm({
     <form onSubmit={onSubmit} className="space-y-6">
       <div ref={fieldRefs.approvalSchema}>
         <label className="block mb-1.5 font-medium">Approval Schema *</label>
-        <Select
+        <SearchableSelect
           value={formData.approvalSchemaId}
-          onChange={(event) =>
-            onFormDataChange((previous) => ({
-              ...previous,
-              approvalSchemaId: event.target.value,
-            }))
+          options={approvalSchemaOptions}
+          onChange={(approvalSchemaId) =>
+            onFormDataChange((previous) => ({ ...previous, approvalSchemaId }))
           }
           required
-          aria-invalid={!formData.approvalSchemaId}
-        >
-          <option value="">-</option>
-          {approvalSchemas.map((schema) => (
-            <option key={schema.id} value={schema.id}>
-              {schema.name}
-            </option>
-          ))}
-        </Select>
+          placeholder="Select approval schema..."
+          searchPlaceholder="Search approval schema..."
+        />
         {approvalSchemas.length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
             No approval schema is configured for budget requests.
@@ -117,17 +141,13 @@ export default function BudgetRequestForm({
       
       <div ref={fieldRefs.budgetPlan}>
         <label className="block mb-1.5 font-medium">Budget Plan (Approved)</label>
-        <Select
+        <SearchableSelect
           value={formData.budgetPlanId}
-          onChange={(event) => onPlanSelect(event.target.value)}
-        >
-          <option value="">-</option>
-          {plans.map((plan) => (
-            <option key={plan.id} value={plan.id}>
-              {plan.code} - {plan.subject} - {plan.fiscalYear}
-            </option>
-          ))}
-        </Select>
+          options={planOptions}
+          onChange={onPlanSelect}
+          placeholder="Select budget plan..."
+          searchPlaceholder="Search budget plan..."
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -155,25 +175,17 @@ export default function BudgetRequestForm({
         <div>
           <label className="block mb-1.5 font-medium">Origin Office *</label>
           {originOffices.length > 0 ? (
-            <Select
+            <SearchableSelect
               value={formData.originOffice}
-              onChange={(event) =>
-                onFormDataChange((previous) => ({
-                  ...previous,
-                  originOffice: event.target.value,
-                }))
+              options={originOfficeOptions}
+              onChange={(originOffice) =>
+                onFormDataChange((previous) => ({ ...previous, originOffice }))
               }
               required
-              readonly={isBudgetPlanSelected}
-            >
-              <option value="">-</option>
-              {originOffices.map((office) => (
-                <option key={office.code} value={office.code}>
-                  {office.code} - {office.name}
-                  {office.isActive ? '' : ' (Inactive)'}
-                </option>
-              ))}
-            </Select>
+              disabled={isBudgetPlanSelected}
+              placeholder="Select origin office..."
+              searchPlaceholder="Search origin office..."
+            />
           ) : (
             <Input
               type="text"

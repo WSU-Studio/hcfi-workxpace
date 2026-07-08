@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
@@ -248,6 +249,14 @@ export default function ReviewBudgetRequestPage() {
     session?.user?.access?.activityAccess?.viewBudgetPlanSnapshotOnBudgetRequestReview,
   );
   const canEditClassificationFields = canEditClassification && hasEditClassificationPermission;
+  const accountSelectOptions = [
+    { value: '', label: '—' },
+    ...(data.accountOptions || []).map((account) => ({
+      value: account.id,
+      label: `${account.accountCode} - ${account.accountName}`,
+      searchText: `${account.accountCode} ${account.accountName}`,
+    })),
+  ];
   const orderedLevels = [...(data.approvalSchema?.approvalLevels || [])].sort((a, b) => a.stepOrder - b.stepOrder);
   const stepProgresses = getMultiStepApprovalProgress(orderedLevels, data.histories ?? []);
   const requestorStepProgress = getRequestorSubmissionStepProgress(data.histories ?? [], {
@@ -691,18 +700,14 @@ export default function ReviewBudgetRequestPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">  
             <div className="md:col-span-2">
               <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
-              <Select
+              <SearchableSelect
                 value={classification.coaId}
+                options={accountSelectOptions}
                 disabled={!canEditClassificationFields}
-                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {(data.accountOptions || []).map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.accountCode} - {account.accountName}
-                  </option>
-                ))}
-              </Select>
+                onChange={(coaId) => setClassification((p) => ({ ...p, coaId }))}
+                placeholder="Pilih kode akun..."
+                searchPlaceholder="Cari kode akun..."
+              />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">  
