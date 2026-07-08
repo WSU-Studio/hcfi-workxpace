@@ -277,7 +277,7 @@ function stableRowCanonicalKey(row: ConfinsBudgetRealApiRow): string {
 
 export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): ConfinsCashDisbursement[] {
   const now = new Date().toISOString();
-  return rows.map((row) => {
+  const mapped = rows.map((row) => {
     const fromPeriod = parseConfinsPeriod(row.Period);
     const monthFromLabel = parseConfinsMonthLabel(row.Month);
     const yearFromField = Number(row.Year);
@@ -342,6 +342,17 @@ export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): Co
       rawPayload: row as Record<string, unknown>,
       updatedAt: now,
     };
+  });
+
+  // Dedupe berdasarkan `id` (stableRowId). Dua baris sumber dengan canonical key
+  // identik (PR/Journal/GL/DC/Voucher/Activity/Period/InvoiceNo/amount sama)
+  // adalah baris logis yang sama — kalau tidak di-dedupe akan memicu duplicate
+  // React key di tabel dan pengiriman baris ganda saat save. Baris pertama menang.
+  const seen = new Set<string>();
+  return mapped.filter((payment) => {
+    if (seen.has(payment.id)) return false;
+    seen.add(payment.id);
+    return true;
   });
 }
 
