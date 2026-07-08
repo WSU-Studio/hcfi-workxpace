@@ -3,7 +3,7 @@ import { logActivity } from '@/lib/activity';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import accountOptions from '@/data/accounts.json';
+import { loadAccountOptions } from '@/lib/classification-options';
 import {
   getBudgetPlanUserRoleIds,
   getNextApprovalStep,
@@ -80,7 +80,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       originOfficeMaster: OriginOfficeMasterDelegate;
     }).originOfficeMaster;
 
-    const [approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, originOffices, histories] = await Promise.all([
+    const [accountOptions, approvalSchemas, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexOptions, opexAllocationOptions, originOffices, histories] = await Promise.all([
+      loadAccountOptions(),
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
         include: { department: true, approvalLevels: { include: { role: true } } },

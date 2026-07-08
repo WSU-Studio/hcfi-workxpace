@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { normalizeBudgetRequestBody, toNumber } from '@/lib/budget-request-normalize';
 import { normalizeOptionalString } from '@/lib/budget-requests/display';
-import accountOptions from '@/data/accounts.json';
+import { loadAccountOptions } from '@/lib/classification-options';
 import {
   canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
@@ -123,7 +123,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const originOfficeMaster = (prisma as unknown as {
       originOfficeMaster: OriginOfficeMasterDelegate;
     }).originOfficeMaster;
-    const [categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexAllocationOptions, originOffices] = await Promise.all([
+    const [accountOptions, categoryOptions, categoryKeyIndexOptions, costCenterOptions, opexAllocationOptions, originOffices] = await Promise.all([
+      loadAccountOptions(),
       prisma.categoryMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.categoryKeyIndexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.costCenterMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
