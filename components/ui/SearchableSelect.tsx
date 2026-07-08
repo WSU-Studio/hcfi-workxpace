@@ -210,9 +210,9 @@ export default function SearchableSelect({
         onKeyDown={onTriggerKeyDown}
         className={cn(
           inputFieldClassName,
-          'flex items-center justify-between gap-2 text-left cursor-pointer',
+          'flex items-center justify-between gap-2 text-left cursor-pointer hover:border-blue-500',
           !selected && 'text-gray-400',
-          selected && 'border-blue-500',
+          open && 'border-blue-500',
           triggerClassName,
         )}
       >

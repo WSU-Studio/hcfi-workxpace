@@ -1,7 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Lock } from 'lucide-react';
-import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 
 export interface DepartmentOption {
   id: string;
@@ -64,11 +65,20 @@ export default function DepartmentSelectField({
   const selectedDepartment =
     departments.find((department) => department.id === value) ?? null;
 
+  const departmentOptions = useMemo(
+    () =>
+      departments.map((department) => ({
+        value: department.id,
+        label: department.name,
+        searchText: `${department.code} ${department.name}`,
+      })),
+    [departments],
+  );
+
   const userDepartment =
     departments.find((department) => department.id === userDepartmentId) ?? null;
 
   const isLockedToOwnDepartment = !canCrossDepartment;
-  const isReadonly = isLockedToOwnDepartment || forcedReadonly;
 
   // When the user is locked to their own department but the form value drifts
   // (e.g. options endpoint default, or a stale state), surface the user's own
@@ -94,19 +104,15 @@ export default function DepartmentSelectField({
           </span>
         </div>
       ) : (
-        <Select
+        <SearchableSelect
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          options={departmentOptions}
+          onChange={onChange}
           required={required}
-          readonly={forcedReadonly}
-        >
-          <option value="">-</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
-          ))}
-        </Select>
+          disabled={forcedReadonly}
+          placeholder="Select department..."
+          searchPlaceholder="Search department..."
+        />
       )}
     </div>
   );

@@ -17,6 +17,7 @@ import {
   TableHeaderRow,
 } from '@/components/ui/Table';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import {
   BudgetPlanFormOptions,
   BudgetPlanFormValues,
@@ -87,6 +88,34 @@ export default function BudgetPlanForm({
     (schema) => schema.departmentId === formData.departmentId,
   );
 
+  const originOfficeOptions = useMemo(
+    () =>
+      originOffices.map((office) => ({
+        value: office.code,
+        label: `${office.code} - ${office.name}${office.isActive ? '' : ' (Inactive)'}`,
+        searchText: `${office.code} ${office.name}`,
+      })),
+    [originOffices],
+  );
+  const projectOptions = useMemo(
+    () =>
+      projects.map((project) => ({
+        value: project.id,
+        label: `${project.code} - ${project.name}`,
+        searchText: `${project.code} ${project.name}`,
+      })),
+    [projects],
+  );
+  const approvalSchemaOptions = useMemo(
+    () =>
+      approvalSchemas.map((schema) => ({
+        value: schema.id,
+        label: schema.name,
+        searchText: schema.name,
+      })),
+    [approvalSchemas],
+  );
+
   const selectedApprovalLevels = useMemo(() => {
     if (!formData.approvalSchemaId) return [];
     const selectedSchema = approvalSchemas.find(
@@ -124,36 +153,24 @@ export default function BudgetPlanForm({
 
         <div>
           <label className="block mb-1.5 font-medium">Origin Office *</label>
-          {originOffices.length > 0 ? (
-            <Select
-              value={formData.originOffice}
-              onChange={(event) =>
-                onFormDataChange((previous) => ({
-                  ...previous,
-                  originOffice: event.target.value,
-                }))
-              }
-              required
-            >
-              <option value="">-</option>
-              {originOffices.map((office) => (
-                <option key={office.code} value={office.code}>
-                  {office.code} - {office.name}
-                  {office.isActive ? '' : ' (Inactive)'}
-                </option>
-              ))}
-            </Select>
-          ) : (
+          {originOffices.length === 0 ? (
             <Input
-              type="text"
               value={formData.originOffice}
               onChange={(event) =>
-                onFormDataChange((previous) => ({
-                  ...previous,
-                  originOffice: event.target.value,
-                }))
+                onFormDataChange((previous) => ({ ...previous, originOffice: event.target.value }))
               }
               placeholder="HQ"
+              required
+            />
+          ) : (
+            <SearchableSelect
+              value={formData.originOffice}
+              options={originOfficeOptions}
+              onChange={(originOffice) =>
+                onFormDataChange((previous) => ({ ...previous, originOffice }))
+              }
+              placeholder="Search origin office..."
+              searchPlaceholder="Search origin office..."
               required
             />
           )}
@@ -371,24 +388,16 @@ export default function BudgetPlanForm({
 
       <div>
         <label className="block mb-1.5 font-medium">Approval Schema *</label>
-        <Select
+        <SearchableSelect
           value={formData.approvalSchemaId}
-          onChange={(event) =>
-            onFormDataChange((previous) => ({
-              ...previous,
-              approvalSchemaId: event.target.value,
-            }))
+          options={approvalSchemaOptions}
+          onChange={(approvalSchemaId) =>
+            onFormDataChange((previous) => ({ ...previous, approvalSchemaId }))
           }
+          placeholder="Search approval schema..."
+          searchPlaceholder="Search approval schema..."
           required
-          aria-invalid={!formData.approvalSchemaId}
-        >
-          <option value="">-</option>
-          {schemasForDept.map((schema) => (
-            <option key={schema.id} value={schema.id}>
-              {schema.name}
-            </option>
-          ))}
-        </Select>
+        />
         {formData.departmentId && schemasForDept.length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
             No approval schema is configured for the selected department.
