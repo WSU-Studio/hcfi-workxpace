@@ -133,6 +133,82 @@ const MOCK_EMPLOYEES: ConfinsEmployee[] = [
   },
 ];
 
+type ConfinsCoaAllocation = {
+  PaymentAllocCode: string;
+  PaymentAllocName: string;
+  BusinessRole?: string | null;
+  BusinessActivity?: string | null;
+  SubActivityName?: string | null;
+  ActivityName?: string | null;
+  IsActive: boolean;
+};
+
+const MOCK_COA_ALLOCATIONS: ConfinsCoaAllocation[] = [
+  {
+    PaymentAllocCode: '109001005000001',
+    PaymentAllocName: 'ADV PAYMENT - BONDS',
+    BusinessRole: 'ADVANCE PAYMENT',
+    BusinessActivity: 'ADV PAYMENT',
+    SubActivityName: 'ADV PAYMENT - BONDS',
+    ActivityName: 'OTHER ASSETS - ADV PAYMENT',
+    IsActive: true,
+  },
+  {
+    PaymentAllocCode: '109001006000001',
+    PaymentAllocName: 'ADV PAYMENT - BRIDGING',
+    BusinessRole: 'ADVANCE PAYMENT',
+    BusinessActivity: 'ADV PAYMENT',
+    SubActivityName: 'ADV PAYMENT - BRIDGING',
+    ActivityName: 'OTHER ASSETS - ADV PAYMENT',
+    IsActive: true,
+  },
+  {
+    PaymentAllocCode: '109001004000001',
+    PaymentAllocName: 'ADV PAYMENT - EXPENSES',
+    BusinessRole: 'ADVANCE PAYMENT',
+    BusinessActivity: 'ADV PAYMENT',
+    SubActivityName: 'ADV PAYMENT - EXPENSES',
+    ActivityName: 'OTHER ASSETS - ADV PAYMENT',
+    IsActive: true,
+  },
+  {
+    PaymentAllocCode: '60001',
+    PaymentAllocName: 'IT Expense',
+    BusinessRole: 'OPEX',
+    BusinessActivity: 'IT',
+    SubActivityName: 'IT OPERATIONAL',
+    ActivityName: 'OPERATIONAL EXPENSE',
+    IsActive: true,
+  },
+  {
+    PaymentAllocCode: '60002',
+    PaymentAllocName: 'Office Supplies',
+    BusinessRole: 'OPEX',
+    BusinessActivity: 'GA',
+    SubActivityName: 'OFFICE SUPPLIES',
+    ActivityName: 'OPERATIONAL EXPENSE',
+    IsActive: true,
+  },
+  {
+    PaymentAllocCode: '60003',
+    PaymentAllocName: 'Utilities',
+    BusinessRole: 'OPEX',
+    BusinessActivity: 'GA',
+    SubActivityName: 'UTILITIES',
+    ActivityName: 'OPERATIONAL EXPENSE',
+    IsActive: true,
+  },
+  {
+    PaymentAllocCode: '70001',
+    PaymentAllocName: 'Travel Expense',
+    BusinessRole: 'OPEX',
+    BusinessActivity: 'HR & GA',
+    SubActivityName: 'BUSINESS TRAVEL',
+    ActivityName: 'OPERATIONAL EXPENSE',
+    IsActive: true,
+  },
+];
+
 const MOCK_OFFICES: ConfinsOffice[] = [
   {
     OfficeCode: '99',
@@ -191,6 +267,13 @@ export async function getConfinsMockData(path: string): Promise<unknown[]> {
     path === '/v1/IntegrationEBudgetingX/GetListRefEmpByIsActiveX'
   ) {
     return MOCK_EMPLOYEES;
+  }
+
+  if (
+    path === '/v1/CoaAllocMasterX/GetListCoaAllocMasterByIsActiveX' ||
+    path === '/v1/IntegrationEBudgetingX/GetListCoaAllocMasterByIsActiveX'
+  ) {
+    return MOCK_COA_ALLOCATIONS;
   }
 
   if (path === CONFINS_BUDGET_REAL_PATH || path.endsWith(BUDGET_REAL_PATH_SUFFIX)) {

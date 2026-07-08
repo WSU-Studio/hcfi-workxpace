@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 
-type SyncEntityType = 'ConfinsSyncDepartment' | 'ConfinsSyncCostCenter';
+type SyncEntityType = 'ConfinsSyncDepartment' | 'ConfinsSyncCostCenter' | 'ConfinsSyncCoa';
 
 export async function getLatestSyncActivity(entityType: SyncEntityType) {
   const row = await prisma.activityHistory.findFirst({

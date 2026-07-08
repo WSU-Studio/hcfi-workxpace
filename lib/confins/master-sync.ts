@@ -15,6 +15,16 @@ type ConfinsOffice = {
   IsActive: boolean;
 };
 
+type ConfinsCoaAllocation = {
+  PaymentAllocCode: string;
+  PaymentAllocName: string;
+  BusinessRole?: string | null;
+  BusinessActivity?: string | null;
+  SubActivityName?: string | null;
+  ActivityName?: string | null;
+  IsActive: boolean;
+};
+
 export type OriginOfficeOption = {
   code: string;
   name: string;
@@ -142,6 +152,54 @@ export class ConfinsMasterSyncService {
       });
       updated += 1;
       if (row.IsActive === false) deactivated += 1;
+    }
+
+    return {
+      sourceCount: rows.length,
+      created,
+      updated,
+      deactivated,
+    };
+  }
+
+  async syncCoaAllocations(): Promise<SyncSummary> {
+    const coaPaths = [
+      process.env.CONFINS_COA_PATH || '/v1/IntegrationEBudgetingX/GetListCoaAllocMasterByIsActiveX',
+      '/v1/CoaAllocMasterX/GetListCoaAllocMasterByIsActiveX',
+    ];
+    const rows = await this.postWithFallback<ConfinsCoaAllocation>(coaPaths, { IsActive: '0' });
+
+    let created = 0;
+    let updated = 0;
+    let deactivated = 0;
+
+    for (const row of rows) {
+      const accountCode = String(row.PaymentAllocCode || '').trim();
+      const accountName = String(row.PaymentAllocName || '').trim();
+      if (!accountCode || !accountName) continue;
+
+      const description = [row.ActivityName, row.SubActivityName, row.BusinessRole]
+        .map((value) => (value ? String(value).trim() : ''))
+        .filter(Boolean)
+        .join(' | ') || syncDescription('coa');
+      const isActive = Boolean(row.IsActive);
+
+      const existing = await prisma.coaMaster.findUnique({ where: { accountCode } });
+      if (!existing) {
+        await prisma.coaMaster.create({
+          data: { accountCode, accountName, description, isActive },
+        });
+        created += 1;
+        if (!isActive) deactivated += 1;
+        continue;
+      }
+
+      await prisma.coaMaster.update({
+        where: { id: existing.id },
+        data: { accountName, description, isActive },
+      });
+      updated += 1;
+      if (!isActive) deactivated += 1;
     }
 
     return {
