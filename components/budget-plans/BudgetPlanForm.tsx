@@ -97,23 +97,17 @@ export default function BudgetPlanForm({
       })),
     [originOffices],
   );
+
   const projectOptions = useMemo(
-    () =>
-      projects.map((project) => ({
+    () => [
+      { value: '', label: '—' },
+      ...projects.map((project) => ({
         value: project.id,
         label: `${project.code} - ${project.name}`,
         searchText: `${project.code} ${project.name}`,
       })),
+    ],
     [projects],
-  );
-  const approvalSchemaOptions = useMemo(
-    () =>
-      approvalSchemas.map((schema) => ({
-        value: schema.id,
-        label: schema.name,
-        searchText: schema.name,
-      })),
-    [approvalSchemas],
   );
 
   const selectedApprovalLevels = useMemo(() => {
@@ -188,22 +182,15 @@ export default function BudgetPlanForm({
 
         <div>
           <label className="block mb-1.5 font-medium">Project</label>
-          <Select
+          <SearchableSelect
             value={formData.projectId}
-            onChange={(event) =>
-              onFormDataChange((previous) => ({
-                ...previous,
-                projectId: event.target.value,
-              }))
+            options={projectOptions}
+            onChange={(projectId) =>
+              onFormDataChange((previous) => ({ ...previous, projectId }))
             }
-          >
-            <option value="">-</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.code} - {project.name}
-              </option>
-            ))}
-          </Select>
+            placeholder="Select project..."
+            searchPlaceholder="Search project..."
+          />
         </div>
       </div>
 
@@ -388,16 +375,24 @@ export default function BudgetPlanForm({
 
       <div>
         <label className="block mb-1.5 font-medium">Approval Schema *</label>
-        <SearchableSelect
+        <Select
           value={formData.approvalSchemaId}
-          options={approvalSchemaOptions}
-          onChange={(approvalSchemaId) =>
-            onFormDataChange((previous) => ({ ...previous, approvalSchemaId }))
+          onChange={(event) =>
+            onFormDataChange((previous) => ({
+              ...previous,
+              approvalSchemaId: event.target.value,
+            }))
           }
-          placeholder="Search approval schema..."
-          searchPlaceholder="Search approval schema..."
           required
-        />
+          aria-invalid={!formData.approvalSchemaId}
+        >
+          <option value="">-</option>
+          {schemasForDept.map((schema) => (
+            <option key={schema.id} value={schema.id}>
+              {schema.name}
+            </option>
+          ))}
+        </Select>
         {formData.departmentId && schemasForDept.length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
             No approval schema is configured for the selected department.

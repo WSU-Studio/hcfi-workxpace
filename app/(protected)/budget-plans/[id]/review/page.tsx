@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -10,6 +10,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import Input from '@/components/ui/Input';
 import RichTextContent from '@/components/ui/RichTextContent';
 import Button from '@/components/ui/Button';
@@ -47,6 +48,17 @@ export default function ReviewBudgetPlanPage() {
     approvalSchema?: { approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } }[] };
   } | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string; description: string }[]>([]);
+  const accountSelectOptions = useMemo(
+    () => [
+      { value: '', label: '—' },
+      ...accountOptions.map((account) => ({
+        value: account.id,
+        label: `${account.accountCode} - ${account.accountName}`,
+        searchText: `${account.accountCode} ${account.accountName}`,
+      })),
+    ],
+    [accountOptions],
+  );
   const [originOffices, setOriginOffices] = useState<{ code: string; name: string; isActive: boolean }[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [categoryKeyIndexOptions, setCategoryKeyIndexOptions] = useState<{ id: string; name: string; description: string | null }[]>([]);
@@ -404,18 +416,14 @@ export default function ReviewBudgetPlanPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
-              <Select
+              <SearchableSelect
                 value={classification.coaId}
+                options={accountSelectOptions}
                 disabled={!canEditClassificationFields}
-                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {accountOptions.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.accountCode} - {account.accountName}
-                  </option>
-                ))}
-              </Select>
+                onChange={(coaId) => setClassification((p) => ({ ...p, coaId }))}
+                placeholder="Pilih kode akun..."
+                searchPlaceholder="Cari kode akun..."
+              />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
