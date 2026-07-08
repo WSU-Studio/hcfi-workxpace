@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase, IconCategory, IconHierarchy2, IconTag, IconMapPin } from '@tabler/icons-react';
+import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase, IconCategory, IconHierarchy2, IconTag, IconMapPin, IconReceipt2 } from '@tabler/icons-react';
 import { MenuAccess } from '@/types/access-control';
 import { restrictedMenuAccess } from '@/lib/default-access';
 
@@ -24,6 +24,7 @@ export default function WorkspaceManagementLayout({
     { name: 'Category', href: '/workspace-management/category', icon: IconCategory, show: menuAccess.viewCategory },
     { name: 'Category Key Index', href: '/workspace-management/category-key-index', icon: IconTag, show: menuAccess.viewCategoryKeyIndex },
     { name: 'Cost Center', href: '/workspace-management/cost-center', icon: IconHierarchy2, show: menuAccess.viewCostCenter },
+    { name: 'COA', href: '/workspace-management/coa', icon: IconReceipt2, show: menuAccess.viewCoa },
     { name: 'Role', href: '/workspace-management/role', icon: IconIdBadge2, show: menuAccess.viewRole },
     { name: 'Approval Schema', href: '/workspace-management/approval-schema', icon: IconSchema, show: menuAccess.viewApprovalSchema },
     { name: 'Activity History', href: '/workspace-management/activity-history', icon: IconHistory, show: menuAccess.viewActivityHistory },
