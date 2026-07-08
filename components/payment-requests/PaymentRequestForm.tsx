@@ -6,6 +6,7 @@ import ButtonLink from '@/components/ui/ButtonLink';
 import ApprovalSchemaLevelsPreview from '@/components/approval/ApprovalSchemaLevelsPreview';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
 import BudgetRequestItemsEditor, {
@@ -84,6 +85,37 @@ export default function PaymentRequestForm({
     (schema) => schema.departmentId === formData.departmentId,
   );
 
+  const budgetRequestOptions = useMemo(
+    () => [
+      { value: '', label: '—' },
+      ...approvedBudgetRequests.map((budgetRequest) => ({
+        value: budgetRequest.id,
+        label: `${budgetRequest.code} - ${budgetRequest.subject}`,
+        searchText: `${budgetRequest.code} ${budgetRequest.subject}`,
+      })),
+    ],
+    [approvedBudgetRequests],
+  );
+
+  const originOfficeOptions = useMemo(
+    () =>
+      originOffices.map((office) => ({
+        value: office.code,
+        label: `${office.code} - ${office.name}${office.isActive ? '' : ' (Inactive)'}`,
+        searchText: `${office.code} ${office.name}`,
+      })),
+    [originOffices],
+  );
+
+  const approvalSchemaOptions = useMemo(
+    () =>
+      schemasForDept.map((schema) => ({
+        value: schema.id,
+        label: schema.name,
+      })),
+    [schemasForDept],
+  );
+
   const selectedApprovalLevels = useMemo(() => {
     if (!formData.approvalSchemaId) return [];
     const selectedSchema = approvalSchemas.find(
@@ -103,17 +135,13 @@ export default function PaymentRequestForm({
     <form onSubmit={onSubmit} className="space-y-6">
       <div>
         <label className="mb-1.5 block font-medium">Budget Request (Approved, optional)</label>
-        <Select
+        <SearchableSelect
           value={formData.budgetRequestId}
-          onChange={(event) => onBudgetRequestChange(event.target.value)}
-        >
-          <option value="">-</option>
-          {approvedBudgetRequests.map((budgetRequest) => (
-            <option key={budgetRequest.id} value={budgetRequest.id}>
-              {budgetRequest.code} - {budgetRequest.subject}
-            </option>
-          ))}
-        </Select>
+          options={budgetRequestOptions}
+          onChange={onBudgetRequestChange}
+          placeholder="Select budget request..."
+          searchPlaceholder="Search budget request..."
+        />
         {mode === 'create' ? (
           <p className="mt-1 text-sm text-gray-500">
             Link to an approved budget request, or leave blank. When linked, fiscal year, origin office,
@@ -147,25 +175,17 @@ export default function PaymentRequestForm({
         <div>
           <label className="mb-1.5 block font-medium">Origin Office *</label>
           {originOffices.length > 0 ? (
-            <Select
+            <SearchableSelect
               value={formData.originOffice}
-              onChange={(event) =>
-                onFormDataChange((previous) => ({
-                  ...previous,
-                  originOffice: event.target.value,
-                }))
+              options={originOfficeOptions}
+              onChange={(originOffice) =>
+                onFormDataChange((previous) => ({ ...previous, originOffice }))
               }
               required={!isBudgetRequestSelected}
-              readonly={isBudgetRequestSelected}
-            >
-              <option value="">-</option>
-              {originOffices.map((office) => (
-                <option key={office.code} value={office.code}>
-                  {office.code} - {office.name}
-                  {office.isActive ? '' : ' (Inactive)'}
-                </option>
-              ))}
-            </Select>
+              disabled={isBudgetRequestSelected}
+              placeholder="Select origin office..."
+              searchPlaceholder="Search origin office..."
+            />
           ) : (
             <Input
               type="text"
@@ -371,24 +391,16 @@ export default function PaymentRequestForm({
 
       <div>
         <label className="mb-1.5 block font-medium">Approval Schema *</label>
-        <Select
+        <SearchableSelect
           value={formData.approvalSchemaId}
-          onChange={(event) =>
-            onFormDataChange((previous) => ({
-              ...previous,
-              approvalSchemaId: event.target.value,
-            }))
+          options={approvalSchemaOptions}
+          onChange={(approvalSchemaId) =>
+            onFormDataChange((previous) => ({ ...previous, approvalSchemaId }))
           }
           required
-          aria-invalid={!formData.approvalSchemaId}
-        >
-          <option value="">-</option>
-          {schemasForDept.map((schema) => (
-            <option key={schema.id} value={schema.id}>
-              {schema.name}
-            </option>
-          ))}
-        </Select>
+          placeholder="Select approval schema..."
+          searchPlaceholder="Search approval schema..."
+        />
         {formData.departmentId && schemasForDept.length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
             No approval schema is configured for the selected department.
