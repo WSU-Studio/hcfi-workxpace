@@ -7,6 +7,7 @@ const ALL_MASTER_MODULES = [
   'project',
   'role',
   'approval-schema',
+  'coa',
 ] as const;
 
 export type WorkspaceMasterModule = (typeof ALL_MASTER_MODULES)[number];

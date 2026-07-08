@@ -94,6 +94,17 @@ export default withAuth(
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
       }
+      if (req.nextUrl.pathname.match(/^\/workspace-management\/coa(\/|$)/)) {
+        if (!menuAccess.viewCoa) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editCoa) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createCoa) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
       if (req.nextUrl.pathname.match(/^\/workspace-management\/category(\/|$)/)) {
         if (!menuAccess.viewCategory) {
           return NextResponse.redirect(new URL('/forbidden', req.url));

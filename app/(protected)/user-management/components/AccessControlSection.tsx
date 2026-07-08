@@ -56,6 +56,7 @@ export const menuAccessItems: Array<{ key: string; label: string }> = [
   { key: 'viewCategory', label: 'View Category Page' },
   { key: 'viewCategoryKeyIndex', label: 'View Category Key Index Page' },
   { key: 'viewCostCenter', label: 'View Cost Center Page' },
+  { key: 'viewCoa', label: 'View COA Page' },
   { key: 'viewRole', label: 'View Role Page' },
   { key: 'viewApprovalSchema', label: 'View Approval Schema Page' },
   { key: 'viewActivityHistory', label: 'View Activity History Page' },
@@ -110,4 +111,7 @@ export const workspaceManagementAccessItems: Array<{ key: string; label: string 
   { key: 'createCostCenter', label: 'Cost Center: Create' },
   { key: 'editCostCenter', label: 'Cost Center: Edit' },
   { key: 'deleteCostCenter', label: 'Cost Center: Delete' },
+  { key: 'createCoa', label: 'COA: Create' },
+  { key: 'editCoa', label: 'COA: Edit' },
+  { key: 'deleteCoa', label: 'COA: Delete' },
 ];
