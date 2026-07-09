@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Confins E-Budgeting 1.03 — budget realization / payment lines untuk rekonsiliasi.
- * Query: fiscalYear, month (filter tampilan by InvoiceDate), departmentId, sourceType (default EGL), fromYear (default 2005).
+ * Query: fiscalYear, month (filter tampilan by RequestDate), departmentId,
+ * sourceType (optional — default tarik CONFINS + EGL), fromYear (default 2005).
  */
 export async function GET(request: Request) {
   try {

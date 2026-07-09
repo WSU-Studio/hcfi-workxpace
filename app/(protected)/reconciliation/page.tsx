@@ -175,7 +175,10 @@ export default function ReconciliationPage() {
         payments: ConfinsCashDisbursement[];
         meta: ConfinsMockListMeta & {
           rawRowCount?: number;
+          eligibleRowCount?: number;
+          debitRowCount?: number;
           filteredRowCount?: number;
+          sourceTypes?: string;
           edgeCaseCount?: number;
           confinsMockEnabled?: boolean;
           dataSource?: string;
@@ -205,9 +208,10 @@ export default function ReconciliationPage() {
       setPayments(payData.payments ?? []);
       setDepartments(planData.departments ?? []);
       setLastSyncedAt(payData.meta?.lastSyncedAt ?? new Date().toISOString());
-      // const rawCount = payData.meta?.rawRowCount ?? 0;
-      const matchedRequest = payData.meta?.filteredRowCount ?? 0;
+      const rawCount = payData.meta?.rawRowCount ?? 0;
+      const eligibleCount = payData.meta?.eligibleRowCount ?? payData.meta?.debitRowCount ?? 0;
       const shown = payData.meta?.recordCount ?? 0;
+      const sourceTypes = payData.meta?.sourceTypes ?? 'CONFINS,EGL';
       // const edgeCases = payData.meta?.edgeCaseCount ?? 0;
       const sourceHint =
         payData.meta?.dataSource === 'confins-api'
@@ -222,7 +226,7 @@ export default function ReconciliationPage() {
       //       ? ' Tidak ada RequestDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
       //       : '';
       setSyncMessage(
-        `Synced from ${sourceHint}: ${shown} rows shown (RequestDate ${month}/${fiscalYear}) ${matchedRequest} matched filter request.`
+        `Synced from ${sourceHint} [${sourceTypes}]: ${shown} rows shown for RequestDate ${month}/${fiscalYear} (${rawCount} from API, ${eligibleCount} after DC filter).`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';

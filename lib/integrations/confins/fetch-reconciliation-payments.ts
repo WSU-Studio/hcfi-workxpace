@@ -5,7 +5,7 @@ import type { ConfinsMockListMeta } from '@/lib/integrations/confins-mock/types'
 import {
   CONFINS_BUDGET_REAL_PATH,
   departmentNameMatchesPayment,
-  filterDebitBudgetRealRows,
+  filterReconciliationBudgetRealRows,
   mapBudgetRealRowsToPayments,
   paymentMatchesRequestMonth,
   type ConfinsBudgetRealApiRow,
@@ -26,20 +26,63 @@ export type ReconciliationPaymentsFetchOptions = {
   includeEdgeCases?: boolean;
 };
 
+/** Payment Request (99PYREQ…) ada di CONFINS; jurnal manual di EGL. Rekonsiliasi tarik keduanya. */
+const DEFAULT_RECONCILIATION_SOURCE_TYPES = ['CONFINS', 'EGL'] as const;
+
 export type ReconciliationPaymentsResult = {
   payments: ConfinsCashDisbursement[];
   meta: ConfinsMockListMeta & {
     apiPath: string;
-    /** Jumlah baris dari API sebelum filter RequestDate. */
+    /** Jumlah baris dari API (semua sourceType) sebelum filter DC. */
     rawRowCount: number;
+    /** Jumlah baris setelah filter DC (debit + ORV credit). */
+    eligibleRowCount: number;
     /** Jumlah baris setelah filter RequestDate (+ department). */
     filteredRowCount: number;
+    /** SourceType yang dipakai saat fetch (comma-separated). */
+    sourceTypes: string;
     /** Selalu 0 — edge-case injection sudah dimatikan. */
     edgeCaseCount: number;
     confinsMockEnabled: boolean;
     dataSource: 'confins-api' | 'confins-mock-fixture' | 'local-mock';
   };
 };
+
+function resolveReconciliationSourceTypes(options: ReconciliationPaymentsFetchOptions): string[] {
+  if (options.sourceType?.trim()) {
+    return [options.sourceType.trim()];
+  }
+  const fromEnv = process.env.CONFINS_RECONCILIATION_SOURCE_TYPES?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (fromEnv?.length) return fromEnv;
+  return [...DEFAULT_RECONCILIATION_SOURCE_TYPES];
+}
+
+async function fetchBudgetRealRows(
+  client: ConfinsClient,
+  sourceTypes: string[],
+  bodyBase: Omit<Record<string, unknown>, 'sourceType'>,
+  confinsMockEnabled: boolean
+): Promise<ConfinsBudgetRealApiRow[]> {
+  // Mock fixture tidak membedakan sourceType — satu fetch cukup agar tidak duplikat.
+  if (confinsMockEnabled && sourceTypes.length > 1) {
+    return client.post<ConfinsBudgetRealApiRow>({
+      path: CONFINS_BUDGET_REAL_PATH,
+      body: { ...bodyBase, sourceType: sourceTypes[0] },
+    });
+  }
+
+  const chunks = await Promise.all(
+    sourceTypes.map((sourceType) =>
+      client.post<ConfinsBudgetRealApiRow>({
+        path: CONFINS_BUDGET_REAL_PATH,
+        body: { ...bodyBase, sourceType },
+      })
+    )
+  );
+  return chunks.flat();
+}
 
 async function resolveDepartmentName(departmentId?: string): Promise<string | undefined> {
   if (!departmentId) return undefined;
@@ -59,15 +102,15 @@ export async function fetchReconciliationPayments(
   const fromYear = options.fromYear ?? 2005;
   /** Confins `toMonth` = batas periode posting. Tarik full year lalu filter RequestDate di app. */
   const apiToMonth = 12;
-  const sourceType = options.sourceType ?? 'EGL';
+  const sourceTypes = resolveReconciliationSourceTypes(options);
   const departmentName = await resolveDepartmentName(options.departmentId);
   const confinsMockEnabled = await isConfinsMockEnabled();
 
   const client = new ConfinsClient();
-  const apiRows = await client.post<ConfinsBudgetRealApiRow>({
-    path: CONFINS_BUDGET_REAL_PATH,
-    body: {
-      sourceType,
+  const apiRows = await fetchBudgetRealRows(
+    client,
+    sourceTypes,
+    {
       toMonth: apiToMonth,
       toYear,
       fromMonth: null,
@@ -75,10 +118,12 @@ export async function fetchReconciliationPayments(
       formCode: null,
       coa: null,
     },
-  });
+    confinsMockEnabled
+  );
 
   const rawRowCount = apiRows.length;
-  const rawRows = filterDebitBudgetRealRows(apiRows);
+  const rawRows = filterReconciliationBudgetRealRows(apiRows);
+  const eligibleRowCount = rawRows.length;
 
   let payments = mapBudgetRealRowsToPayments(rawRows);
 
@@ -107,7 +152,9 @@ export async function fetchReconciliationPayments(
       simulatedApiModel: 'API CONFINS For E-Budgeting 1.03',
       apiPath: CONFINS_BUDGET_REAL_PATH,
       rawRowCount,
+      eligibleRowCount,
       filteredRowCount,
+      sourceTypes: sourceTypes.join(','),
       edgeCaseCount,
       confinsMockEnabled,
       dataSource:

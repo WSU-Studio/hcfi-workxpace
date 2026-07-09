@@ -154,14 +154,14 @@ Additional requestor/reviewer/approver accounts are created by seed for multi-st
 ### API
 
 - Endpoint: `GetListGetListBudgetRealBySourceTypeX` (E-Budgeting **1.03**)
-- Default request `sourceType`: **`EGL`** (override via query `?sourceType=CONFINS` on payments API)
+- Default request `sourceType` untuk rekonsiliasi: **`CONFINS` + `EGL`** (Payment Request ada di CONFINS; override satu source via `?sourceType=EGL` atau env `CONFINS_RECONCILIATION_SOURCE_TYPES`)
 - Mock mode: toggle **Activate Mock API** in Application Settings, or set `CONFINS_USE_MOCK=true`
 
 ### Reconciliation rules (current)
 
 | Rule | Value |
 |------|--------|
-| **DC filter** | Only rows with `DC = "D"` (Debit) |
+| **DC filter** | `DC = "D"` untuk Payment Request / EGL; `DC = "C"` untuk **Other Receive** (Hyundai: tipe terpisah, kolom credit) — deteksi via `DataInterfaceSource` atau nomor `99PYRCV…` / `99ORV…` |
 | **Source column** | Raw `DataInterfaceSource` from API (`EGL`, `CONFINS`, `Other Receive`, etc.) — display & record only |
 | **BR auto-match field** | `Description` (override: `CONFINS_INCOMING_REF_FIELD`) |
 | **Description format** | `{KODE_BR}-{deskripsi invoice}` — hyphen **without** space after BR code |

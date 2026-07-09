@@ -213,8 +213,42 @@ export function isDebitBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
     .toUpperCase() === 'D';
 }
 
+/**
+ * Other Receive (ORV) — kesepakatan Hyundai:
+ * - Tipe transaksi terpisah dari Payment Request
+ * - Di API Confins sering hanya muncul sebagai baris credit (`DC = C`)
+ *
+ * Deteksi via `DataInterfaceSource` ("Other Receive") atau nomor `99PYRCV…` / `99ORV…`.
+ */
+export function isOtherReceiveBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
+  const source = String(row.DataInterfaceSource ?? row.Source ?? '').toUpperCase();
+  if (source.includes('OTHER') && source.includes('RECEIVE')) return true;
+
+  const pr = String(row.PaymentRequestNo ?? '').toUpperCase();
+  const jn = String(row.JournalNo ?? '').toUpperCase();
+  return pr.includes('PYRCV') || jn.includes('ORV');
+}
+
+/**
+ * Baris yang boleh masuk rekonsiliasi:
+ * - `DC = D` — sisi beban Payment Request / jurnal debit
+ * - `DC = C` + Other Receive — ORV sering hanya punya baris credit di response API
+ */
+export function isReconciliationBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
+  const dc = String(row.DC ?? '')
+    .trim()
+    .toUpperCase();
+  if (dc === 'D') return true;
+  if (dc === 'C' && isOtherReceiveBudgetRealRow(row)) return true;
+  return false;
+}
+
 export function filterDebitBudgetRealRows(rows: ConfinsBudgetRealApiRow[]): ConfinsBudgetRealApiRow[] {
   return rows.filter(isDebitBudgetRealRow);
+}
+
+export function filterReconciliationBudgetRealRows(rows: ConfinsBudgetRealApiRow[]): ConfinsBudgetRealApiRow[] {
+  return rows.filter(isReconciliationBudgetRealRow);
 }
 
 export function resolveDataInterfaceSource(row: ConfinsBudgetRealApiRow): string | null {
