@@ -10,6 +10,9 @@
  *     do NOT contribute — they don't represent actually-realized budget yet.
  *     This mirrors the `approvedRequestedTotal` metric in
  *     `lib/budget-realization/aggregate.ts`.
+ *   - Plus Other Receive (ORV) credits from saved reconciliation / Data Mart
+ *     staging for BRs on this plan. ORV is signed negative (credit), so it
+ *     reduces effective realization and increases outstanding — Hyundai rule.
  *   - `outstanding[m]` = cumulative `(allocation[1..m] - realization[1..m])`.
  *     i.e. running balance through month `m` (matches the user's expected
  *     reading: O/S in March = O/S Feb + (alloc Mar - real Mar)).
@@ -41,6 +44,18 @@ export interface LinkedRequestInput {
    * treated as not-yet-realized.
    */
   status: string | null | undefined;
+}
+
+/**
+ * ORV credit row already matched & saved against a BR on this plan.
+ * `amount` should be negative (credit). Callers may pass positive legacy
+ * amounts — `bucketOrvCreditsByMonth` always normalizes to -|amount|.
+ */
+export interface OrvCreditInput {
+  /** Calendar month 1–12 of the reconciliation / staging row. */
+  month: number;
+  fiscalYear?: number | null;
+  amount: DecimalLike;
 }
 
 /**
@@ -86,18 +101,45 @@ export function bucketRealizationByMonth(
 }
 
 /**
+ * Bucket Other Receive credits into months 1..12 as signed negatives.
+ * Only rows for the plan's fiscal year (when fiscalYear is present on the row)
+ * contribute. Amounts are always stored as -|amount| so legacy positive ORV
+ * saves still reduce realization correctly.
+ */
+export function bucketOrvCreditsByMonth(
+  orvCredits: OrvCreditInput[],
+  fiscalYear: number,
+): number[] {
+  const buckets = new Array(12).fill(0) as number[];
+  for (const credit of orvCredits) {
+    if (credit.fiscalYear != null && Number(credit.fiscalYear) !== fiscalYear) continue;
+    const month = Number(credit.month);
+    if (!Number.isFinite(month) || month < 1 || month > 12) continue;
+    const raw = toNumber(credit.amount);
+    if (raw === 0) continue;
+    buckets[month - 1] = (buckets[month - 1] ?? 0) + -Math.abs(raw);
+  }
+  return buckets;
+}
+
+/**
  * Enrich each allocation row with `realization` (current month) and
  * `outstanding` (running cumulative balance up to that month).
  *
  * Allocations are sorted by month before accumulation to guarantee a stable
  * cumulative result regardless of input order.
+ *
+ * Optional `orvCredits` (saved Other Receive) reduce effective realization
+ * per month and therefore increase outstanding.
  */
 export function enrichAllocationsWithRealization(
   allocations: AllocationInput[],
   linkedRequests: LinkedRequestInput[],
   fiscalYear: number,
+  orvCredits: OrvCreditInput[] = [],
 ): EnrichedAllocation[] {
-  const buckets = bucketRealizationByMonth(linkedRequests, fiscalYear);
+  const brBuckets = bucketRealizationByMonth(linkedRequests, fiscalYear);
+  const orvBuckets = bucketOrvCreditsByMonth(orvCredits, fiscalYear);
   const sorted = [...allocations].sort((a, b) => a.month - b.month);
 
   let cumulativeAllocation = 0;
@@ -105,7 +147,7 @@ export function enrichAllocationsWithRealization(
 
   return sorted.map((row) => {
     const allocation = toNumber(row.allocation);
-    const realization = buckets[row.month - 1] ?? 0;
+    const realization = (brBuckets[row.month - 1] ?? 0) + (orvBuckets[row.month - 1] ?? 0);
     cumulativeAllocation += allocation;
     cumulativeRealization += realization;
     return {
@@ -115,4 +157,15 @@ export function enrichAllocationsWithRealization(
       outstanding: cumulativeAllocation - cumulativeRealization,
     };
   });
+}
+
+/** Annual totals: BR realization + ORV credits (signed). */
+export function sumPlanRealization(
+  linkedRequests: LinkedRequestInput[],
+  fiscalYear: number,
+  orvCredits: OrvCreditInput[] = [],
+): number {
+  const br = bucketRealizationByMonth(linkedRequests, fiscalYear).reduce((s, v) => s + v, 0);
+  const orv = bucketOrvCreditsByMonth(orvCredits, fiscalYear).reduce((s, v) => s + v, 0);
+  return br + orv;
 }

@@ -12,7 +12,8 @@ import {
 } from '@/lib/budget-plan-review-eligibility';
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
-import { bucketRealizationByMonth } from '@/lib/budget-plan-realization';
+import { sumPlanRealization } from '@/lib/budget-plan-realization';
+import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,10 +94,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       (sum, allocation) => sum + Number(allocation.allocation ?? 0),
       0,
     );
-    const planRealizationBuckets = br.budgetPlan
-      ? bucketRealizationByMonth(siblingApprovedRequests, br.budgetPlan.fiscalYear)
+    const orvCredits = br.budgetPlanId
+      ? await loadOrvCreditsForBudgetPlan(br.budgetPlanId, br.budgetPlan!.fiscalYear)
       : [];
-    const planRealization = planRealizationBuckets.reduce((sum, value) => sum + value, 0);
+    const planRealization = br.budgetPlan
+      ? sumPlanRealization(siblingApprovedRequests, br.budgetPlan.fiscalYear, orvCredits)
+      : 0;
     const planOutstanding = planAllocationTotal - planRealization;
     const requestor = br.requestorId
       ? await prisma.user.findUnique({

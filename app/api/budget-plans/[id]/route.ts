@@ -11,6 +11,7 @@ import {
 } from '@/lib/budget-plan-review-eligibility';
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
+import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 import {
   canEditClassificationFields,
@@ -152,6 +153,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
               })
             : [],
           plan.fiscalYear,
+          await loadOrvCreditsForBudgetPlan(id, plan.fiscalYear),
         )
       : plan.allocations.map((a) => ({
           month: a.month,

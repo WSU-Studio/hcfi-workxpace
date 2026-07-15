@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Modal from '@/components/ui/Modal';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatSignedCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import Select from '@/components/ui/Select';
@@ -606,12 +606,12 @@ export default function ReviewBudgetRequestPage() {
             </div>
             <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
               <span className="text-sm text-gray-600">Realized (other approved BRs)</span>
-              <span className="font-medium tabular-nums">{formatCurrency(planRealization)}</span>
+              <span className="font-medium tabular-nums">{formatSignedCurrency(planRealization)}</span>
             </div>
             <div className="flex items-baseline justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 ring-1 ring-blue-200">
               <span className="text-sm font-medium text-blue-700">Outstanding (available)</span>
               <span className="font-semibold tabular-nums text-blue-800">
-                {formatCurrency(planOutstanding)}
+                {formatSignedCurrency(planOutstanding)}
               </span>
             </div>
             <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
@@ -642,7 +642,7 @@ export default function ReviewBudgetRequestPage() {
                 isOverbudget ? 'text-red-800' : 'text-emerald-800'
               }`}
             >
-              {formatCurrency(projectedOutstanding)}
+              {formatSignedCurrency(projectedOutstanding)}
             </span>
           </div>
         </Card>

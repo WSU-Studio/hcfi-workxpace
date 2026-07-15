@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatSignedCurrency, formatDate } from '@/lib/utils';
 import { normalizeSupportingDocs } from '@/lib/budget-plans/form';
 import {
   getMultiStepApprovalProgress,
@@ -361,8 +361,8 @@ export default function BudgetPlanDetailPage() {
                   <TableCell className="text-right">{formatCurrency(Number(a.allocation ?? 0))}</TableCell>
                   {canViewRealization ? (
                     <>
-                      <TableCell className="text-right">{formatCurrency(Number(a.realization ?? 0))}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(a.outstanding ?? 0))}</TableCell>
+                      <TableCell className="text-right">{formatSignedCurrency(Number(a.realization ?? 0))}</TableCell>
+                      <TableCell className="text-right">{formatSignedCurrency(Number(a.outstanding ?? 0))}</TableCell>
                     </>
                   ) : null}
                 </TableBodyRow>
@@ -372,8 +372,8 @@ export default function BudgetPlanDetailPage() {
                 <TableCell className="text-right">{formatCurrency(total)}</TableCell>
                 {canViewRealization ? (
                   <>
-                    <TableCell className="text-right">{formatCurrency(totalRealization)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(totalOutstanding)}</TableCell>
+                    <TableCell className="text-right">{formatSignedCurrency(totalRealization)}</TableCell>
+                    <TableCell className="text-right">{formatSignedCurrency(totalOutstanding)}</TableCell>
                   </>
                 ) : null}
               </TableBodyRow>
