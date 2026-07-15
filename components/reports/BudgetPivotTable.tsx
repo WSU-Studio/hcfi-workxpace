@@ -154,17 +154,19 @@ export default function BudgetPivotTable({
               render in single-metric mode for visual consistency / export
               parity). */}
           <tr>
+            {/* Do not sticky this cell — colSpan covers all hierarchy cols (~full
+                viewport width) and would paint over the metric section labels
+                (Actual / Budget Request / Budget Plan) when scrolling horizontally.
+                Sticky is only applied to Origin Office on the next header row. */}
             <th
               colSpan={HIERARCHY_COLUMN_COUNT}
-              className="sticky left-0 z-10 bg-sky-50 border-b border-slate-200 px-3 py-2 text-left font-semibold uppercase tracking-wide text-sky-900"
-            >
-              {/* placeholder above hierarchy cols */}
-            </th>
+              className="border-b border-slate-200 bg-sky-50 px-3 py-2 text-left font-semibold uppercase tracking-wide text-sky-900 border-r border-slate-200"
+            />
             {visibleMetrics.map((metric, idx) => (
               <th
                 key={metric}
                 colSpan={cellsPerMetric}
-                className={`border-b border-slate-200 px-3 py-2 text-center font-semibold uppercase tracking-wide text-sky-900 ${
+                className={`border-b border-slate-200 px-3 py-2 text-center font-semibold uppercase tracking-wide text-sky-900 bg-sky-100/50 ${
                   idx > 0 ? 'border-l-2 border-sky-200' : ''
                 }`}
               >
@@ -191,7 +193,7 @@ export default function BudgetPivotTable({
             <th className="min-w-[180px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900">
               GL Account Name
             </th>
-            <th className="min-w-[220px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900">
+            <th className="min-w-[220px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900 border-r border-slate-200">
               Description
             </th>
             {visibleMetrics.map((metric, metricIdx) => (
