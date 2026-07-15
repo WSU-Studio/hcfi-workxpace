@@ -51,47 +51,48 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Month</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Quarter</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Doc ID</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Source</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Interface ID</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">
-              Reference (BR)
-            </TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR code</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Plan code</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Transaction</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Origin office</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Division</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Department</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Account (COA)</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">GL code</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">GL name</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Cost center</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Category</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Expense type</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Cat. key index</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX type</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX alloc.</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">OPEX type</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project code</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project name</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR type</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Expense type</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Vendor</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR code</TableHead>
+            {/* requestor */}
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">BR approved</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR No.</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Journal</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Voucher E-GL</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR date</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Request by</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Invoice date</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Invoice No.</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Bus. role</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Activity</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Sub activity</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Vendor</TableHead>
+            {/* description */}
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Cost driver</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Cost per unit</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Paid (IDR)</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Expected</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Match</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Iface</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR No.</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Journal</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Vchr E-GL</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Invoice</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Inv. date</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR date</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Request by</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">BR approved</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Plan mo.</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Σ driver</TableHead>
-            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Actual ÷ drv</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR Approved Amount</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Plan Amount</TableHead>
+
+            {/* <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Reference (BR)</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Plan code</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Transaction</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Cost center</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR type</TableHead>
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Match</TableHead> */}
           </TableHeaderRow>
         </thead>
         <tbody>
@@ -107,51 +108,54 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="whitespace-nowrap text-sm">{monthLabel(r.month)}</TableCell>
                 <TableCell className="whitespace-nowrap text-sm text-gray-600">Q{r.quarter}</TableCell>
                 <TableCell className="max-w-[120px] truncate font-mono text-xs text-gray-700">{r.confinsPaymentDocId}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-xs">{d(r.dataInterfaceSource)}</TableCell>
                 <TableCell className="max-w-[88px] truncate font-mono text-xs">{d(r.interfaceId)}</TableCell>
-                <TableCell className="max-w-[130px] truncate text-sm font-medium">{r.incomingReferenceId}</TableCell>
-                <TableCell className="max-w-[120px] truncate text-sm">{r.budgetRequestCode}</TableCell>
-                <TableCell className="max-w-[100px] truncate text-sm">{d(r.budgetPlanCode)}</TableCell>
-                <TableCell className="max-w-[180px] truncate text-sm" title={r.budgetRequestSubject ?? undefined}>
-                  {d(r.budgetRequestSubject)}
-                </TableCell>
                 <TableCell className="max-w-[110px] truncate text-sm">{d(r.originOffice)}</TableCell>
                 <TableCell className="max-w-[110px] truncate text-sm">{d(r.divisionName)}</TableCell>
                 <TableCell className="max-w-[140px] truncate text-sm">{d(r.departmentName)}</TableCell>
                 <TableCell className="max-w-[100px] truncate font-mono text-xs">{d(r.accountNumberCoa)}</TableCell>
                 <TableCell className="max-w-[90px] truncate font-mono text-xs">{d(r.glAccountCode)}</TableCell>
                 <TableCell className="max-w-[140px] truncate text-sm">{d(r.glAccountName)}</TableCell>
-                <TableCell className="max-w-[100px] truncate text-sm">{d(r.costCenter)}</TableCell>
                 <TableCell className="max-w-[120px] truncate text-sm">{d(r.expenseCategory)}</TableCell>
+                <TableCell className="max-w-[90px] truncate text-sm">{d(r.expenseTypeFp)}</TableCell>
                 <TableCell className="max-w-[110px] truncate text-sm">{d(r.categoryKeyIndex)}</TableCell>
                 <TableCell className="max-w-[90px] truncate text-sm">{d(r.opexType)}</TableCell>
                 <TableCell className="max-w-[100px] truncate text-sm">{d(r.opexAllocation)}</TableCell>
                 <TableCell className="max-w-[90px] truncate text-sm">{d(r.projectCode)}</TableCell>
                 <TableCell className="max-w-[140px] truncate text-sm">{d(r.projectName)}</TableCell>
-                <TableCell className="max-w-[80px] truncate text-sm">{d(r.budgetRequestType)}</TableCell>
-                <TableCell className="max-w-[90px] truncate text-sm">{d(r.expenseTypeFp)}</TableCell>
-                <TableCell className="max-w-[120px] truncate text-sm">{d(r.vendorName)}</TableCell>
-                <TableCell className="max-w-[100px] truncate text-sm">{d(r.businessRole)}</TableCell>
-                <TableCell className="max-w-[130px] truncate text-sm">{r.activityLabel ?? r.activityCode ?? '—'}</TableCell>
-                <TableCell className="max-w-[130px] truncate text-sm">{r.subActivityLabel ?? r.subActivityCode ?? '—'}</TableCell>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.paidAmount))}</TableCell>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.expectedAmount))}</TableCell>
-                <TableCell className="whitespace-nowrap text-sm capitalize">{r.matchType}</TableCell>
-                <TableCell className="max-w-[100px] truncate text-xs">{d(r.dataInterfaceSource)}</TableCell>
+                <TableCell className="max-w-[120px] truncate text-sm">{r.budgetRequestCode}</TableCell>
+                {/* requestor */}
+                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.budgetRequestApprovedAt)}</TableCell>
                 <TableCell className="max-w-[110px] truncate font-mono text-xs">{d(r.paymentRequestNo)}</TableCell>
                 <TableCell className="max-w-[100px] truncate font-mono text-xs">{d(r.journalNo)}</TableCell>
                 <TableCell className="max-w-[90px] truncate font-mono text-xs">{d(r.voucherEgl)}</TableCell>
-                <TableCell className="max-w-[100px] truncate text-xs">{d(r.invoiceNo)}</TableCell>
-                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.invoiceDate)}</TableCell>
                 <TableCell className="whitespace-nowrap text-xs">{dateCell(r.paymentRequestDate)}</TableCell>
                 <TableCell className="max-w-[120px] truncate text-xs">{d(r.requestedByEmail)}</TableCell>
-                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.budgetRequestApprovedAt)}</TableCell>
-                <TableCell className="whitespace-nowrap text-xs tabular-nums">
-                  {r.planAmount ? formatCurrency(Number(r.planAmount)) : '—'}
-                </TableCell>
+                <TableCell className="whitespace-nowrap text-xs">{dateCell(r.invoiceDate)}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-xs">{d(r.invoiceNo)}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.businessRole)}</TableCell>
+                <TableCell className="max-w-[130px] truncate text-sm">{r.activityLabel ?? r.activityCode ?? '—'}</TableCell>
+                <TableCell className="max-w-[130px] truncate text-sm">{r.subActivityLabel ?? r.subActivityCode ?? '—'}</TableCell>
+                <TableCell className="max-w-[120px] truncate text-sm">{d(r.vendorName)}</TableCell>
+                {/* description */}
                 <TableCell className="whitespace-nowrap text-xs tabular-nums">{d(r.costDriverMetric)}</TableCell>
                 <TableCell className="whitespace-nowrap text-xs tabular-nums">
                   {r.costPerUnit ? Number(r.costPerUnit).toLocaleString('id-ID', { maximumFractionDigits: 4 }) : '—'}
                 </TableCell>
+                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.paidAmount))}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.expectedAmount))}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">
+                  {r.planAmount ? formatCurrency(Number(r.planAmount)) : '—'}
+                </TableCell>
+
+                {/* <TableCell className="max-w-[130px] truncate text-sm font-medium">{r.incomingReferenceId}</TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.budgetPlanCode)}</TableCell>
+                <TableCell className="max-w-[180px] truncate text-sm" title={r.budgetRequestSubject ?? undefined}>
+                  {d(r.budgetRequestSubject)}
+                </TableCell>
+                <TableCell className="max-w-[100px] truncate text-sm">{d(r.costCenter)}</TableCell>
+                <TableCell className="max-w-[80px] truncate text-sm">{d(r.budgetRequestType)}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm capitalize">{r.matchType}</TableCell> */}
               </TableBodyRow>
             ))
           )}
