@@ -9,7 +9,7 @@ import {
   TableHeaderRow,
 } from '@/components/ui/Table';
 import { DATA_MART_STAGING_COLUMN_COUNT } from '@/lib/data-mart/staging-table-columns';
-import { formatCurrency, formatDate, formatISODate } from '@/lib/utils';
+import { formatCurrency, formatSignedCurrency, formatDate, formatISODate } from '@/lib/utils';
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -143,7 +143,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="whitespace-nowrap text-xs tabular-nums">
                   {r.costPerUnit ? Number(r.costPerUnit).toLocaleString('id-ID', { maximumFractionDigits: 4 }) : '—'}
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.paidAmount))}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatSignedCurrency(Number(r.paidAmount))}</TableCell>
                 <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatCurrency(Number(r.expectedAmount))}</TableCell>
                 <TableCell className="whitespace-nowrap text-xs tabular-nums">
                   {r.planAmount ? formatCurrency(Number(r.planAmount)) : '—'}

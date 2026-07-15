@@ -11,7 +11,7 @@ import {
   TableHead,
   TableHeaderRow,
 } from '@/components/ui/Table';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatSignedCurrency, formatDate } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -234,7 +234,7 @@ export default function ReconciliationReportPage() {
                   <TableCell>{r.budgetPlanCode ?? '-'}</TableCell>
                   <TableCell>{r.incomingReferenceId}</TableCell>
                   <TableCell className="max-w-[140px] truncate font-mono text-xs">{r.confinsPaymentDocId}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(r.paidAmount))}</TableCell>
+                  <TableCell className="text-right">{formatSignedCurrency(Number(r.paidAmount))}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(r.expectedAmount))}</TableCell>
                   <TableCell className="capitalize">{r.matchType}</TableCell>
                   <TableCell>{r.savedByName}</TableCell>

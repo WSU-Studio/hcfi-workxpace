@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import { formatCurrency } from '@/lib/utils';
+import { formatSignedCurrency } from '@/lib/utils';
 import { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
 
 interface ManualMatchModalProps {
@@ -53,7 +53,7 @@ export default function ManualMatchModal({
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Amount</span>
-            <Input value={formatCurrency(row.paidAmount)} disabled />
+            <Input value={formatSignedCurrency(row.paidAmount)} disabled />
           </label>
           <label className="space-y-1 text-sm md:col-span-2">
             <span className="font-medium text-gray-700">Pilih Budget Request</span>
@@ -61,7 +61,7 @@ export default function ManualMatchModal({
               <option value="">Pilih budget request...</option>
               {requestOptions.map((request) => (
                 <option key={request.id} value={request.id}>
-                  {`${request.code} | ${request.subject} | plan: ${request.budgetPlanCode ?? '-'} | exp: ${formatCurrency(request.expectedAmount)}`}
+                  {`${request.code} | ${request.subject} | plan: ${request.budgetPlanCode ?? '-'} | exp: ${formatSignedCurrency(request.expectedAmount)}`}
                 </option>
               ))}
             </Select>

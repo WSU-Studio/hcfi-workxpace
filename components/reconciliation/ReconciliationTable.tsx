@@ -14,7 +14,7 @@ import {
   getRequestDateRaw,
   parseConfinsShortDate,
 } from '@/lib/integrations/confins/v103-budget-real';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatSignedCurrency, formatDate } from '@/lib/utils';
 import { ReconciliationRow } from '@/types/reconciliation';
 import { useMemo, useState } from 'react';
 
@@ -129,10 +129,10 @@ export default function ReconciliationTable({
                 <TableCell>{payment.description}</TableCell>
                 <TableCell>{row.matchedRequest?.coa ?? '-'}</TableCell>
                 <TableCell>{`${payment.glAccountCode} - ${payment.glAccountName}`}</TableCell>
-                <TableCell className="text-right">{formatCurrency(row.paidAmount)}</TableCell>
+                <TableCell className="text-right">{formatSignedCurrency(row.paidAmount)}</TableCell>
                 <TableCell className="text-right">
                   <span className={row.variance === 0 ? 'text-gray-900' : 'text-rose-700'}>
-                    {formatCurrency(row.expectedAmount)}
+                    {formatSignedCurrency(row.expectedAmount)}
                   </span>
                 </TableCell>
                 <TableCell>

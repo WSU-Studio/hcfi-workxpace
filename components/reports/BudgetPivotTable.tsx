@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatSignedCurrency } from '@/lib/utils';
 import {
   PIVOT_METRICS,
   PIVOT_METRIC_LABELS,
@@ -77,8 +77,8 @@ function MonthCells({
           key={idx}
           className={`${borderClassName} px-3 py-1.5 text-right tabular-nums whitespace-nowrap`}
         >
-          {amount > 0 ? (
-            formatCurrency(amount)
+          {amount !== 0 ? (
+            formatSignedCurrency(amount)
           ) : dimEmpty ? (
             <span className="opacity-40">—</span>
           ) : (
@@ -86,7 +86,7 @@ function MonthCells({
           )}
         </td>
       ))}
-      <td className={trailingFyClassName ?? fyClassName}>{formatCurrency(fy)}</td>
+      <td className={trailingFyClassName ?? fyClassName}>{formatSignedCurrency(fy)}</td>
     </>
   );
 }
