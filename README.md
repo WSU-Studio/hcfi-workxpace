@@ -68,7 +68,12 @@ DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/workxpace?schema=public"
 NEXTAUTH_URL="http://localhost:3090"
 NEXTAUTH_SECRET="<paste output of: openssl rand -base64 32>"
 
-# AWS S3 — supporting document uploads (optional for local dev without uploads)
+# File storage for supporting document uploads
+# - local  → simpan di `.data/` (tanpa AWS; pakai ini di localhost)
+# - s3     → bucket Hyundai (default; production / staging)
+FILE_STORAGE=local
+
+# AWS S3 — required when FILE_STORAGE=s3 (or unset)
 AWS_ACCESS_KEY_ID=""
 AWS_SECRET_ACCESS_KEY=""
 AWS_REGION=""

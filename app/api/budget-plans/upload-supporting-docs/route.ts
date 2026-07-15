@@ -3,7 +3,14 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { isLocalFileStorageEnabled } from '@/lib/file-storage-mode';
+import { saveLocalFile } from '@/lib/local-file-storage';
 import { getS3Client, getS3PublicUrl } from '@/lib/s3';
+import {
+  SUPPORTING_DOCS_PREFIX,
+  buildLocalSupportingDocsUrl,
+  resolveUploadOrigin,
+} from '@/lib/supporting-docs-storage';
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -27,9 +34,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const useLocal = isLocalFileStorageEnabled();
     const bucket = process.env.AWS_S3_BUCKET;
     const region = process.env.AWS_REGION;
-    if (!bucket || !region) {
+
+    if (!useLocal && (!bucket || !region)) {
       return NextResponse.json(
         { error: 'AWS bucket configuration is missing' },
         { status: 400 }
@@ -50,7 +59,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const s3Client = getS3Client();
+    const s3Client = useLocal ? null : getS3Client();
+    const origin = useLocal ? resolveUploadOrigin(request) : null;
+
     const uploaded = await Promise.all(
       files.map(async (file) => {
         if (!ALLOWED_MIME_TYPES.has(file.type)) {
@@ -62,11 +73,19 @@ export async function POST(request: Request) {
         }
 
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const key = `budget-plans/supporting-docs/${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name)}`;
+        const key = `${SUPPORTING_DOCS_PREFIX}${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name)}`;
 
-        await s3Client.send(
+        if (useLocal) {
+          await saveLocalFile(key, fileBuffer);
+          return {
+            fileName: file.name,
+            url: buildLocalSupportingDocsUrl(origin!, key),
+          };
+        }
+
+        await s3Client!.send(
           new PutObjectCommand({
-            Bucket: bucket,
+            Bucket: bucket!,
             Key: key,
             Body: fileBuffer,
             ContentType: file.type || 'application/octet-stream',
@@ -75,7 +94,7 @@ export async function POST(request: Request) {
 
         return {
           fileName: file.name,
-          url: getS3PublicUrl(bucket, region, key),
+          url: getS3PublicUrl(bucket!, region!, key),
         };
       })
     );
