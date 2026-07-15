@@ -8,6 +8,7 @@ import {
   TableHead,
   TableHeaderRow,
 } from '@/components/ui/Table';
+import { DATA_MART_STAGING_COLUMN_COUNT } from '@/lib/data-mart/staging-table-columns';
 import { formatCurrency, formatDate, formatISODate } from '@/lib/utils';
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
 
@@ -31,8 +32,8 @@ function dateCell(iso: string | null): string {
   }
 }
 
-/** Kolom utama + blok FP&A (invoice/PR/driver/plan) selaras guideline ekspor. */
-const COL_COUNT = 44;
+/** Kolom visible — selaras `lib/data-mart/staging-table-columns.ts` (urutan CSV export). */
+const COL_COUNT = DATA_MART_STAGING_COLUMN_COUNT;
 
 export type DataMartStagingTableProps = {
   rows: DataMartStagingApiRow[];
