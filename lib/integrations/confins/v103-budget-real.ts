@@ -217,16 +217,36 @@ export function isDebitBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
  * Other Receive (ORV) — kesepakatan Hyundai:
  * - Tipe transaksi terpisah dari Payment Request
  * - Di API Confins sering hanya muncul sebagai baris credit (`DC = C`)
+ * - Signed amount is the inverse of Confins/EGL (stored negative; UI shows parentheses)
  *
  * Deteksi via `DataInterfaceSource` ("Other Receive") atau nomor `99PYRCV…` / `99ORV…`.
  */
-export function isOtherReceiveBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
-  const source = String(row.DataInterfaceSource ?? row.Source ?? '').toUpperCase();
+export function isOtherReceiveByMarkers(args: {
+  dataInterfaceSource?: string | null;
+  paymentSource?: string | null;
+  journalNo?: string | null;
+  paymentRequestNo?: string | null;
+}): boolean {
+  const source = `${args.dataInterfaceSource ?? ''} ${args.paymentSource ?? ''}`.toUpperCase();
   if (source.includes('OTHER') && source.includes('RECEIVE')) return true;
 
-  const pr = String(row.PaymentRequestNo ?? '').toUpperCase();
-  const jn = String(row.JournalNo ?? '').toUpperCase();
+  const pr = String(args.paymentRequestNo ?? '').toUpperCase();
+  const jn = String(args.journalNo ?? '').toUpperCase();
   return pr.includes('PYRCV') || jn.includes('ORV');
+}
+
+export function isOtherReceiveBudgetRealRow(row: ConfinsBudgetRealApiRow): boolean {
+  return isOtherReceiveByMarkers({
+    dataInterfaceSource: row.DataInterfaceSource ?? row.Source,
+    journalNo: row.JournalNo,
+    paymentRequestNo: row.PaymentRequestNo,
+  });
+}
+
+/** ORV amount as credit: always negative absolute value. */
+export function toOtherReceiveSignedAmount(amount: number): number {
+  if (!Number.isFinite(amount) || amount === 0) return 0;
+  return -Math.abs(amount);
 }
 
 /**
@@ -339,6 +359,11 @@ export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): Co
       row.Amount != null && Number.isFinite(Number(row.Amount))
         ? Number(row.Amount)
         : parseConfinsOriginAmount(row.OriginAmount);
+    // Other Receive (ORV) is a credit: invert Confins/EGL magnitude so save,
+    // Data Mart Actual, and BP outstanding can net it against outbound spend.
+    const signedAmount = isOtherReceiveBudgetRealRow(row)
+      ? toOtherReceiveSignedAmount(amountNum)
+      : amountNum;
 
     const incomingReferenceId = extractBudgetRequestRef(row);
 
@@ -358,7 +383,7 @@ export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): Co
       description: String(row.Description ?? ''),
       glAccountCode: String(row.GLAccount ?? ''),
       glAccountName: String(row.GLAccountName ?? ''),
-      amount: amountNum.toFixed(2),
+      amount: signedAmount.toFixed(2),
       currency: String(row.Currency ?? 'IDR'),
       departmentId: null,
       departmentCode: String(row.DepartmentName ?? row.OpexAllocation ?? ''),

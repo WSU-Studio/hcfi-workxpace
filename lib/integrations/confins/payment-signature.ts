@@ -25,7 +25,9 @@ export function buildPaymentSignature(args: {
   glAccountCode?: string | null;
   paidAmount?: number | string | null;
 }): string {
-  const amt = Math.round(Number(args.paidAmount ?? 0) * 100);
+  // Absolute value: Other Receive amounts are stored signed (negative) for
+  // accounting, but business identity of the Confins row is sign-agnostic.
+  const amt = Math.round(Math.abs(Number(args.paidAmount ?? 0)) * 100);
   const pr = (args.paymentRequestNo ?? '').trim();
   const jn = (args.journalNo ?? '').trim();
   const gl = (args.glAccountCode ?? '').trim();

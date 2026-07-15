@@ -46,6 +46,17 @@ export const formatCurrency = (amount: number) => {
   }).format(amount).replace(/,/g, '.');
 };
 
+/**
+ * Format currency with accounting-style credit display.
+ * Negative amounts (e.g. Other Receive / ORV) render as `(1.000.000)` —
+ * same convention as WHT on BR/PR detail pages.
+ */
+export const formatSignedCurrency = (amount: number) => {
+  if (!Number.isFinite(amount)) return formatCurrency(0);
+  if (amount < 0) return `(${formatCurrency(Math.abs(amount))})`;
+  return formatCurrency(amount);
+};
+
 export const getInitials = (name: string) => {
   const words = name.split(' ');
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : (words[0]?.[0] ?? '?').toUpperCase();
