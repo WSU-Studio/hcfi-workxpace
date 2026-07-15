@@ -28,6 +28,10 @@ const MONTH_LABELS = [
 
 const HIERARCHY_COLUMN_COUNT = 7; // origin, dept, cki, expense, glCode, glName, description
 
+/** Sticky subtotal/total label width. Use `w-*` (not only `max-w-*`) — table
+ *  column width follows min-/width of cells; `max-w` alone never expands them. */
+const STICKY_LABEL_WIDTH_CLASS = 'w-[240px]';
+
 /**
  * View mode controls how many metric blocks are rendered side-by-side.
  * - `'three-section'`: Actual / Budget Request / Budget Plan (mockup layout).
@@ -154,13 +158,14 @@ export default function BudgetPivotTable({
               render in single-metric mode for visual consistency / export
               parity). */}
           <tr>
-            {/* Do not sticky this cell — colSpan covers all hierarchy cols (~full
-                viewport width) and would paint over the metric section labels
-                (Actual / Budget Request / Budget Plan) when scrolling horizontally.
-                Sticky is only applied to Origin Office on the next header row. */}
+            {/* Sticky corner above Origin Office — same width as the sticky col
+                so section labels (Actual / BR / BP) stay aligned when scrolling. */}
             <th
-              colSpan={HIERARCHY_COLUMN_COUNT}
-              className="border-b border-slate-200 bg-sky-50 px-3 py-2 text-left font-semibold uppercase tracking-wide text-sky-900 border-r border-slate-200"
+              className={`sticky left-0 z-10 ${STICKY_LABEL_WIDTH_CLASS} min-w-[240px] border-b border-slate-200 bg-sky-50 px-3 py-2 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]`}
+            />
+            <th
+              colSpan={HIERARCHY_COLUMN_COUNT - 1}
+              className="border-b border-r border-slate-200 bg-sky-50 px-3 py-2"
             />
             {visibleMetrics.map((metric, idx) => (
               <th
@@ -175,7 +180,9 @@ export default function BudgetPivotTable({
             ))}
           </tr>
           <tr className="text-left">
-            <th className="sticky left-0 z-10 min-w-[140px] bg-sky-50 border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
+            <th
+              className={`sticky left-0 z-10 ${STICKY_LABEL_WIDTH_CLASS} min-w-[240px] bg-sky-50 border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]`}
+            >
               Origin Office
             </th>
             <th className="min-w-[120px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900">
@@ -264,15 +271,15 @@ export default function BudgetPivotTable({
                       </tr>
                     ))}
 
-                    {/* Department subtotal */}
+                    {/* Department subtotal — label lives in the sticky col so it
+                        stays readable while scrolling month values. */}
                     <tr className="bg-slate-50 font-semibold text-slate-800">
-                      <td className="sticky left-0 z-10 bg-slate-50 border-y border-slate-200 px-3 py-2 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]"></td>
-                      <td
-                        colSpan={6}
-                        className="border-y border-slate-200 px-3 py-2 text-right uppercase tracking-wide text-[11px] text-slate-500"
-                      >
-                        Subtotal — {dept.department}
+                      <td className="sticky left-0 z-10 bg-slate-50 border-y border-slate-200 px-3 py-2 uppercase tracking-wide text-[11px] text-slate-500 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]">
+                        <div className={`${STICKY_LABEL_WIDTH_CLASS} whitespace-normal break-words`}>
+                          Subtotal — {dept.department}
+                        </div>
                       </td>
+                      <td colSpan={6} className="border-y border-slate-200" />
                       <MetricCellsRow
                         metrics={dept.subtotals}
                         visibleMetrics={visibleMetrics}
@@ -285,12 +292,12 @@ export default function BudgetPivotTable({
 
                 {/* Origin office subtotal */}
                 <tr className="bg-sky-50 font-bold text-slate-900">
-                  <td
-                    colSpan={7}
-                    className="sticky left-0 z-10 bg-sky-50 border-y-2 border-sky-200 px-3 py-2 uppercase tracking-wide text-[11px] text-sky-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]"
-                  >
-                    Total — {origin.originOffice}
+                  <td className="sticky left-0 z-10 bg-sky-50 border-y-2 border-sky-200 px-3 py-2 uppercase tracking-wide text-[11px] text-sky-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]">
+                    <div className={`${STICKY_LABEL_WIDTH_CLASS} whitespace-normal break-words`}>
+                      Total — {origin.originOffice}
+                    </div>
                   </td>
+                  <td colSpan={6} className="border-y-2 border-sky-200" />
                   <MetricCellsRow
                     metrics={origin.subtotals}
                     visibleMetrics={visibleMetrics}
@@ -306,12 +313,12 @@ export default function BudgetPivotTable({
         {data.origins.length > 0 && (
           <tfoot>
             <tr className="bg-slate-900 text-white font-bold">
-              <td
-                colSpan={7}
-                className="sticky left-0 z-10 bg-slate-900 px-3 py-2 uppercase tracking-wide text-[11px]"
-              >
-                Grand Total
+              <td className="sticky left-0 z-10 bg-slate-900 px-3 py-2 uppercase tracking-wide text-[11px] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]">
+                <div className={`${STICKY_LABEL_WIDTH_CLASS} whitespace-normal break-words`}>
+                  Grand Total
+                </div>
               </td>
+              <td colSpan={6} className="bg-slate-900" />
               <MetricCellsRow
                 metrics={data.grandTotals}
                 visibleMetrics={visibleMetrics}
