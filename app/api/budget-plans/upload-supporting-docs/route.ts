@@ -7,9 +7,10 @@ import { isLocalFileStorageEnabled } from '@/lib/file-storage-mode';
 import { saveLocalFile } from '@/lib/local-file-storage';
 import { getS3Client, getS3PublicUrl } from '@/lib/s3';
 import {
-  SUPPORTING_DOCS_PREFIX,
   buildLocalSupportingDocsUrl,
+  parseSupportingDocsScope,
   resolveUploadOrigin,
+  supportingDocsKeyPrefix,
 } from '@/lib/supporting-docs-storage';
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
+    const scope = parseSupportingDocsScope(formData.get('scope'));
+    const keyPrefix = supportingDocsKeyPrefix(scope);
     const files = formData.getAll('files').filter((entry): entry is File => entry instanceof File);
 
     if (files.length === 0) {
@@ -73,7 +76,7 @@ export async function POST(request: Request) {
         }
 
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const key = `${SUPPORTING_DOCS_PREFIX}${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name)}`;
+        const key = `${keyPrefix}${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name)}`;
 
         if (useLocal) {
           await saveLocalFile(key, fileBuffer);

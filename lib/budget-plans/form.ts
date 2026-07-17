@@ -55,18 +55,16 @@ export function formatAllocationDisplay(amount: number): string {
   return amount.toLocaleString('id-ID');
 }
 
-export function normalizeSupportingDocs(input: unknown): string[] {
-  if (!Array.isArray(input)) return [];
+import { uploadSupportingDocs } from '@/lib/supporting-docs';
 
-  return input
-    .map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'string') {
-        return item.url;
-      }
-      return null;
-    })
-    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+export {
+  normalizeSupportingDocs,
+  uploadSupportingDocs,
+} from '@/lib/supporting-docs';
+
+/** @deprecated Prefer uploadSupportingDocs(..., 'budget-plans') */
+export async function uploadBudgetPlanSupportingDocs(files: File[]): Promise<string[]> {
+  return uploadSupportingDocs(files, 'budget-plans');
 }
 
 export function allocationsFromPlanRows(
@@ -134,21 +132,3 @@ export function validateBudgetPlanForm({
   return null;
 }
 
-export async function uploadBudgetPlanSupportingDocs(files: File[]): Promise<string[]> {
-  if (files.length === 0) return [];
-
-  const uploadFormData = new FormData();
-  files.forEach((file) => uploadFormData.append('files', file));
-
-  const uploadRes = await fetch('/api/budget-plans/upload-supporting-docs', {
-    method: 'POST',
-    body: uploadFormData,
-  });
-
-  const uploadBody = await uploadRes.json();
-  if (!uploadRes.ok) {
-    throw new Error(uploadBody.error ?? 'Failed to upload supporting documents');
-  }
-
-  return (uploadBody.files ?? []).map((item: { url: string }) => item.url);
-}

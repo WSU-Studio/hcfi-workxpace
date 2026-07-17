@@ -1,5 +1,12 @@
-export const SUPPORTING_DOCS_PREFIX = 'budget-plans/supporting-docs/';
+export type SupportingDocsScope =
+  | 'budget-plans'
+  | 'budget-requests'
+  | 'payment-requests';
+
 export const LOCAL_SUPPORTING_DOCS_API_PREFIX = '/api/dev/supporting-docs/';
+
+/** Legacy prefix kept so existing local files remain readable. */
+const LEGACY_SUPPORTING_DOCS_PREFIX = 'budget-plans/supporting-docs/';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   '.pdf': 'application/pdf',
@@ -12,13 +19,36 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
+const ALLOWED_SCOPES = new Set<SupportingDocsScope>([
+  'budget-plans',
+  'budget-requests',
+  'payment-requests',
+]);
+
+export function parseSupportingDocsScope(raw: unknown): SupportingDocsScope {
+  if (typeof raw === 'string' && ALLOWED_SCOPES.has(raw as SupportingDocsScope)) {
+    return raw as SupportingDocsScope;
+  }
+  return 'budget-plans';
+}
+
+export function supportingDocsKeyPrefix(scope: SupportingDocsScope): string {
+  return `${scope}/supporting-docs/`;
+}
+
 export function isSupportingDocsKey(key: string): boolean {
-  if (!key.startsWith(SUPPORTING_DOCS_PREFIX)) return false;
   if (key.includes('..') || key.includes('\\') || key.startsWith('/')) return false;
-  // Reject empty segments / trailing slash tricks
-  const rest = key.slice(SUPPORTING_DOCS_PREFIX.length);
-  if (!rest || rest.includes('//')) return false;
-  return true;
+
+  const prefixes = [
+    LEGACY_SUPPORTING_DOCS_PREFIX,
+    ...Array.from(ALLOWED_SCOPES).map((scope) => supportingDocsKeyPrefix(scope)),
+  ];
+
+  return prefixes.some((prefix) => {
+    if (!key.startsWith(prefix)) return false;
+    const rest = key.slice(prefix.length);
+    return Boolean(rest) && !rest.includes('//');
+  });
 }
 
 export function contentTypeFromFileName(fileName: string): string {
@@ -55,3 +85,6 @@ export function resolveUploadOrigin(request: Request): string {
 
   return 'http://localhost:3090';
 }
+
+/** @deprecated Use supportingDocsKeyPrefix('budget-plans') */
+export const SUPPORTING_DOCS_PREFIX = supportingDocsKeyPrefix('budget-plans');

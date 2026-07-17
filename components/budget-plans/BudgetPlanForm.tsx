@@ -17,6 +17,7 @@ import {
   TableHeaderRow,
 } from '@/components/ui/Table';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import SupportingDocumentsField from '@/components/forms/SupportingDocumentsField';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import {
   BudgetPlanFormOptions,
@@ -43,7 +44,7 @@ export interface BudgetPlanFormProps {
   onSplitEvenly: () => void;
   formatAllocationDisplay: (amount: number) => string;
   attachmentFiles: File[];
-  onAttachmentFilesChange: React.Dispatch<React.SetStateAction<File[]>>;
+  onAttachmentFilesChange: (files: File[]) => void;
   existingSupportingDocs?: string[];
   onRemoveExistingSupportingDoc?: (url: string) => void;
   userDepartmentId?: string;
@@ -222,70 +223,13 @@ export default function BudgetPlanForm({
         />
       </div>
 
-      <div>
-        <label className="block mb-1.5 font-medium">Supporting Documents</label>
-
-        {existingSupportingDocs.length > 0 && (
-          <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="mb-2 text-xs font-medium text-gray-600">Existing documents</p>
-            <ul className="space-y-2 text-sm text-gray-700">
-              {existingSupportingDocs.map((url) => (
-                <li key={url} className="flex items-center justify-between gap-2">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate text-blue-600 hover:underline"
-                  >
-                    {url.split('/').pop() || url}
-                  </a>
-                  {onRemoveExistingSupportingDoc ? (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveExistingSupportingDoc(url)}
-                      className="shrink-0 text-xs text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition w-fit">
-            Upload Documents
-            <input
-              type="file"
-              className="hidden"
-              multiple
-              onChange={(event) =>
-                onAttachmentFilesChange(Array.from(event.target.files || []))
-              }
-            />
-          </label>
-
-          <span className="text-sm text-gray-500 max-w-[300px] truncate">
-            {attachmentFiles.length > 0
-              ? `${attachmentFiles.length} file selected`
-              : 'No file selected'}
-          </span>
-        </div>
-
-        {attachmentFiles.length > 0 && (
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <ul className="space-y-1 text-sm text-gray-700">
-              {attachmentFiles.map((file) => (
-                <li key={`${file.name}-${file.lastModified}`} className="truncate">
-                  {file.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      <SupportingDocumentsField
+        attachmentFiles={attachmentFiles}
+        onAttachmentFilesChange={onAttachmentFilesChange}
+        existingSupportingDocs={existingSupportingDocs}
+        onRemoveExistingSupportingDoc={onRemoveExistingSupportingDoc}
+        disabled={isSubmitting || isUploadingAttachments}
+      />
 
       <div>
         <h3 className="font-medium mb-3">Monthly Allocation</h3>
