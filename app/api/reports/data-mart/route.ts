@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { prisma } from '@/lib/prisma';
+import {
+  loadClassificationLabelMaps,
+  resolveClassificationLabel,
+} from '@/lib/data-mart/resolve-classification-labels';
 import type { MenuAccess } from '@/types/access-control';
 import type { Prisma } from '@prisma/client';
 
@@ -58,7 +62,8 @@ export async function GET(request: Request) {
     if (categoryId) {
       const cat = await prisma.categoryMaster.findUnique({ where: { id: categoryId } });
       if (cat) {
-        where.expenseCategory = { equals: cat.name, mode: 'insensitive' };
+        // Legacy staging rows store the master ID instead of the name — match both.
+        where.expenseCategory = { in: [cat.name, cat.id], mode: 'insensitive' };
       }
     } else if (expenseCategoryContains) {
       where.expenseCategory = { contains: expenseCategoryContains, mode: 'insensitive' };
@@ -67,7 +72,8 @@ export async function GET(request: Request) {
     if (categoryKeyIndexId) {
       const cki = await prisma.categoryKeyIndexMaster.findUnique({ where: { id: categoryKeyIndexId } });
       if (cki) {
-        where.categoryKeyIndex = { equals: cki.name, mode: 'insensitive' };
+        // Legacy staging rows store the master ID instead of the name — match both.
+        where.categoryKeyIndex = { in: [cki.name, cki.id], mode: 'insensitive' };
       }
     } else if (categoryKeyIndexContains) {
       where.categoryKeyIndex = { contains: categoryKeyIndexContains, mode: 'insensitive' };
@@ -161,8 +167,16 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Legacy rows persisted classification fields as master IDs; resolve to
+    // display names at read time (production data stays untouched).
+    const labelMaps = await loadClassificationLabelMaps();
+
     const serialized = rows.map((r) => ({
       ...r,
+      expenseCategory: resolveClassificationLabel(labelMaps.categoryById, r.expenseCategory),
+      categoryKeyIndex: resolveClassificationLabel(labelMaps.categoryKeyIndexById, r.categoryKeyIndex),
+      costCenter: resolveClassificationLabel(labelMaps.costCenterById, r.costCenter),
+      opexAllocation: resolveClassificationLabel(labelMaps.opexAllocationById, r.opexAllocation),
       paidAmount: r.paidAmount.toString(),
       expectedAmount: r.expectedAmount.toString(),
       planAmount: r.planAmount?.toString() ?? null,
