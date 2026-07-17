@@ -1,5 +1,6 @@
 'use client';
 
+import { X } from 'lucide-react';
 import { supportingDocFileNameFromUrl } from '@/lib/supporting-docs';
 
 export type SupportingDocumentsFieldProps = {
@@ -12,6 +13,10 @@ export type SupportingDocumentsFieldProps = {
   multiple?: boolean;
   disabled?: boolean;
 };
+
+function fileIdentity(file: File) {
+  return `${file.name}-${file.lastModified}-${file.size}`;
+}
 
 /**
  * Reusable supporting-documents picker used by Budget Plan / Request / Payment Request forms.
@@ -75,7 +80,15 @@ export default function SupportingDocumentsField({
             accept={accept}
             disabled={disabled}
             onChange={(event) => {
-              onAttachmentFilesChange(Array.from(event.target.files || []));
+              const picked = Array.from(event.target.files || []);
+              // Append to the current selection (skip files already picked)
+              // instead of replacing it, so users can add documents in batches.
+              const known = new Set(attachmentFiles.map(fileIdentity));
+              const merged = [
+                ...attachmentFiles,
+                ...picked.filter((file) => !known.has(fileIdentity(file))),
+              ];
+              onAttachmentFilesChange(multiple ? merged : picked);
               event.target.value = '';
             }}
           />
@@ -92,8 +105,26 @@ export default function SupportingDocumentsField({
         <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
           <ul className="space-y-1 text-sm text-gray-700">
             {attachmentFiles.map((file) => (
-              <li key={`${file.name}-${file.lastModified}-${file.size}`} className="truncate">
-                {file.name}
+              <li
+                key={fileIdentity(file)}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAttachmentFilesChange(
+                      attachmentFiles.filter(
+                        (item) => fileIdentity(item) !== fileIdentity(file),
+                      ),
+                    )
+                  }
+                  disabled={disabled}
+                  aria-label={`Remove ${file.name}`}
+                  className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-red-600 disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
               </li>
             ))}
           </ul>
