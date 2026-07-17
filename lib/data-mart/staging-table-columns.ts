@@ -87,6 +87,7 @@ export const DATA_MART_STAGING_VISIBLE_COLUMNS: readonly StagingTableColumn[] = 
     csvValue: (r) => csvText(r.subActivityLabel ?? r.subActivityCode),
   },
   { key: 'vendorName', header: 'Vendor', csvValue: (r) => csvText(r.vendorName) },
+  { key: 'paymentDescription', header: 'Description', csvValue: (r) => csvText(r.paymentDescription) },
   { key: 'costDriverMetric', header: 'Cost driver', csvValue: (r) => csvText(r.costDriverMetric) },
   {
     key: 'costPerUnit',

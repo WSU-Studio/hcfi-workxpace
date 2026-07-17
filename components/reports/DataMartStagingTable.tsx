@@ -81,7 +81,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Activity</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Sub activity</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Vendor</TableHead>
-            {/* description */}
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Description</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Cost driver</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Cost per unit</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Paid (IDR)</TableHead>
@@ -138,7 +138,9 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="max-w-[130px] text-sm">{r.activityLabel ?? r.activityCode ?? '—'}</TableCell>
                 <TableCell className="max-w-[130px] text-sm">{r.subActivityLabel ?? r.subActivityCode ?? '—'}</TableCell>
                 <TableCell className="max-w-[120px] text-sm">{d(r.vendorName)}</TableCell>
-                {/* description */}
+                <TableCell className="max-w-[220px] text-xs" title={r.paymentDescription ?? undefined}>
+                  {d(r.paymentDescription)}
+                </TableCell>
                 <TableCell className="whitespace-nowrap text-xs tabular-nums">{d(r.costDriverMetric)}</TableCell>
                 <TableCell className="whitespace-nowrap text-xs tabular-nums">
                   {r.costPerUnit ? Number(r.costPerUnit).toLocaleString('id-ID', { maximumFractionDigits: 4 }) : '—'}
