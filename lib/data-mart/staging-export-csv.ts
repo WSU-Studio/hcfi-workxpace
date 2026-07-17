@@ -8,12 +8,12 @@ export function csvEscapeCell(s: string): string {
   return s;
 }
 
-/** CSV mirrors visible DataMartStagingTable columns (order + headers). */
+/** CSV mirrors visible DataMartStagingTable columns (order + headers + values). */
 export function buildStagingGuidelineCsv(rows: DataMartStagingApiRow[]): string {
   const headers = DATA_MART_STAGING_VISIBLE_COLUMNS.map((col) => csvEscapeCell(col.header)).join(',');
 
   const lines = rows.map((row) =>
-    DATA_MART_STAGING_VISIBLE_COLUMNS.map((col) => csvEscapeCell(col.csvValue(row))).join(',')
+    DATA_MART_STAGING_VISIBLE_COLUMNS.map((col) => csvEscapeCell(col.value(row))).join(',')
   );
 
   return [headers, ...lines].join('\n');
