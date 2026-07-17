@@ -41,7 +41,7 @@ export async function uploadSupportingDocs(
   uploadFormData.append('scope', scope);
   files.forEach((file) => uploadFormData.append('files', file));
 
-  const uploadRes = await fetch('/api/budget-plans/upload-supporting-docs', {
+  const uploadRes = await fetch('/api/supporting-documents/upload', {
     method: 'POST',
     body: uploadFormData,
   });

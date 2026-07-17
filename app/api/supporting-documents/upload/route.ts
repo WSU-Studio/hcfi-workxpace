@@ -28,6 +28,10 @@ function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9.\-_]/g, '-');
 }
 
+/**
+ * Shared upload endpoint for Budget Plan / Budget Request / Payment Request
+ * supporting documents. Scope is selected via multipart field `scope`.
+ */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
