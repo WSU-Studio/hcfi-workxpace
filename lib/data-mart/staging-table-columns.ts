@@ -67,6 +67,7 @@ export const DATA_MART_STAGING_VISIBLE_COLUMNS: readonly StagingTableColumn[] = 
   { key: 'projectCode', header: 'Project code', csvValue: (r) => csvText(r.projectCode) },
   { key: 'projectName', header: 'Project name', csvValue: (r) => csvText(r.projectName) },
   { key: 'budgetRequestCode', header: 'BR code', csvValue: (r) => r.budgetRequestCode },
+  { key: 'requestorName', header: 'Requestor', csvValue: (r) => csvText(r.requestorName) },
   { key: 'budgetRequestApprovedAt', header: 'BR approved', csvValue: (r) => csvDate(r.budgetRequestApprovedAt) },
   { key: 'paymentRequestNo', header: 'PR No.', csvValue: (r) => csvText(r.paymentRequestNo) },
   { key: 'journalNo', header: 'Journal', csvValue: (r) => csvText(r.journalNo) },

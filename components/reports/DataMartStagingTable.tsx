@@ -68,7 +68,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project code</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Project name</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">BR code</TableHead>
-            {/* requestor */}
+            <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-900">Requestor</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">BR approved</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">PR No.</TableHead>
             <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-sky-950">Journal</TableHead>
@@ -125,7 +125,7 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
                 <TableCell className="max-w-[90px] text-sm">{d(r.projectCode)}</TableCell>
                 <TableCell className="max-w-[140px] whitespace-wrap text-sm">{d(r.projectName)}</TableCell>
                 <TableCell className="text-sm">{r.budgetRequestCode}</TableCell>
-                {/* requestor */}
+                <TableCell className="max-w-[130px] text-sm">{d(r.requestorName)}</TableCell>
                 <TableCell className="text-xs">{dateCell(r.budgetRequestApprovedAt)}</TableCell>
                 <TableCell className="font-mono text-xs">{d(r.paymentRequestNo)}</TableCell>
                 <TableCell className="font-mono text-xs">{d(r.journalNo)}</TableCell>
