@@ -9,6 +9,7 @@ import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import SupportingDocumentsField from '@/components/forms/SupportingDocumentsField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
 } from '@/components/budget-requests/BudgetRequestItemsEditor';
@@ -43,6 +44,11 @@ export interface PaymentRequestFormProps {
   isSubmitting: boolean;
   submitDisabled?: boolean;
   submitLabel?: string;
+  attachmentFiles?: File[];
+  onAttachmentFilesChange?: (files: File[]) => void;
+  existingSupportingDocs?: string[];
+  onRemoveExistingSupportingDoc?: (url: string) => void;
+  isUploadingAttachments?: boolean;
 }
 
 export default function PaymentRequestForm({
@@ -66,6 +72,11 @@ export default function PaymentRequestForm({
   isSubmitting,
   submitDisabled = false,
   submitLabel,
+  attachmentFiles = [],
+  onAttachmentFilesChange,
+  existingSupportingDocs = [],
+  onRemoveExistingSupportingDoc,
+  isUploadingAttachments = false,
 }: PaymentRequestFormProps) {
   const {
     approvedBudgetRequests,
@@ -129,7 +140,15 @@ export default function PaymentRequestForm({
 
   const resolvedSubmitLabel =
     submitLabel ??
-    (isSubmitting ? (mode === 'create' ? 'Submitting...' : 'Saving...') : mode === 'create' ? 'Submit' : 'Save changes');
+    (isUploadingAttachments
+      ? 'Uploading documents...'
+      : isSubmitting
+        ? mode === 'create'
+          ? 'Submitting...'
+          : 'Saving...'
+        : mode === 'create'
+          ? 'Submit'
+          : 'Save changes');
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -294,6 +313,16 @@ export default function PaymentRequestForm({
         />
       </div>
 
+      {onAttachmentFilesChange ? (
+        <SupportingDocumentsField
+          attachmentFiles={attachmentFiles}
+          onAttachmentFilesChange={onAttachmentFilesChange}
+          existingSupportingDocs={existingSupportingDocs}
+          onRemoveExistingSupportingDoc={onRemoveExistingSupportingDoc}
+          disabled={isSubmitting || isUploadingAttachments}
+        />
+      ) : null}
+
       <div className="space-y-3">
         <h2 className="text-base font-semibold text-gray-900">Request Allocation</h2>
         <BudgetRequestItemsEditor
@@ -432,7 +461,7 @@ export default function PaymentRequestForm({
         </ButtonLink>
         <button
           type="submit"
-          disabled={isSubmitting || submitDisabled}
+          disabled={isSubmitting || isUploadingAttachments || submitDisabled}
           className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
         >
           {resolvedSubmitLabel}

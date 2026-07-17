@@ -10,6 +10,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import SupportingDocumentsField from '@/components/forms/SupportingDocumentsField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
 } from '@/components/budget-requests/BudgetRequestItemsEditor';
@@ -45,6 +46,11 @@ export interface BudgetRequestFormProps {
   isSubmitting: boolean;
   submitDisabled?: boolean;
   submitLabel?: string;
+  attachmentFiles?: File[];
+  onAttachmentFilesChange?: (files: File[]) => void;
+  existingSupportingDocs?: string[];
+  onRemoveExistingSupportingDoc?: (url: string) => void;
+  isUploadingAttachments?: boolean;
 }
 
 export default function BudgetRequestForm({
@@ -69,6 +75,11 @@ export default function BudgetRequestForm({
   isSubmitting,
   submitDisabled = false,
   submitLabel,
+  attachmentFiles = [],
+  onAttachmentFilesChange,
+  existingSupportingDocs = [],
+  onRemoveExistingSupportingDoc,
+  isUploadingAttachments = false,
 }: BudgetRequestFormProps) {
   const { plans, fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
   const selectedPlan = plans.find((plan) => plan.id === formData.budgetPlanId);
@@ -113,7 +124,16 @@ export default function BudgetRequestForm({
   }, [approvalSchemas, formData.approvalSchemaId]);
 
   const resolvedSubmitLabel =
-    submitLabel ?? (isSubmitting ? (mode === 'create' ? 'Submitting...' : 'Saving...') : mode === 'create' ? 'Submit' : 'Save changes');
+    submitLabel ??
+    (isUploadingAttachments
+      ? 'Uploading documents...'
+      : isSubmitting
+        ? mode === 'create'
+          ? 'Submitting...'
+          : 'Saving...'
+        : mode === 'create'
+          ? 'Submit'
+          : 'Save changes');
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -263,6 +283,16 @@ export default function BudgetRequestForm({
         />
       </div>
 
+      {onAttachmentFilesChange ? (
+        <SupportingDocumentsField
+          attachmentFiles={attachmentFiles}
+          onAttachmentFilesChange={onAttachmentFilesChange}
+          existingSupportingDocs={existingSupportingDocs}
+          onRemoveExistingSupportingDoc={onRemoveExistingSupportingDoc}
+          disabled={isSubmitting || isUploadingAttachments}
+        />
+      ) : null}
+
       <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 hidden">
         <h2 className="text-base font-semibold text-gray-900">Classification (Default from Budget Plan)</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -375,7 +405,7 @@ export default function BudgetRequestForm({
         </ButtonLink>
         <button
           type="submit"
-          disabled={isSubmitting || submitDisabled}
+          disabled={isSubmitting || isUploadingAttachments || submitDisabled}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
         >
           {resolvedSubmitLabel}

@@ -8,7 +8,9 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetRequestForm from '@/components/budget-requests/BudgetRequestForm';
 import { useBudgetRequestForm } from '@/hooks/useBudgetRequestForm';
+import { useSupportingDocuments } from '@/hooks/useSupportingDocuments';
 import { notifyFormError } from '@/lib/forms/feedback';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   BudgetRequestFormOptions,
   buildLineItemsPayload,
@@ -50,6 +52,15 @@ export default function NewBudgetRequestPage() {
     fieldRefs,
     handlePlanSelect,
   } = useBudgetRequestForm();
+
+  const {
+    attachmentFiles,
+    setAttachmentFiles,
+    existingSupportingDocs,
+    removeExistingSupportingDoc,
+    resolveSupportingDocs,
+    isUploadingAttachments,
+  } = useSupportingDocuments();
 
   useEffect(() => {
     Promise.all([
@@ -128,6 +139,16 @@ export default function NewBudgetRequestPage() {
 
     setIsSubmitting(true);
     try {
+      let supportingDocs: string[] = [];
+      try {
+        supportingDocs = await resolveSupportingDocs('budget-requests');
+      } catch (uploadError) {
+        reportError(
+          uploadError instanceof Error ? uploadError.message : 'Failed to upload supporting documents',
+        );
+        return;
+      }
+
       const response = await fetch('/api/budget-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,6 +164,7 @@ export default function NewBudgetRequestPage() {
           invoiceAmount: taxSummary.invoiceAmount,
           grandTotal: taxSummary.grandTotal,
           lineItems: buildLineItemsPayload(lineItems),
+          supportingDocs: supportingDocsForPersistence(supportingDocs),
         }),
       });
 
@@ -206,6 +228,11 @@ export default function NewBudgetRequestPage() {
           cancelHref="/budget-requests"
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
+          attachmentFiles={attachmentFiles}
+          onAttachmentFilesChange={setAttachmentFiles}
+          existingSupportingDocs={existingSupportingDocs}
+          onRemoveExistingSupportingDoc={removeExistingSupportingDoc}
+          isUploadingAttachments={isUploadingAttachments}
         />
       </Card>
     </div>

@@ -8,7 +8,9 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetRequestForm from '@/components/budget-requests/BudgetRequestForm';
 import { useBudgetRequestForm } from '@/hooks/useBudgetRequestForm';
+import { useSupportingDocuments } from '@/hooks/useSupportingDocuments';
 import { notifyFormError } from '@/lib/forms/feedback';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   BudgetRequestFormOptions,
   buildEmptyLineItem,
@@ -31,6 +33,7 @@ type BudgetRequestApi = {
   projectId?: string | null;
   requestorId: string | null;
   status: string;
+  supportingDocs?: unknown;
   vatPercent?: unknown;
   whtPercent?: unknown;
   lineItems: {
@@ -91,6 +94,16 @@ export default function EditBudgetRequestPage() {
     fieldRefs,
     handlePlanSelect,
   } = useBudgetRequestForm();
+
+  const {
+    attachmentFiles,
+    setAttachmentFiles,
+    existingSupportingDocs,
+    loadExistingSupportingDocs,
+    removeExistingSupportingDoc,
+    resolveSupportingDocs,
+    isUploadingAttachments,
+  } = useSupportingDocuments();
 
   useEffect(() => {
     if (sessionStatus === 'loading') return;
@@ -155,6 +168,7 @@ export default function EditBudgetRequestPage() {
           vatPercent: Number(data.vatPercent ?? 11),
           whtPercent: Number(data.whtPercent ?? 2),
         });
+        loadExistingSupportingDocs(data.supportingDocs);
       })
       .catch(() => setLoadError('Failed to load'))
       .finally(() => setIsLoading(false));
@@ -167,6 +181,7 @@ export default function EditBudgetRequestPage() {
     setLineItems,
     setSelectedMonths,
     setTaxConfig,
+    loadExistingSupportingDocs,
   ]);
 
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
@@ -201,6 +216,16 @@ export default function EditBudgetRequestPage() {
 
     setIsSubmitting(true);
     try {
+      let supportingDocs: string[] = [];
+      try {
+        supportingDocs = await resolveSupportingDocs('budget-requests');
+      } catch (uploadError) {
+        reportError(
+          uploadError instanceof Error ? uploadError.message : 'Failed to upload supporting documents',
+        );
+        return;
+      }
+
       const response = await fetch(`/api/budget-requests/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -215,6 +240,7 @@ export default function EditBudgetRequestPage() {
           invoiceAmount: taxSummary.invoiceAmount,
           grandTotal: taxSummary.grandTotal,
           lineItems: buildLineItemsPayload(lineItems),
+          supportingDocs: supportingDocsForPersistence(supportingDocs),
         }),
       });
 
@@ -281,6 +307,11 @@ export default function EditBudgetRequestPage() {
           cancelHref={`/budget-requests/${id}`}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
+          attachmentFiles={attachmentFiles}
+          onAttachmentFilesChange={setAttachmentFiles}
+          existingSupportingDocs={existingSupportingDocs}
+          onRemoveExistingSupportingDoc={removeExistingSupportingDoc}
+          isUploadingAttachments={isUploadingAttachments}
         />
       </Card>
     </div>

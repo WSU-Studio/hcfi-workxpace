@@ -14,6 +14,7 @@ import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display'
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { sumPlanRealization } from '@/lib/budget-plan-realization';
 import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 
 export const dynamic = 'force-dynamic';
 
@@ -312,6 +313,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           type: (type as string) || plan?.opexType || null,
           opexAllocation: (opexAllocation as string) || plan?.opexAllocationId || null,
           opexType: (opexType as string) || plan?.opexType || null,
+          supportingDocs: supportingDocsForPersistence(body.supportingDocs),
           lineItems: {
             create: normalizedLineItems.map((li) => ({
               item: li.item ?? '',

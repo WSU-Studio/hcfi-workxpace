@@ -7,6 +7,8 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import PaymentRequestForm from '@/components/payment-requests/PaymentRequestForm';
 import { usePaymentRequestForm } from '@/hooks/usePaymentRequestForm';
+import { useSupportingDocuments } from '@/hooks/useSupportingDocuments';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   buildPaymentRequestSubmitPayload,
   getDefaultOriginOffice,
@@ -53,6 +55,15 @@ export default function NewPaymentRequestPage() {
     isBudgetRequestSelected,
     handleBudgetRequestChange,
   } = usePaymentRequestForm();
+
+  const {
+    attachmentFiles,
+    setAttachmentFiles,
+    existingSupportingDocs,
+    removeExistingSupportingDoc,
+    resolveSupportingDocs,
+    isUploadingAttachments,
+  } = useSupportingDocuments();
 
   useEffect(() => {
     Promise.all([
@@ -142,12 +153,23 @@ export default function NewPaymentRequestPage() {
 
     setIsSubmitting(true);
     try {
+      let supportingDocs: string[] = [];
+      try {
+        supportingDocs = await resolveSupportingDocs('payment-requests');
+      } catch (uploadError) {
+        setError(
+          uploadError instanceof Error ? uploadError.message : 'Failed to upload supporting documents',
+        );
+        return;
+      }
+
       const response = await fetch('/api/payment-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          buildPaymentRequestSubmitPayload(formData, lineItems, taxConfig, taxSummary, classification),
-        ),
+        body: JSON.stringify({
+          ...buildPaymentRequestSubmitPayload(formData, lineItems, taxConfig, taxSummary, classification),
+          supportingDocs: supportingDocsForPersistence(supportingDocs),
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -209,6 +231,11 @@ export default function NewPaymentRequestPage() {
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
           submitDisabled={options.departments.length === 0}
+          attachmentFiles={attachmentFiles}
+          onAttachmentFilesChange={setAttachmentFiles}
+          existingSupportingDocs={existingSupportingDocs}
+          onRemoveExistingSupportingDoc={removeExistingSupportingDoc}
+          isUploadingAttachments={isUploadingAttachments}
         />
       </Card>
     </div>

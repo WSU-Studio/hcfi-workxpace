@@ -22,6 +22,7 @@ import {
   type StoredRequestClassification,
 } from '@/lib/request-classification';
 import { parseDateInputToDate } from '@/lib/payment-requests/form';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 
 export const dynamic = 'force-dynamic';
 
@@ -380,6 +381,7 @@ export async function POST(req: Request) {
         paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
         notes: typeof notes === 'string' ? notes : null,
         approvalSchemaId: approvalSchemaId || null,
+        supportingDocs: supportingDocsForPersistence((body as { supportingDocs?: unknown }).supportingDocs),
         category: classification.category,
         categoryKeyIndex: classification.categoryKeyIndex,
         costCenter: classification.costCenter,

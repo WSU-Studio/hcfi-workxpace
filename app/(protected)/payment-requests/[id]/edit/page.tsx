@@ -7,6 +7,8 @@ import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import PaymentRequestForm from '@/components/payment-requests/PaymentRequestForm';
 import { usePaymentRequestForm } from '@/hooks/usePaymentRequestForm';
+import { useSupportingDocuments } from '@/hooks/useSupportingDocuments';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   buildEmptyLineItem,
   buildPaymentRequestSubmitPayload,
@@ -35,6 +37,7 @@ type PaymentRequestApi = {
   dateNeeded?: string | null;
   paymentPurpose: string | null;
   requestorId: string | null;
+  supportingDocs?: unknown;
   vatPercent?: unknown;
   whtPercent?: unknown;
   category?: string | null;
@@ -94,6 +97,16 @@ export default function EditPaymentRequestPage() {
     isBudgetRequestSelected,
     handleBudgetRequestChange,
   } = usePaymentRequestForm();
+
+  const {
+    attachmentFiles,
+    setAttachmentFiles,
+    existingSupportingDocs,
+    loadExistingSupportingDocs,
+    removeExistingSupportingDoc,
+    resolveSupportingDocs,
+    isUploadingAttachments,
+  } = useSupportingDocuments();
 
   useEffect(() => {
     if (sessionStatus === 'loading') return;
@@ -161,6 +174,7 @@ export default function EditPaymentRequestPage() {
           whtPercent: Number(data.whtPercent ?? 2),
         });
         setClassification(classificationFromPaymentRequestRow(data));
+        loadExistingSupportingDocs(data.supportingDocs);
       })
       .catch(() => setLoadError('Failed to load'))
       .finally(() => setIsLoading(false));
@@ -173,6 +187,7 @@ export default function EditPaymentRequestPage() {
     setFormData,
     setLineItems,
     setTaxConfig,
+    loadExistingSupportingDocs,
   ]);
 
   const schemasForDept = options.approvalSchemas.filter(
@@ -205,12 +220,23 @@ export default function EditPaymentRequestPage() {
 
     setIsSubmitting(true);
     try {
+      let supportingDocs: string[] = [];
+      try {
+        supportingDocs = await resolveSupportingDocs('payment-requests');
+      } catch (uploadError) {
+        setError(
+          uploadError instanceof Error ? uploadError.message : 'Failed to upload supporting documents',
+        );
+        return;
+      }
+
       const response = await fetch(`/api/payment-requests/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          buildPaymentRequestSubmitPayload(formData, lineItems, taxConfig, taxSummary, classification),
-        ),
+        body: JSON.stringify({
+          ...buildPaymentRequestSubmitPayload(formData, lineItems, taxConfig, taxSummary, classification),
+          supportingDocs: supportingDocsForPersistence(supportingDocs),
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -265,6 +291,11 @@ export default function EditPaymentRequestPage() {
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
           submitDisabled={options.departments.length === 0}
+          attachmentFiles={attachmentFiles}
+          onAttachmentFilesChange={setAttachmentFiles}
+          existingSupportingDocs={existingSupportingDocs}
+          onRemoveExistingSupportingDoc={removeExistingSupportingDoc}
+          isUploadingAttachments={isUploadingAttachments}
         />
       </Card>
     </div>

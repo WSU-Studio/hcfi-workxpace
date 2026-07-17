@@ -13,6 +13,7 @@ import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display'
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
+import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 
 export const dynamic = 'force-dynamic';
 
@@ -250,6 +251,7 @@ export async function POST(req: Request) {
         type: (type as string) || selectedPlan?.opexType || null,
         opexAllocation: (opexAllocation as string) || selectedPlan?.opexAllocationId || null,
         opexType: (opexType as string) || selectedPlan?.opexType || null,
+        supportingDocs: supportingDocsForPersistence(body.supportingDocs),
         lineItems: {
           create: normalizedLineItems.map((li) => ({
             item: li.item ?? '',
