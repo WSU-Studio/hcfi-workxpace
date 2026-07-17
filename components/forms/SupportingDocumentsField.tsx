@@ -1,5 +1,7 @@
 'use client';
 
+import { supportingDocFileNameFromUrl } from '@/lib/supporting-docs';
+
 export type SupportingDocumentsFieldProps = {
   attachmentFiles: File[];
   onAttachmentFilesChange: (files: File[]) => void;
@@ -10,15 +12,6 @@ export type SupportingDocumentsFieldProps = {
   multiple?: boolean;
   disabled?: boolean;
 };
-
-function fileLabelFromUrl(url: string) {
-  try {
-    const pathname = new URL(url, 'http://localhost').pathname;
-    return decodeURIComponent(pathname.split('/').pop() || url);
-  } catch {
-    return url.split('/').pop() || url;
-  }
-}
 
 /**
  * Reusable supporting-documents picker used by Budget Plan / Request / Payment Request forms.
@@ -50,7 +43,7 @@ export default function SupportingDocumentsField({
                   rel="noopener noreferrer"
                   className="truncate text-blue-600 hover:underline"
                 >
-                  {fileLabelFromUrl(url)}
+                  {supportingDocFileNameFromUrl(url)}
                 </a>
                 {onRemoveExistingSupportingDoc ? (
                   <button

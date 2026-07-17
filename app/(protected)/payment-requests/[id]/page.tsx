@@ -16,7 +16,9 @@ import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/com
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
+import { normalizeSupportingDocs } from '@/lib/supporting-docs';
 import {
   getMultiStepApprovalProgress,
   getRequestorSubmissionStepProgress,
@@ -88,6 +90,7 @@ export default function PaymentRequestDetailPage() {
     paymentPurpose: string | null;
     requestorId?: string | null;
     requestorName?: string | null;
+    supportingDocs?: unknown;
     project?: { code: string; name: string } | null;
     budgetRequest: {
       code: string;
@@ -347,6 +350,11 @@ export default function PaymentRequestDetailPage() {
             </div>
           </div>
         ) : null}
+
+        <div className="print:hidden">
+          <span className="text-gray-500">Supporting Documents:</span>
+          <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
+        </div>
 
       </Card>
 

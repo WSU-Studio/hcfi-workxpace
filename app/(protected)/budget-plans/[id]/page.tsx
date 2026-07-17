@@ -27,6 +27,7 @@ import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
 import Tooltip from '@/components/ui/Tooltip';
 import Button from '@/components/ui/Button';
 import BudgetPlanCommentPanel from '@/components/budget-plans/BudgetPlanCommentPanel';
+import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -313,23 +314,7 @@ export default function BudgetPlanDetailPage() {
           </div>
           <div className="col-span-2 print:hidden">
             <span className="text-gray-500">Supporting Documents:</span>
-            {supportingDocUrls.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {supportingDocUrls.map((url, index) => (
-                  <a
-                    key={`${url}-${index}`}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Document {index + 1}
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-gray-700">-</p>
-            )}
+            <SupportingDocumentLinks urls={supportingDocUrls} />
           </div>
         </div>
       </Card>

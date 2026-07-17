@@ -23,7 +23,9 @@ import {
   BudgetRequestLineItemsSection,
 } from '@/components/budget-requests/BudgetRequestDetailSections';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
+import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
+import { normalizeSupportingDocs } from '@/lib/supporting-docs';
 import { formatBudgetRequestOriginOfficeLabel } from '@/lib/budget-requests/display';
 import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
@@ -71,6 +73,7 @@ export default function BudgetRequestDetailPage() {
     requestorId?: string | null;
     requestorName?: string | null;
     fiscalYear: number;
+    supportingDocs?: unknown;
     totalAmount?: number;
     vatAmount?: number;
     whtAmount?: number;
@@ -293,6 +296,10 @@ export default function BudgetRequestDetailPage() {
               <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
                 <RichTextContent value={data.description} />
               </div>
+            </div>
+            <div className="print:hidden">
+              <p className="text-sm text-gray-500">Supporting Documents</p>
+              <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
             </div>
           </Card>
 

@@ -1,6 +1,8 @@
 import RichTextContent from '@/components/ui/RichTextContent';
+import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
+import { normalizeSupportingDocs } from '@/lib/supporting-docs';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export type BudgetRequestDetailSectionsData = {
@@ -13,6 +15,7 @@ export type BudgetRequestDetailSectionsData = {
   fiscalYear: number;
   status: string;
   originOffice?: string | null;
+  supportingDocs?: unknown;
   project?: { name: string } | null;
   budgetPlan?: {
     code: string;
@@ -91,6 +94,10 @@ export function BudgetRequestDetailSummarySection({
         <div className="mt-2 min-h-100 rounded-lg border border-gray-200 px-3 py-2 text-sm">
           <RichTextContent value={data.description} />
         </div>
+      </div>
+      <div className="md:col-span-2 print:hidden">
+        <span className="text-gray-500">Supporting Documents:</span>
+        <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
       </div>
       <div className="md:col-span-2 print:col-span-2">
         <span className="text-gray-500">Notes:</span>

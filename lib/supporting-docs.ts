@@ -28,6 +28,26 @@ export function supportingDocsForPersistence(
 }
 
 /**
+ * Human-readable file name from a stored supporting-doc URL.
+ * Upload keys look like `<scope>/supporting-docs/<timestamp>-<uuid>-<fileName>`;
+ * the timestamp/uuid prefix is stripped so users see the original name.
+ */
+export function supportingDocFileNameFromUrl(url: string): string {
+  let fileName = url;
+  try {
+    const pathname = new URL(url, 'http://localhost').pathname;
+    fileName = decodeURIComponent(pathname.split('/').pop() || url);
+  } catch {
+    fileName = url.split('/').pop() || url;
+  }
+
+  const match = fileName.match(
+    /^\d{10,}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-(.+)$/i,
+  );
+  return match ? match[1] : fileName;
+}
+
+/**
  * Upload supporting documents via the shared API.
  * Storage is local (FILE_STORAGE=local) or S3 (production).
  */
