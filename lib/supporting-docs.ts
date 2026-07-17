@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { toSupportingDocsProxyUrl } from '@/lib/supporting-docs-storage';
 
 export type SupportingDocsScope =
   | 'budget-plans'
@@ -10,9 +11,9 @@ export function normalizeSupportingDocs(input: unknown): string[] {
 
   return input
     .map((item) => {
-      if (typeof item === 'string') return item;
+      if (typeof item === 'string') return toSupportingDocsProxyUrl(item);
       if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'string') {
-        return item.url;
+        return toSupportingDocsProxyUrl(item.url);
       }
       return null;
     })

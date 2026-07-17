@@ -4,6 +4,7 @@ export type SupportingDocsScope =
   | 'payment-requests';
 
 export const LOCAL_SUPPORTING_DOCS_API_PREFIX = '/api/dev/supporting-docs/';
+export const SUPPORTING_DOCS_PROXY_PREFIX = '/api/supporting-documents/file/';
 
 /** Legacy prefix kept so existing local files remain readable. */
 const LEGACY_SUPPORTING_DOCS_PREFIX = 'budget-plans/supporting-docs/';
@@ -55,6 +56,40 @@ export function contentTypeFromFileName(fileName: string): string {
   const lower = fileName.toLowerCase();
   const ext = lower.includes('.') ? lower.slice(lower.lastIndexOf('.')) : '';
   return CONTENT_TYPE_BY_EXT[ext] ?? 'application/octet-stream';
+}
+
+export function buildSupportingDocsProxyUrl(key: string): string {
+  if (!isSupportingDocsKey(key)) {
+    throw new Error('Invalid supporting docs key');
+  }
+  const safeKey = key
+    .split('/')
+    .map((seg) => encodeURIComponent(seg))
+    .join('/');
+  return `${SUPPORTING_DOCS_PROXY_PREFIX}${safeKey}`;
+}
+
+/**
+ * Converts legacy direct S3 URLs to the authenticated same-origin proxy.
+ * Already-proxied and local-development URLs are returned unchanged.
+ */
+export function toSupportingDocsProxyUrl(url: string): string {
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith(SUPPORTING_DOCS_PROXY_PREFIX) ||
+    trimmed.startsWith(LOCAL_SUPPORTING_DOCS_API_PREFIX)
+  ) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.hostname.endsWith('.amazonaws.com')) return trimmed;
+    const key = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+    return isSupportingDocsKey(key) ? buildSupportingDocsProxyUrl(key) : trimmed;
+  } catch {
+    return trimmed;
+  }
 }
 
 export function buildLocalSupportingDocsUrl(origin: string, key: string): string {

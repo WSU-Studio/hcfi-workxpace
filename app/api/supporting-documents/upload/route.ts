@@ -5,11 +5,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { isLocalFileStorageEnabled } from '@/lib/file-storage-mode';
 import { saveLocalFile } from '@/lib/local-file-storage';
-import { getS3Client, getS3PublicUrl } from '@/lib/s3';
+import { getS3Client } from '@/lib/s3';
 import {
-  buildLocalSupportingDocsUrl,
+  buildSupportingDocsProxyUrl,
   parseSupportingDocsScope,
-  resolveUploadOrigin,
   supportingDocsKeyPrefix,
 } from '@/lib/supporting-docs-storage';
 
@@ -67,7 +66,6 @@ export async function POST(request: Request) {
     }
 
     const s3Client = useLocal ? null : getS3Client();
-    const origin = useLocal ? resolveUploadOrigin(request) : null;
 
     const uploaded = await Promise.all(
       files.map(async (file) => {
@@ -86,7 +84,7 @@ export async function POST(request: Request) {
           await saveLocalFile(key, fileBuffer);
           return {
             fileName: file.name,
-            url: buildLocalSupportingDocsUrl(origin!, key),
+            url: buildSupportingDocsProxyUrl(key),
           };
         }
 
@@ -101,7 +99,7 @@ export async function POST(request: Request) {
 
         return {
           fileName: file.name,
-          url: getS3PublicUrl(bucket!, region!, key),
+          url: buildSupportingDocsProxyUrl(key),
         };
       })
     );
