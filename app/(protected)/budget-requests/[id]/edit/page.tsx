@@ -165,8 +165,8 @@ export default function EditBudgetRequestPage() {
             : [buildEmptyLineItem()],
         );
         setTaxConfig({
-          vatPercent: Number(data.vatPercent ?? 11),
-          whtPercent: Number(data.whtPercent ?? 2),
+          vatPercent: Number(data.vatPercent ?? 0),
+          whtPercent: Number(data.whtPercent ?? 0),
         });
         loadExistingSupportingDocs(data.supportingDocs);
       })

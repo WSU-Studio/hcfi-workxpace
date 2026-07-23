@@ -177,8 +177,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         (sum: number, lineItem: { total: number }) => sum + lineItem.total,
         0
       );
-      const vatPercent = Number(before.vatPercent ?? 11);
-      const whtPercent = Number(before.whtPercent ?? 2);
+      const vatPercent = Number(before.vatPercent ?? 0);
+      const whtPercent = Number(before.whtPercent ?? 0);
       const vatAmount = Math.round(totalAmount * (vatPercent / 100));
       const whtAmount = Math.round(totalAmount * (whtPercent / 100));
       const invoiceAmount = totalAmount + vatAmount;

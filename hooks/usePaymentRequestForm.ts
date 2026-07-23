@@ -25,7 +25,7 @@ export function usePaymentRequestForm(initialValues?: Partial<PaymentRequestForm
     ...initialValues,
   });
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
-  const [taxConfig, setTaxConfig] = useState({ vatPercent: 11, whtPercent: 2 });
+  const [taxConfig, setTaxConfig] = useState({ vatPercent: 0, whtPercent: 0 });
   const [classification, setClassification] = useState<RequestClassificationValue>(
     emptyRequestClassification(),
   );
@@ -45,7 +45,7 @@ export function usePaymentRequestForm(initialValues?: Partial<PaymentRequestForm
     if (!budgetRequestId) {
       setFormData((previous) => clearBudgetRequestSelection(previous, context));
       setLineItems([buildEmptyLineItem()]);
-      setTaxConfig({ vatPercent: 11, whtPercent: 2 });
+      setTaxConfig({ vatPercent: 0, whtPercent: 0 });
       setClassification(emptyRequestClassification());
       return;
     }
@@ -61,8 +61,8 @@ export function usePaymentRequestForm(initialValues?: Partial<PaymentRequestForm
     );
     setLineItems(mapBrLineItemsToEditor(budgetRequest.lineItems));
     setTaxConfig({
-      vatPercent: Number.isFinite(budgetRequest.vatPercent) ? budgetRequest.vatPercent : 11,
-      whtPercent: Number.isFinite(budgetRequest.whtPercent) ? budgetRequest.whtPercent : 2,
+      vatPercent: Number.isFinite(budgetRequest.vatPercent) ? budgetRequest.vatPercent : 0,
+      whtPercent: Number.isFinite(budgetRequest.whtPercent) ? budgetRequest.whtPercent : 0,
     });
     setClassification(classificationFromStored(budgetRequest));
   };

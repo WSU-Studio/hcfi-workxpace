@@ -128,8 +128,8 @@ export default function BudgetRequestReviewWorkspace({
   const [classification, setClassification] = useState(() => buildReviewClassification(data));
   const [reviewLineItems, setReviewLineItems] = useState(() => buildReviewLineItems(data.lineItems));
 
-  const vatPercent = Number((data as { vatPercent?: number }).vatPercent ?? 11);
-  const whtPercent = Number((data as { whtPercent?: number }).whtPercent ?? 2);
+  const vatPercent = Number((data as { vatPercent?: number }).vatPercent ?? 0);
+  const whtPercent = Number((data as { whtPercent?: number }).whtPercent ?? 0);
   const transactionAmount = reviewLineItems.reduce(
     (sum, lineItem) => sum + Math.max(0, lineItem.qty * lineItem.unitPrice - lineItem.deduction),
     0,

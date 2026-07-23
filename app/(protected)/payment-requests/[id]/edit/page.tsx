@@ -170,8 +170,8 @@ export default function EditPaymentRequestPage() {
             : [buildEmptyLineItem()],
         );
         setTaxConfig({
-          vatPercent: Number(data.vatPercent ?? 11),
-          whtPercent: Number(data.whtPercent ?? 2),
+          vatPercent: Number(data.vatPercent ?? 0),
+          whtPercent: Number(data.whtPercent ?? 0),
         });
         setClassification(classificationFromPaymentRequestRow(data));
         loadExistingSupportingDocs(data.supportingDocs);

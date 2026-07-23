@@ -29,7 +29,7 @@ export function useBudgetRequestForm(initialValues?: Partial<BudgetRequestFormVa
   });
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
   const [lineItems, setLineItems] = useState<BudgetRequestLineItemInput[]>([buildEmptyLineItem()]);
-  const [taxConfig, setTaxConfig] = useState({ vatPercent: 11, whtPercent: 2 });
+  const [taxConfig, setTaxConfig] = useState({ vatPercent: 0, whtPercent: 0 });
 
   const budgetPlanFieldRef = useRef<HTMLDivElement | null>(null);
   const subjectFieldRef = useRef<HTMLDivElement | null>(null);

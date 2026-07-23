@@ -220,8 +220,8 @@ export default function ReviewBudgetRequestPage() {
     (sum, lineItem) => sum + Math.max(0, lineItem.qty * lineItem.unitPrice - lineItem.deduction),
     0
   );
-  const vatPercent = Number((data as { vatPercent?: number }).vatPercent ?? 11);
-  const whtPercent = Number((data as { whtPercent?: number }).whtPercent ?? 2);
+  const vatPercent = Number((data as { vatPercent?: number }).vatPercent ?? 0);
+  const whtPercent = Number((data as { whtPercent?: number }).whtPercent ?? 0);
   const vatAmount = Math.round(transactionAmount * (vatPercent / 100));
   const whtAmount = Math.round(transactionAmount * (whtPercent / 100));
   const invoiceAmount = transactionAmount + vatAmount;

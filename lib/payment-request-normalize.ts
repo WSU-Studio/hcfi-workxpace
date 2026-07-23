@@ -30,8 +30,10 @@ export function normalizePaymentRequestBody(body: Record<string, unknown>): Norm
     return { error: 'Total request amount must be greater than 0' };
   }
 
-  const normalizedVatPercent = toNumber(vatPercent) || 11;
-  const normalizedWhtPercent = toNumber(whtPercent) || 2;
+  const normalizedVatPercent =
+    vatPercent === undefined || vatPercent === null || vatPercent === '' ? 0 : toNumber(vatPercent);
+  const normalizedWhtPercent =
+    whtPercent === undefined || whtPercent === null || whtPercent === '' ? 0 : toNumber(whtPercent);
   const calculatedVatAmount = Math.round(totalAmount * (normalizedVatPercent / 100));
   const calculatedWhtAmount = Math.round(totalAmount * (normalizedWhtPercent / 100));
   const normalizedVatAmount = toNumber(vatAmount) || calculatedVatAmount;
