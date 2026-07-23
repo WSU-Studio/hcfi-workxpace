@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Division } from '@/types/division';
-import { cn, stripHtmlTags } from '@/lib/utils';
+import { stripHtmlTags } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
@@ -21,6 +21,15 @@ import {
   stickyListCol,
 } from '@/components/ui/Table';
 import DivisionActions from './components/DivisionActions';
+
+function formatDepartmentSummary(row: Division): string {
+  const departments = row.departments ?? [];
+  const count = row._count?.departments ?? departments.length;
+  if (count === 0) return '0';
+  const codes = departments.map((dept) => dept.code).filter(Boolean);
+  if (codes.length === 0) return String(count);
+  return `${count} (${codes.join(', ')})`;
+}
 
 export default function DivisionPage() {
   const { data: session } = useSession();
@@ -73,12 +82,15 @@ export default function DivisionPage() {
     } else {
       const kw = searchKeyword.trim().toLowerCase();
       setFiltered(
-        divisions.filter(
-          (d) =>
+        divisions.filter((d) => {
+          const deptCodes = (d.departments ?? []).map((dept) => dept.code).join(' ');
+          return (
             d.name?.toLowerCase().includes(kw) ||
             d.code?.toLowerCase().includes(kw) ||
-            d.description?.toLowerCase().includes(kw),
-        ),
+            d.description?.toLowerCase().includes(kw) ||
+            deptCodes.toLowerCase().includes(kw)
+          );
+        }),
       );
     }
     setCurrentPage(1);
@@ -131,7 +143,9 @@ export default function DivisionPage() {
                     <TableCell title={stripHtmlTags(row.description) || undefined}>
                       <div className="line-clamp-3 max-w-xs">{stripHtmlTags(row.description)}</div>
                     </TableCell>
-                    <TableCell>{row._count?.departments ?? row.departments?.length ?? 0}</TableCell>
+                    <TableCell title={formatDepartmentSummary(row)}>
+                      <div className="line-clamp-3 max-w-xs">{formatDepartmentSummary(row)}</div>
+                    </TableCell>
                     <TableCell>
                       <DivisionActions
                         divisionId={row.id}
