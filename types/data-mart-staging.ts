@@ -3,6 +3,8 @@ export type DataMartStagingApiRow = {
   id: string;
   confinsPaymentDocId: string;
   dataInterfaceSource: string | null;
+  /** FK to BudgetRequest — used for deep links from the staging table. */
+  budgetRequestId: string;
   budgetRequestCode: string;
   budgetPlanCode: string | null;
   budgetRequestSubject: string | null;

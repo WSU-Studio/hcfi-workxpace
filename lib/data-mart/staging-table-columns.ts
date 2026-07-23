@@ -43,6 +43,8 @@ export type StagingTableColumn = {
    * Empty string means "no value" (web renders "—"; CSV leaves blank).
    */
   value: (row: DataMartStagingApiRow) => string;
+  /** Optional in-app link for the cell (web only; CSV stays plain text). */
+  href?: (row: DataMartStagingApiRow) => string | null;
   /** Optional tooltip (e.g. full description). */
   title?: (row: DataMartStagingApiRow) => string | undefined;
   cellClassName?: string;
@@ -186,6 +188,7 @@ export const DATA_MART_STAGING_VISIBLE_COLUMNS: readonly StagingTableColumn[] = 
     key: 'budgetRequestCode',
     header: 'BR code',
     value: (r) => r.budgetRequestCode,
+    href: (r) => (r.budgetRequestId ? `/budget-requests/${r.budgetRequestId}` : null),
     cellClassName: 'text-sm',
   },
   {

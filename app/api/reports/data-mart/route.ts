@@ -111,6 +111,7 @@ export async function GET(request: Request) {
           id: true,
           confinsPaymentDocId: true,
           dataInterfaceSource: true,
+          budgetRequestId: true,
           budgetRequestCode: true,
           budgetPlanCode: true,
           budgetRequestSubject: true,

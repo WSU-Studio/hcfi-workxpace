@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Table,
   TableBodyRow,
@@ -48,15 +49,25 @@ export default function DataMartStagingTable({ rows }: DataMartStagingTableProps
           ) : (
             rows.map((row) => (
               <TableBodyRow key={row.id}>
-                {DATA_MART_STAGING_VISIBLE_COLUMNS.map((col) => (
-                  <TableCell
-                    key={col.key}
-                    className={cn(col.cellClassName)}
-                    title={col.title?.(row)}
-                  >
-                    {stagingColumnDisplayValue(col, row)}
-                  </TableCell>
-                ))}
+                {DATA_MART_STAGING_VISIBLE_COLUMNS.map((col) => {
+                  const display = stagingColumnDisplayValue(col, row);
+                  const href = col.href?.(row) ?? null;
+                  return (
+                    <TableCell
+                      key={col.key}
+                      className={cn(col.cellClassName)}
+                      title={col.title?.(row)}
+                    >
+                      {href && display !== '—' ? (
+                        <Link href={href} className="text-blue-600 hover:underline">
+                          {display}
+                        </Link>
+                      ) : (
+                        display
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableBodyRow>
             ))
           )}
