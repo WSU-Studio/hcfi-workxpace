@@ -10,6 +10,7 @@ export interface MenuAccess {
   userManagement: boolean;
   workspaceManagement: boolean;
   settings?: boolean;
+  viewDivision: boolean;
   viewDepartment: boolean;
   viewOriginOffice: boolean;
   viewProject: boolean;
@@ -32,6 +33,9 @@ export interface ActivityAccess {
   createPaymentRequest: boolean;
   editPaymentRequest: boolean;
   deletePaymentRequest: boolean;
+  createDivision: boolean;
+  editDivision: boolean;
+  deleteDivision: boolean;
   createDepartment: boolean;
   editDepartment: boolean;
   deleteDepartment: boolean;

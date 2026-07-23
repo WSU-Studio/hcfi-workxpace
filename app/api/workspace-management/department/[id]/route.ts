@@ -10,16 +10,25 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const department = await prisma.department.findUnique({
       where: { id },
-      include: { head: { select: { id: true, name: true } } },
+      include: {
+        head: { select: { id: true, name: true } },
+        division: { select: { id: true, code: true, name: true } },
+      },
     });
     if (!department) {
       return NextResponse.json({ error: 'Department not found' }, { status: 404 });
     }
-    const users = await prisma.user.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    });
-    return NextResponse.json({ department, users });
+    const [users, divisions] = await Promise.all([
+      prisma.user.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.division.findMany({
+        select: { id: true, code: true, name: true },
+        orderBy: { code: 'asc' },
+      }),
+    ]);
+    return NextResponse.json({ department, users, divisions });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to fetch department' }, { status: 500 });
@@ -50,6 +59,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         name: body.name,
         description: body.description || null,
         headId: body.headId || null,
+        divisionId: body.divisionId || null,
       },
     });
 

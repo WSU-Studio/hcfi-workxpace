@@ -85,7 +85,9 @@ export default function DepartmentPage() {
             d.name?.toLowerCase().includes(kw) ||
             d.code?.toLowerCase().includes(kw) ||
             d.description?.toLowerCase().includes(kw) ||
-            (d.head as { name?: string })?.name?.toLowerCase().includes(kw)
+            (d.head as { name?: string })?.name?.toLowerCase().includes(kw) ||
+            d.division?.name?.toLowerCase().includes(kw) ||
+            d.division?.code?.toLowerCase().includes(kw)
         )
       );
     }
@@ -166,6 +168,7 @@ export default function DepartmentPage() {
               <TableHead>#</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Division</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Head</TableHead>
               <TableHead className="w-16" />
@@ -173,13 +176,16 @@ export default function DepartmentPage() {
           </thead>
           <tbody>
             {currentDepartments.length === 0 ? (
-              <TableEmptyRow colSpan={6}>{searchKeyword.trim() ? 'No matches' : 'No departments'}</TableEmptyRow>
+              <TableEmptyRow colSpan={7}>{searchKeyword.trim() ? 'No matches' : 'No departments'}</TableEmptyRow>
             ) : (
               currentDepartments.map((dept, i) => (
                 <TableBodyRow key={dept.id}>
                   <TableCell>{startIndex + i + 1}</TableCell>
                   <TableCell>{dept.code}</TableCell>
                   <TableCell>{dept.name}</TableCell>
+                  <TableCell>
+                    {dept.division ? `${dept.division.code} — ${dept.division.name}` : '-'}
+                  </TableCell>
                   <TableCell>{stripHtmlTags(dept.description)}</TableCell>
                   <TableCell>{(dept.head as { name?: string })?.name ?? '-'}</TableCell>
                   <TableCell>

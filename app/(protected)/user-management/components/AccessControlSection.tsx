@@ -50,6 +50,7 @@ export const menuAccessItems: Array<{ key: string; label: string }> = [
   { key: 'reports', label: 'Reports' },
   { key: 'userManagement', label: 'User Management' },
   { key: 'workspaceManagement', label: 'Workspace Management' },
+  { key: 'viewDivision', label: 'View Division Page' },
   { key: 'viewDepartment', label: 'View Department Page' },
   { key: 'viewOriginOffice', label: 'View Origin Office Page' },
   { key: 'viewProject', label: 'View Project Page' },
@@ -87,6 +88,9 @@ export const activityAccessItems: Array<{ key: string; label: string }> = [
 ];
 
 export const workspaceManagementAccessItems: Array<{ key: string; label: string }> = [
+  { key: 'createDivision', label: 'Division: Create' },
+  { key: 'editDivision', label: 'Division: Edit' },
+  { key: 'deleteDivision', label: 'Division: Delete' },
   { key: 'createDepartment', label: 'Department: Create' },
   { key: 'editDepartment', label: 'Department: Edit' },
   { key: 'deleteDepartment', label: 'Department: Delete' },

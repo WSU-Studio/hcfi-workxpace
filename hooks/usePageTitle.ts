@@ -23,10 +23,12 @@ const pageConfigs: Record<string, { title: string; breadcrumbs: string[] }> = {
   '/user-management': { title: 'User Management', breadcrumbs: ['Home', 'User Management'] },
   '/workspace-management': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management'] },
   '/workspace-management/department': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management', 'Department'] },
+  '/workspace-management/division': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management', 'Division'] },
   '/workspace-management/role': { title: 'Workspace Management', breadcrumbs: ['Home', 'Workspace Management', 'Role'] },
   '/workspace-management/approval-schema': { title: 'Approval Schema Management', breadcrumbs: ['Home', 'Workspace Management', 'Approval Schema'] },
   '/workspace-management/approval-schema/new': { title: 'New Approval Schema', breadcrumbs: ['Home', 'Workspace Management', 'Approval Schema', 'New'] },
   '/workspace-management/department/new': { title: 'New Department', breadcrumbs: ['Home', 'Workspace Management', 'Department', 'New'] },
+  '/workspace-management/division/new': { title: 'New Division', breadcrumbs: ['Home', 'Workspace Management', 'Division', 'New'] },
   '/workspace-management/role/new': { title: 'New Role', breadcrumbs: ['Home', 'Workspace Management', 'Role', 'New'] },
 };
 

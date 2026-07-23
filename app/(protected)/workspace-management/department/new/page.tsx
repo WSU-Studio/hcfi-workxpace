@@ -24,13 +24,20 @@ export default function NewDepartmentPage() {
     name: '',
     description: '',
     headId: '',
+    divisionId: '',
   });
   const [errors, setErrors] = useState<{ code?: string; name?: string; description?: string; headId?: string; general?: string }>({});
+  const [divisions, setDivisions] = useState<Array<{ id: string; code: string; name: string }>>([]);
 
   useEffect(() => {
-    fetch('/api/workspace-management/department/fetch-users')
-      .then((res) => res.ok && res.json())
-      .then((data) => setUsers(data?.users ?? []))
+    Promise.all([
+      fetch('/api/workspace-management/department/fetch-users').then((res) => (res.ok ? res.json() : { users: [] })),
+      fetch('/api/workspace-management/division').then((res) => (res.ok ? res.json() : { divisions: [] })),
+    ])
+      .then(([usersData, divisionsData]) => {
+        setUsers(usersData?.users ?? []);
+        setDivisions(divisionsData?.divisions ?? []);
+      })
       .catch(() => {});
   }, []);
 
@@ -94,6 +101,21 @@ export default function NewDepartmentPage() {
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
               rows={3}
             />
+          </div>
+          <div>
+            <label className="block mb-1.5 font-medium">Division</label>
+            <Select
+              name="divisionId"
+              value={formData.divisionId}
+              onChange={(e) => setFormData((p) => ({ ...p, divisionId: e.target.value }))}
+            >
+              <option value="">-</option>
+              {divisions.map((division) => (
+                <option key={division.id} value={division.id}>
+                  {division.code} — {division.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Department Head</label>

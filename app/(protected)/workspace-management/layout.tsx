@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase, IconCategory, IconHierarchy2, IconTag, IconMapPin, IconReceipt2 } from '@tabler/icons-react';
+import { IconBuilding, IconIdBadge2, IconSchema, IconHistory, IconBriefcase, IconCategory, IconHierarchy2, IconTag, IconMapPin, IconReceipt2, IconSitemap } from '@tabler/icons-react';
 import { MenuAccess } from '@/types/access-control';
 import { restrictedMenuAccess } from '@/lib/default-access';
 
@@ -18,6 +18,7 @@ export default function WorkspaceManagementLayout({
   const menuAccess = (session?.user as { access?: { menuAccess?: MenuAccess } })?.access?.menuAccess ?? restrictedMenuAccess;
 
   const subNavigation = [
+    { name: 'Division', href: '/workspace-management/division', icon: IconSitemap, show: menuAccess.viewDivision },
     { name: 'Department', href: '/workspace-management/department', icon: IconBuilding, show: menuAccess.viewDepartment },
     { name: 'Origin Office', href: '/workspace-management/origin-office', icon: IconMapPin, show: menuAccess.viewOriginOffice },
     { name: 'Project', href: '/workspace-management/project', icon: IconBriefcase, show: menuAccess.viewProject },

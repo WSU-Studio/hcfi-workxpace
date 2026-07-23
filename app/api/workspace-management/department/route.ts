@@ -8,7 +8,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const departments = await prisma.department.findMany({
-      include: { head: { select: { id: true, name: true } } },
+      include: {
+        head: { select: { id: true, name: true } },
+        division: { select: { id: true, code: true, name: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ departments });
@@ -37,6 +40,7 @@ export async function POST(request: Request) {
         name: body.name,
         description: body.description || null,
         headId: body.headId || null,
+        divisionId: body.divisionId || null,
       },
     });
 

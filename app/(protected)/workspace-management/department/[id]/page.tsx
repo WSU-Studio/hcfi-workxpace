@@ -14,6 +14,7 @@ interface Department {
   name: string;
   description: string | null;
   head?: { name: string } | null;
+  division?: { code: string; name: string } | null;
 }
 
 export default function DepartmentDetailPage() {
@@ -67,6 +68,12 @@ export default function DepartmentDetailPage() {
         <div>
           <label className="text-sm text-gray-500">Description</label>
           <p className="text-gray-700">{department.description || '-'}</p>
+        </div>
+        <div>
+          <label className="text-sm text-gray-500">Division</label>
+          <p className="font-medium">
+            {department.division ? `${department.division.code} — ${department.division.name}` : '-'}
+          </p>
         </div>
         <div>
           <label className="text-sm text-gray-500">Head</label>

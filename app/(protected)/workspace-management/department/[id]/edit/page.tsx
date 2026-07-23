@@ -27,8 +27,10 @@ export default function EditDepartmentPage() {
     name: '',
     description: '',
     headId: '',
+    divisionId: '',
   });
   const [errors, setErrors] = useState<{ code?: string; name?: string; description?: string; headId?: string; general?: string }>({});
+  const [divisions, setDivisions] = useState<Array<{ id: string; code: string; name: string }>>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -43,9 +45,11 @@ export default function EditDepartmentPage() {
           name: d.name,
           description: d.description ?? '',
           headId: d.headId ?? '',
+          divisionId: d.divisionId ?? '',
         });
       }
       setUsers(usersData?.users ?? []);
+      setDivisions(deptData.divisions ?? []);
     }).catch(() => setErrors({ general: 'Failed to load' })).finally(() => setIsLoading(false));
   }, [id]);
 
@@ -109,6 +113,21 @@ export default function EditDepartmentPage() {
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
               rows={3}
             />
+          </div>
+          <div>
+            <label className="block mb-1.5 font-medium">Division</label>
+            <Select
+              name="divisionId"
+              value={formData.divisionId}
+              onChange={(e) => setFormData((p) => ({ ...p, divisionId: e.target.value }))}
+            >
+              <option value="">-</option>
+              {divisions.map((division) => (
+                <option key={division.id} value={division.id}>
+                  {division.code} — {division.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Department Head</label>

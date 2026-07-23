@@ -28,6 +28,17 @@ export default withAuth(
         return NextResponse.redirect(new URL('/forbidden', req.url));
       }
 
+      if (req.nextUrl.pathname.includes('/division')) {
+        if (!menuAccess.viewDivision) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editDivision) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createDivision) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
       if (req.nextUrl.pathname.includes('/department')) {
         if (!menuAccess.viewDepartment) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
