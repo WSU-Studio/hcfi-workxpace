@@ -40,6 +40,16 @@ export const stickyListCol = {
     head: 'sticky left-[9.5rem] z-20 min-w-[12rem] w-[12rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
     cell: 'sticky left-[9.5rem] z-10 min-w-[12rem] w-[12rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
   },
+  /** Report tables: first sticky date column (no leading #). */
+  date: {
+    head: 'sticky left-0 z-20 min-w-[7rem] w-[7rem] bg-gray-50 whitespace-nowrap print:static',
+    cell: 'sticky left-0 z-10 min-w-[7rem] w-[7rem] bg-white whitespace-nowrap group-hover:bg-gray-50 print:static',
+  },
+  /** Report tables: second sticky label after date — edge shadow. */
+  labelAfterDate: {
+    head: 'sticky left-[7rem] z-20 min-w-[14rem] w-[14rem] bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
+    cell: 'sticky left-[7rem] z-10 min-w-[14rem] w-[14rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
+  },
 } as const;
 
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {

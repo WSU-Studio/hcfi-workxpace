@@ -10,8 +10,10 @@ import {
   TableEmptyRow,
   TableHead,
   TableHeaderRow,
+  TableScroll,
+  stickyListCol,
 } from '@/components/ui/Table';
-import { formatCurrency, formatSignedCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatSignedCurrency, formatDate, cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -205,12 +207,18 @@ export default function ReconciliationReportPage() {
       </Card>
 
       <Card className="p-4">
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <TableScroll className="rounded-lg border border-gray-200">
           <Table className="min-w-[1100px] text-sm">
             <thead className="bg-gray-50">
               <TableHeaderRow className="border-gray-200">
-                <TableHead className="text-xs font-semibold uppercase text-gray-600">Saved At</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-gray-600">Budget Request</TableHead>
+                <TableHead className={cn(stickyListCol.date.head, 'text-xs font-semibold uppercase text-gray-600')}>
+                  Saved At
+                </TableHead>
+                <TableHead
+                  className={cn(stickyListCol.labelAfterDate.head, 'text-xs font-semibold uppercase text-gray-600')}
+                >
+                  Budget Request
+                </TableHead>
                 <TableHead className="text-xs font-semibold uppercase text-gray-600">Plan</TableHead>
                 <TableHead className="text-xs font-semibold uppercase text-gray-600">Incoming Ref</TableHead>
                 <TableHead className="text-xs font-semibold uppercase text-gray-600">Confins Doc</TableHead>
@@ -226,10 +234,14 @@ export default function ReconciliationReportPage() {
               )}
               {rows.map((r) => (
                 <TableBodyRow key={r.id} className="border-gray-200">
-                  <TableCell>{formatDate(r.savedAt)}</TableCell>
-                  <TableCell>
-                    <div className="font-medium text-gray-900">{r.budgetRequestCode}</div>
-                    <div className="text-xs text-gray-500">{r.budgetRequestSubject}</div>
+                  <TableCell className={stickyListCol.date.cell}>{formatDate(r.savedAt)}</TableCell>
+                  <TableCell className={stickyListCol.labelAfterDate.cell}>
+                    <div className="font-medium text-gray-900 truncate" title={r.budgetRequestCode}>
+                      {r.budgetRequestCode}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate" title={r.budgetRequestSubject}>
+                      {r.budgetRequestSubject}
+                    </div>
                   </TableCell>
                   <TableCell>{r.budgetPlanCode ?? '-'}</TableCell>
                   <TableCell>{r.incomingReferenceId}</TableCell>
@@ -242,7 +254,7 @@ export default function ReconciliationReportPage() {
               ))}
             </tbody>
           </Table>
-        </div>
+        </TableScroll>
       </Card>
     </div>
   );
