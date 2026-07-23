@@ -92,10 +92,15 @@ export class ConfinsMasterSyncService {
         continue;
       }
 
-      // Preserve local enrichment (description, headId, divisionId). Confins owns code/name/isActive.
+      // Preserve local enrichment (description). Confins owns code/name/isActive.
+      // Inactive departments are detached from division and head.
       await prisma.department.update({
         where: { id: existing.id },
-        data: { name, isActive },
+        data: {
+          name,
+          isActive,
+          ...(isActive ? {} : { divisionId: null, headId: null }),
+        },
       });
       updated += 1;
       if (!isActive) deactivated += 1;

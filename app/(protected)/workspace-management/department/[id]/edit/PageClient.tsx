@@ -165,8 +165,9 @@ export default function EditDepartmentPage() {
             <label className="block mb-1.5 font-medium">Division</label>
             <Select
               name="divisionId"
-              value={formData.divisionId}
+              value={formData.isActive ? formData.divisionId : ''}
               onChange={(e) => setFormData((p) => ({ ...p, divisionId: e.target.value }))}
+              disabled={!formData.isActive}
             >
               <option value="">-</option>
               {divisions.map((division) => (
@@ -175,13 +176,19 @@ export default function EditDepartmentPage() {
                 </option>
               ))}
             </Select>
+            {!formData.isActive && (
+              <p className="mt-1 text-xs text-amber-700">
+                Inactive department will be removed from its division and department head on save.
+              </p>
+            )}
           </div>
           <div>
             <label className="block mb-1.5 font-medium">Department Head</label>
             <Select
               name="headId"
-              value={formData.headId}
+              value={formData.isActive ? formData.headId : ''}
               onChange={(e) => setFormData((p) => ({ ...p, headId: e.target.value }))}
+              disabled={!formData.isActive}
             >
               <option value="">-</option>
               {users.map((u) => (

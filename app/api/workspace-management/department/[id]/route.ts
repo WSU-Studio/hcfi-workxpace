@@ -73,14 +73,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
+    const nextIsActive = body.isActive !== false;
+    // Inactive departments must leave division membership and clear department head.
+    const nextDivisionId = nextIsActive ? body.divisionId || null : null;
+    const nextHeadId = nextIsActive ? body.headId || null : null;
+
     const department = await prisma.department.update({
       where: { id },
       data: {
         ...(lockIdentity ? {} : { code: nextCode, name: nextName }),
         description: body.description || null,
-        headId: body.headId || null,
-        divisionId: body.divisionId || null,
-        isActive: body.isActive !== false,
+        headId: nextHeadId,
+        divisionId: nextDivisionId,
+        isActive: nextIsActive,
       },
     });
 
