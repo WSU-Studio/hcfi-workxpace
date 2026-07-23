@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { isSyncManagedMaster } from '@/lib/workspace-master-ui-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,13 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (isSyncManagedMaster('department')) {
+      return NextResponse.json(
+        { error: 'Department is synced from Confins and cannot be created here' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

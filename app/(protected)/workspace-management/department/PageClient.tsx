@@ -12,7 +12,7 @@ import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import DepartmentActions from './components/DepartmentActions';
-import { canShowMasterCrud, isSyncManagedMaster } from '@/lib/workspace-master-ui-policy';
+import { canShowMasterCrud, canShowMasterEdit, isSyncManagedMaster } from '@/lib/workspace-master-ui-policy';
 import MasterSyncBanner from '@/components/workspace-management/MasterSyncBanner';
 
 export default function DepartmentPage() {
@@ -34,7 +34,7 @@ export default function DepartmentPage() {
     Boolean(session?.user?.access?.activityAccess?.createDepartment)
   );
   const canRunSync = Boolean(session?.user?.id);
-  const canEditDepartment = canShowMasterCrud(
+  const canEditDepartment = canShowMasterEdit(
     'department',
     Boolean(session?.user?.access?.activityAccess?.editDepartment)
   );
@@ -144,6 +144,7 @@ export default function DepartmentPage() {
           onSync={runSync}
           latestSync={latestSync}
           message={syncMessage}
+          note="Code & name dari Confins. Division, description, dan head tetap bisa diedit di aplikasi."
         />
       )}
       <div className="flex items-center justify-between gap-4">

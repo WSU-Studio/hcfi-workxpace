@@ -89,12 +89,10 @@ export class ConfinsMasterSyncService {
         continue;
       }
 
+      // Preserve local enrichment (description, headId, divisionId). Confins owns code/name only.
       await prisma.department.update({
         where: { id: existing.id },
-        data: {
-          name,
-          description: syncDescription('department'),
-        },
+        data: { name },
       });
       updated += 1;
       if (row.IsActive === false) deactivated += 1;

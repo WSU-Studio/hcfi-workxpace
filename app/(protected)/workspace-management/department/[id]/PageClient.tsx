@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import { canShowMasterEdit } from '@/lib/workspace-master-ui-policy';
 
 interface Department {
   id: string;
@@ -23,7 +24,10 @@ export default function DepartmentDetailPage() {
   const id = params.id as string;
   const [department, setDepartment] = useState<Department | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const canEditDepartment = Boolean(session?.user?.access?.activityAccess?.editDepartment);
+  const canEditDepartment = canShowMasterEdit(
+    'department',
+    Boolean(session?.user?.access?.activityAccess?.editDepartment)
+  );
 
   useEffect(() => {
     if (!id) return;

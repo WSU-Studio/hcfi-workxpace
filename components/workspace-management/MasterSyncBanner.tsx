@@ -23,6 +23,8 @@ interface MasterSyncBannerProps {
   onSync: () => void;
   latestSync: LatestSync;
   message: string | null;
+  /** Extra note under the main sync message (e.g. partial edit rules). */
+  note?: string;
 }
 
 export default function MasterSyncBanner({
@@ -32,10 +34,12 @@ export default function MasterSyncBanner({
   onSync,
   latestSync,
   message,
+  note,
 }: MasterSyncBannerProps) {
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-2">
       <p>{label} dikelola melalui sinkronisasi.</p>
+      {note && <p className="text-blue-900/90">{note}</p>}
       <div className="flex flex-wrap items-center gap-3">
         {canRunSync && (
           <button

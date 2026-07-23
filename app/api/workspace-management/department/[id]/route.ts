@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { areConfinsIdentityFieldsLocked, isSyncManagedMaster } from '@/lib/workspace-master-ui-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         orderBy: { code: 'asc' },
       }),
     ]);
-    return NextResponse.json({ department, users, divisions });
+    return NextResponse.json({
+      department,
+      users,
+      divisions,
+      identityFieldsLocked: areConfinsIdentityFieldsLocked('department'),
+    });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to fetch department' }, { status: 500 });
@@ -44,19 +50,33 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await request.json();
+    const lockIdentity = areConfinsIdentityFieldsLocked('department');
 
-    const existing = await prisma.department.findFirst({
-      where: { code: body.code, NOT: { id } },
-    });
-    if (existing) {
-      return NextResponse.json({ error: 'Department code already exists' }, { status: 400 });
+    const current = await prisma.department.findUnique({ where: { id } });
+    if (!current) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 404 });
+    }
+
+    const nextCode = lockIdentity ? current.code : String(body.code ?? '').trim();
+    const nextName = lockIdentity ? current.name : String(body.name ?? '').trim();
+
+    if (!nextCode || !nextName) {
+      return NextResponse.json({ error: 'Code and name are required' }, { status: 400 });
+    }
+
+    if (!lockIdentity) {
+      const duplicate = await prisma.department.findFirst({
+        where: { code: nextCode, NOT: { id } },
+      });
+      if (duplicate) {
+        return NextResponse.json({ error: 'Department code already exists' }, { status: 400 });
+      }
     }
 
     const department = await prisma.department.update({
       where: { id },
       data: {
-        code: body.code,
-        name: body.name,
+        ...(lockIdentity ? {} : { code: nextCode, name: nextName }),
         description: body.description || null,
         headId: body.headId || null,
         divisionId: body.divisionId || null,
@@ -75,6 +95,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (isSyncManagedMaster('department')) {
+      return NextResponse.json(
+        { error: 'Department is synced from Confins and cannot be deleted here' },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

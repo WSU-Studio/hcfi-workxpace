@@ -10,6 +10,8 @@ import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import ButtonLink from '@/components/ui/ButtonLink';
 import Button from '@/components/ui/Button';
+import { areConfinsIdentityFieldsLocked } from '@/lib/workspace-master-ui-policy';
+
 interface User {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ export default function EditDepartmentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [identityLocked, setIdentityLocked] = useState(areConfinsIdentityFieldsLocked('department'));
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -29,7 +32,13 @@ export default function EditDepartmentPage() {
     headId: '',
     divisionId: '',
   });
-  const [errors, setErrors] = useState<{ code?: string; name?: string; description?: string; headId?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{
+    code?: string;
+    name?: string;
+    description?: string;
+    headId?: string;
+    general?: string;
+  }>({});
   const [divisions, setDivisions] = useState<Array<{ id: string; code: string; name: string }>>([]);
 
   useEffect(() => {
@@ -37,20 +46,26 @@ export default function EditDepartmentPage() {
     Promise.all([
       fetch(`/api/workspace-management/department/${id}`).then((r) => r.json()),
       fetch('/api/workspace-management/department/fetch-users').then((r) => r.json()),
-    ]).then(([deptData, usersData]) => {
-      const d = deptData.department;
-      if (d) {
-        setFormData({
-          code: d.code,
-          name: d.name,
-          description: d.description ?? '',
-          headId: d.headId ?? '',
-          divisionId: d.divisionId ?? '',
-        });
-      }
-      setUsers(usersData?.users ?? []);
-      setDivisions(deptData.divisions ?? []);
-    }).catch(() => setErrors({ general: 'Failed to load' })).finally(() => setIsLoading(false));
+    ])
+      .then(([deptData, usersData]) => {
+        const d = deptData.department;
+        if (d) {
+          setFormData({
+            code: d.code,
+            name: d.name,
+            description: d.description ?? '',
+            headId: d.headId ?? '',
+            divisionId: d.divisionId ?? '',
+          });
+        }
+        if (typeof deptData.identityFieldsLocked === 'boolean') {
+          setIdentityLocked(deptData.identityFieldsLocked);
+        }
+        setUsers(usersData?.users ?? []);
+        setDivisions(deptData.divisions ?? []);
+      })
+      .catch(() => setErrors({ general: 'Failed to load' }))
+      .finally(() => setIsLoading(false));
   }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,14 +73,29 @@ export default function EditDepartmentPage() {
     setErrors({});
     setIsSubmitting(true);
     try {
+      const payload = identityLocked
+        ? {
+            description: formData.description,
+            headId: formData.headId,
+            divisionId: formData.divisionId,
+          }
+        : formData;
+
       const res = await fetch(`/api/workspace-management/department/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
-        setErrors((p) => ({ ...p, code: data.error?.includes('code') ? data.error : undefined, name: data.error?.includes('name') ? data.error : undefined, description: data.error?.includes('description') ? data.error : undefined, headId: data.error?.includes('headId') ? data.error : undefined, general: data.error }));
+        setErrors((p) => ({
+          ...p,
+          code: data.error?.includes('code') ? data.error : undefined,
+          name: data.error?.includes('name') ? data.error : undefined,
+          description: data.error?.includes('description') ? data.error : undefined,
+          headId: data.error?.includes('headId') ? data.error : undefined,
+          general: data.error,
+        }));
         return;
       }
       router.push('/workspace-management/department');
@@ -84,25 +114,39 @@ export default function EditDepartmentPage() {
       {errors.general && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>
       )}
+      {identityLocked && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-sm">
+          Code and name come from Confins and cannot be changed here. You can still update division,
+          description, and department head.
+        </div>
+      )}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block mb-1.5 font-medium">Code <span className="text-red-500">*</span></label>
+            <label className="block mb-1.5 font-medium">
+              Code {!identityLocked && <span className="text-red-500">*</span>}
+            </label>
             <Input
               name="code"
               value={formData.code}
               onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
-              required
+              required={!identityLocked}
+              disabled={identityLocked}
+              readOnly={identityLocked}
             />
             {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
           </div>
           <div>
-            <label className="block mb-1.5 font-medium">Name <span className="text-red-500">*</span></label>
+            <label className="block mb-1.5 font-medium">
+              Name {!identityLocked && <span className="text-red-500">*</span>}
+            </label>
             <Input
               name="name"
               value={formData.name}
               onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-              required
+              required={!identityLocked}
+              disabled={identityLocked}
+              readOnly={identityLocked}
             />
           </div>
           <div>
@@ -138,7 +182,9 @@ export default function EditDepartmentPage() {
             >
               <option value="">-</option>
               {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
               ))}
             </Select>
           </div>
