@@ -13,6 +13,7 @@
  *   - Excluding the actor that triggered the event
  */
 import { prisma } from '@/lib/prisma';
+import { sendNotificationEmails } from '@/lib/email';
 
 export type BudgetPlanNotificationVariant = 'submit' | 'resubmit';
 
@@ -132,5 +133,10 @@ export async function createBudgetPlanNotifications(
       message,
       type,
     })),
+  });
+
+  await sendNotificationEmails(recipientIds, {
+    subject: title,
+    text: message,
   });
 }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { sendNotificationEmails } from '@/lib/email';
 
 /** Users to notify (requestor + anyone with an approval-schema role), excluding the actor. */
 export async function resolvePaymentRequestNotificationRecipientIds(
@@ -60,6 +61,11 @@ export async function createPaymentRequestApprovalNotifications(params: {
       type: params.status === 'Approved' ? 'success' : params.status === 'Declined' ? 'error' : 'info',
     })),
   });
+
+  await sendNotificationEmails(recipientIds, {
+    subject: title,
+    text: message,
+  });
 }
 
 /** When the requestor creates or saves a PR (Draft), notify reviewers who share roles on the approval schema. */
@@ -85,5 +91,10 @@ export async function notifyPaymentRequestAwaitingReview(params: {
       message,
       type: 'info',
     })),
+  });
+
+  await sendNotificationEmails(recipientIds, {
+    subject: title,
+    text: message,
   });
 }
