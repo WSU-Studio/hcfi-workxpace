@@ -81,3 +81,18 @@ export function buildDepartmentScope(
   return { departmentId: userDepartmentId };
 }
 
+/**
+ * Prefer the logged-in user's department when seeding Create BP/BR/PR forms.
+ * Falls back to the first option only when the user has no department (or it
+ * is missing from the options list).
+ */
+export function resolvePreferredDepartmentId(
+  departments: Array<{ id: string }>,
+  userDepartmentId: string | null | undefined,
+): string {
+  if (userDepartmentId && departments.some((department) => department.id === userDepartmentId)) {
+    return userDepartmentId;
+  }
+  return departments[0]?.id ?? '';
+}
+

@@ -17,9 +17,13 @@ import {
 } from '@/lib/auth/azure-ad-provision';
 import {
   loadSessionUserByEmail,
+  loadSessionUserById,
   type SessionUser,
 } from '@/lib/auth/session-user';
 import type { ActivityAccess, MenuAccess } from '@/types/access-control';
+
+/** How often JWT reloads role/access from DB (avoids a query on every API call). */
+const ACCESS_REFRESH_MS = 60_000;
 
 const credentialsProvider = CredentialsProvider({
   name: 'Credentials',
@@ -141,7 +145,12 @@ export const authOptions: AuthOptions = {
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      const userId =
+        (typeof token.id === 'string' && token.id) ||
+        (typeof token.sub === 'string' && token.sub) ||
+        '';
+
       if (user) {
         const u = user as SessionUser;
         token.id = u.id;
@@ -150,7 +159,35 @@ export const authOptions: AuthOptions = {
         token.role = u.role;
         token.departmentId = u.departmentId;
         token.access = u.access;
+        token.accessRefreshedAt = Date.now();
+      } else if (userId) {
+        // Reload access from DB when:
+        // - session.update() was called (Access Control save on self), or
+        // - the throttle window elapsed (picks up admin edits without re-login).
+        // Do NOT query on every getServerSession / API call — that caused load spikes.
+        const lastRefresh =
+          typeof token.accessRefreshedAt === 'number' ? token.accessRefreshedAt : 0;
+        const shouldRefresh =
+          trigger === 'update' || Date.now() - lastRefresh >= ACCESS_REFRESH_MS;
+
+        if (shouldRefresh) {
+          const fresh = await loadSessionUserById(userId);
+          if (!fresh) {
+            return { ...token, error: 'UserUnavailable' };
+          }
+          token.id = fresh.id;
+          token.sub = fresh.id;
+          token.roleId = fresh.roleId;
+          token.role = fresh.role;
+          token.departmentId = fresh.departmentId;
+          token.access = fresh.access;
+          token.name = fresh.name;
+          token.email = fresh.email;
+          if (fresh.image) token.picture = fresh.image;
+          token.accessRefreshedAt = Date.now();
+        }
       }
+
       const raw = token.access as
         | { menuAccess?: MenuAccess; activityAccess?: ActivityAccess }
         | undefined;

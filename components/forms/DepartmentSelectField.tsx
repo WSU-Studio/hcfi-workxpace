@@ -44,13 +44,13 @@ export interface DepartmentSelectFieldProps {
  *
  * Behaviour:
  * - Without `createForOtherDepartment` permission → renders a locked field
- *   showing the user's own department name.
- * - With permission → renders a normal `<Select>` of all departments.
+ *   showing the user's own department name (not a SearchableSelect).
+ * - With permission → renders a SearchableSelect of all departments.
  * - `forcedReadonly` (e.g. a BP/BR is already chosen and pinned the dept)
  *   takes precedence and locks the field regardless of permission.
  *
- * Single responsibility: gate Department editability based on permission +
- * upstream constraint. Reusable across BP / BR / PR new pages (DRY).
+ * Note: SearchableSelect uses a <button> as its trigger — that is normal
+ * combobox UI and is unrelated to the lock. When locked we do not render it.
  */
 export default function DepartmentSelectField({
   value,
