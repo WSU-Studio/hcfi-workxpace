@@ -13,10 +13,11 @@ import {
   uploadBudgetPlanSupportingDocs,
   validateBudgetPlanForm,
 } from '@/lib/budget-plans/form';
+import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
 
 export default function NewBudgetPlanPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const userDepartmentId = session?.user?.departmentId ?? '';
   const canCrossDepartment = Boolean(
     session?.user?.access?.activityAccess?.createForOtherDepartment,
@@ -67,9 +68,6 @@ export default function NewBudgetPlanPage() {
         if (data.fiscalYears?.[0]) {
           setFormData((previous) => ({ ...previous, fiscalYear: data.fiscalYears[0].year }));
         }
-        if (data.departments?.[0]) {
-          setFormData((previous) => ({ ...previous, departmentId: data.departments[0].id }));
-        }
         if (data.projects?.[0]) {
           setFormData((previous) => ({ ...previous, projectId: data.projects[0].id }));
         }
@@ -85,17 +83,34 @@ export default function NewBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [setFormData]);
 
+  // Seed / lock Department after session resolves so we never flash another dept
+  // (e.g. alphabetically-first ACCOUNTING) before the user's own department is known.
   useEffect(() => {
-    if (canCrossDepartment) return;
-    if (!userDepartmentId) return;
+    if (sessionStatus === 'loading') return;
     if (options.departments.length === 0) return;
-    setFormData((previous) =>
-      previous.departmentId === userDepartmentId
-        ? previous
-        : { ...previous, departmentId: userDepartmentId },
-    );
-  }, [canCrossDepartment, userDepartmentId, options.departments, setFormData]);
 
+    const preferredDepartmentId = resolvePreferredDepartmentId(
+      options.departments,
+      userDepartmentId,
+    );
+    if (!preferredDepartmentId) return;
+
+    setFormData((previous) => {
+      if (!canCrossDepartment) {
+        return previous.departmentId === preferredDepartmentId
+          ? previous
+          : { ...previous, departmentId: preferredDepartmentId };
+      }
+      if (previous.departmentId) return previous;
+      return { ...previous, departmentId: preferredDepartmentId };
+    });
+  }, [
+    sessionStatus,
+    canCrossDepartment,
+    userDepartmentId,
+    options.departments,
+    setFormData,
+  ]);
   const schemasForDept = options.approvalSchemas.filter(
     (schema) => schema.departmentId === formData.departmentId,
   );

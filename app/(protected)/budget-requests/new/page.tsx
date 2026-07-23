@@ -16,10 +16,11 @@ import {
   buildLineItemsPayload,
   validateBudgetRequestForm,
 } from '@/lib/budget-requests/form';
+import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
 
 export default function NewBudgetRequestPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const userDepartmentId = session?.user?.departmentId ?? '';
   const canCrossDepartment = Boolean(
     session?.user?.access?.activityAccess?.createForOtherDepartment,
@@ -89,7 +90,6 @@ export default function NewBudgetRequestPage() {
         setFormData((previous) => ({
           ...previous,
           fiscalYear: nextFiscalYears?.[0]?.year ?? previous.fiscalYear,
-          departmentId: nextDepartments?.[0]?.id ?? previous.departmentId,
           projectId: nextProjects?.[0]?.id ?? previous.projectId,
           originOffice:
             nextOriginOffices.length > 0
@@ -104,17 +104,32 @@ export default function NewBudgetRequestPage() {
   }, [setFormData]);
 
   useEffect(() => {
-    if (canCrossDepartment) return;
-    if (!userDepartmentId) return;
+    if (sessionStatus === 'loading') return;
     if (options.departments.length === 0) return;
+
+    const preferredDepartmentId = resolvePreferredDepartmentId(
+      options.departments,
+      userDepartmentId,
+    );
+    if (!preferredDepartmentId) return;
+
     setFormData((previous) => {
       if (previous.budgetPlanId) return previous;
-      return previous.departmentId === userDepartmentId
-        ? previous
-        : { ...previous, departmentId: userDepartmentId };
+      if (!canCrossDepartment) {
+        return previous.departmentId === preferredDepartmentId
+          ? previous
+          : { ...previous, departmentId: preferredDepartmentId };
+      }
+      if (previous.departmentId) return previous;
+      return { ...previous, departmentId: preferredDepartmentId };
     });
-  }, [canCrossDepartment, userDepartmentId, options.departments, setFormData]);
-
+  }, [
+    sessionStatus,
+    canCrossDepartment,
+    userDepartmentId,
+    options.departments,
+    setFormData,
+  ]);
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
     setError(message);
     notifyFormError(message, { fieldRef: field ? fieldRefs[field] : errorBannerRef });

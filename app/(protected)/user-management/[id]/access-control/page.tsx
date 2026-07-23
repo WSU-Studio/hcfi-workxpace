@@ -24,7 +24,7 @@ const initialAccess: UserAccessPayload = {
 export default function UserAccessControlPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { data: session, status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus, update: updateSession } = useSession();
   const userId = params.id;
   const [username, setUsername] = useState('');
   const [access, setAccess] = useState<UserAccessPayload>(initialAccess);
@@ -86,6 +86,11 @@ export default function UserAccessControlPage() {
       if (!response.ok) {
         setError(data.error ?? 'Failed to save access control');
         return;
+      }
+      // If the editor changed their own access, refresh JWT so Create BP/BR/PR
+      // gates reflect the new flags immediately (no re-login required).
+      if (session?.user?.id && session.user.id === userId) {
+        await updateSession();
       }
       router.push('/user-management');
       router.refresh();
