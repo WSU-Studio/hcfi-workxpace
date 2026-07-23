@@ -459,9 +459,9 @@ model BudgetRequest {
   requestDate      DateTime
   status           String                 @default("Draft") // Draft | Pending | Approved
   totalAmount      Decimal                @default(0) @db.Decimal(18, 2)
-  vatPercent       Decimal                @default(11) @db.Decimal(5, 2)
+  vatPercent       Decimal                @default(0) @db.Decimal(5, 2)
   vatAmount        Decimal                @default(0) @db.Decimal(18, 2)
-  whtPercent       Decimal                @default(2) @db.Decimal(5, 2)
+  whtPercent       Decimal                @default(0) @db.Decimal(5, 2)
   whtAmount        Decimal                @default(0) @db.Decimal(18, 2)
   invoiceAmount    Decimal                @default(0) @db.Decimal(18, 2)
   grandTotal       Decimal                @default(0) @db.Decimal(18, 2)
@@ -541,9 +541,9 @@ model PaymentRequest {
   /** Grand total to pay (invoice − WHT); mirrors budget request semantics. */
   amount           Decimal          @db.Decimal(18, 2)
   totalAmount      Decimal          @default(0) @db.Decimal(18, 2)
-  vatPercent       Decimal          @default(11) @db.Decimal(5, 2)
+  vatPercent       Decimal          @default(0) @db.Decimal(5, 2)
   vatAmount        Decimal          @default(0) @db.Decimal(18, 2)
-  whtPercent       Decimal          @default(2) @db.Decimal(5, 2)
+  whtPercent       Decimal          @default(0) @db.Decimal(5, 2)
   whtAmount        Decimal          @default(0) @db.Decimal(18, 2)
   invoiceAmount    Decimal          @default(0) @db.Decimal(18, 2)
   currency         String           @default("IDR")
