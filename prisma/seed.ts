@@ -165,11 +165,27 @@ async function upsertApprovalSchemaWithLevels(seed: ApprovalSchemaSeed) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Division (parent of Department)
+  const division = await prisma.division.upsert({
+    where: { code: 'TECH' },
+    update: { name: 'Technology' },
+    create: {
+      code: 'TECH',
+      name: 'Technology',
+      description: 'Technology & digital operations',
+    },
+  });
+
   // Department
   const dept = await prisma.department.upsert({
     where: { code: 'IT' },
-    update: {},
-    create: { code: 'IT', name: 'IT', description: 'Information Technology' },
+    update: { divisionId: division.id },
+    create: {
+      code: 'IT',
+      name: 'IT',
+      description: 'Information Technology',
+      divisionId: division.id,
+    },
   });
 
   // ── Roles ────────────────────────────────────────────────────────────────
