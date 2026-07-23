@@ -9,7 +9,16 @@ import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
-import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import {
+  Table,
+  TableBodyRow,
+  TableCell,
+  TableEmptyRow,
+  TableHead,
+  TableHeaderRow,
+  TableScroll,
+  stickyListCol,
+} from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
 import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
 import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
@@ -372,36 +381,37 @@ const handleImportRows = async () => {
         </div>
       </div>
       <Card>
-        <Table>
-          <thead>
-            <TableHeaderRow>
-              <TableHead>#</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Total Budget</TableHead>
-              <TableHead>Month(s)</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableHeaderRow>
-          </thead>
-          <tbody>
-            {currentPlans.length === 0 ? (
-              <TableEmptyRow colSpan={8}>
-                No budget plans. <Link href="/budget-plans/new" className="text-blue-600 hover:underline">Create one</Link>
-              </TableEmptyRow>
-            ) : (
-              currentPlans.map((p, i) => (
-                <TableBodyRow key={p.id}>
-                  <TableCell>{startIndex + i + 1}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span>{formatDate(p.createdAt)}</span>
-                      <span className="text-xs text-gray-500 -mt-1">at {formatTime(p.createdAt)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{p.code}</TableCell>
+        <TableScroll>
+          <Table className="min-w-[960px]">
+            <thead>
+              <TableHeaderRow>
+                <TableHead className={stickyListCol.index.head}>#</TableHead>
+                <TableHead className={stickyListCol.createdAt.head}>Created At</TableHead>
+                <TableHead className={stickyListCol.id.head}>ID</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Total Budget</TableHead>
+                <TableHead>Month(s)</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableHeaderRow>
+            </thead>
+            <tbody>
+              {currentPlans.length === 0 ? (
+                <TableEmptyRow colSpan={9}>
+                  No budget plans. <Link href="/budget-plans/new" className="text-blue-600 hover:underline">Create one</Link>
+                </TableEmptyRow>
+              ) : (
+                currentPlans.map((p, i) => (
+                  <TableBodyRow key={p.id}>
+                    <TableCell className={stickyListCol.index.cell}>{startIndex + i + 1}</TableCell>
+                    <TableCell className={stickyListCol.createdAt.cell}>
+                      <div className="flex flex-col">
+                        <span>{formatDate(p.createdAt)}</span>
+                        <span className="text-xs text-gray-500 -mt-1">at {formatTime(p.createdAt)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className={stickyListCol.id.cell}>{p.code}</TableCell>
                   <TableCell>{p.subject}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1">
@@ -472,8 +482,9 @@ const handleImportRows = async () => {
                 </TableBodyRow>
               ))
             )}
-          </tbody>
-        </Table>
+            </tbody>
+          </Table>
+        </TableScroll>
       </Card>
       <Pagination
         currentPage={currentPage}

@@ -8,7 +8,16 @@ import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
-import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import {
+  Table,
+  TableBodyRow,
+  TableCell,
+  TableEmptyRow,
+  TableHead,
+  TableHeaderRow,
+  TableScroll,
+  stickyListCol,
+} from '@/components/ui/Table';
 import Tooltip from '@/components/ui/Tooltip';
 import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
 import {
@@ -196,41 +205,42 @@ export default function PaymentRequestsPage() {
         </Link>
       </div>
       <Card>
-        <Table>
-          <thead>
-            <TableHeaderRow>
-              <TableHead>#</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Requested By</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Budget Request</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableHeaderRow>
-          </thead>
-          <tbody>
-            {currentRequests.length === 0 ? (
-              <TableEmptyRow colSpan={10}>
-                No payment requests.{' '}
-                <Link href="/payment-requests/new" className="text-blue-600 hover:underline">
-                  Create one
-                </Link>
-                {' — optionally link an approved budget request.'}
-              </TableEmptyRow>
-            ) : (
-              currentRequests.map((r, i) => (
-                <TableBodyRow key={r.id}>
-                  <TableCell>{startIndex + i + 1}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span>{formatDate(r.createdAt)}</span>
-                      <span className="text-xs text-gray-500 -mt-1">at {formatTime(r.createdAt)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{r.code}</TableCell>
+        <TableScroll>
+          <Table className="min-w-[1024px]">
+            <thead>
+              <TableHeaderRow>
+                <TableHead className={stickyListCol.index.head}>#</TableHead>
+                <TableHead className={stickyListCol.createdAt.head}>Created At</TableHead>
+                <TableHead className={stickyListCol.id.head}>ID</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Requested By</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Budget Request</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableHeaderRow>
+            </thead>
+            <tbody>
+              {currentRequests.length === 0 ? (
+                <TableEmptyRow colSpan={10}>
+                  No payment requests.{' '}
+                  <Link href="/payment-requests/new" className="text-blue-600 hover:underline">
+                    Create one
+                  </Link>
+                  {' — optionally link an approved budget request.'}
+                </TableEmptyRow>
+              ) : (
+                currentRequests.map((r, i) => (
+                  <TableBodyRow key={r.id}>
+                    <TableCell className={stickyListCol.index.cell}>{startIndex + i + 1}</TableCell>
+                    <TableCell className={stickyListCol.createdAt.cell}>
+                      <div className="flex flex-col">
+                        <span>{formatDate(r.createdAt)}</span>
+                        <span className="text-xs text-gray-500 -mt-1">at {formatTime(r.createdAt)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className={stickyListCol.id.cell}>{r.code}</TableCell>
                   <TableCell>{r.subject}</TableCell>
                   <TableCell>{r.requestorName ?? '-'}</TableCell>
                   <TableCell>
@@ -298,8 +308,9 @@ export default function PaymentRequestsPage() {
                 </TableBodyRow>
               ))
             )}
-          </tbody>
-        </Table>
+            </tbody>
+          </Table>
+        </TableScroll>
       </Card>
       <Pagination
         currentPage={currentPage}

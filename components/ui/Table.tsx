@@ -1,6 +1,30 @@
 import { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
+/** Horizontal scroll shell — pair with sticky list columns on small screens. */
+export function TableScroll({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('overflow-x-auto', className)} {...props} />;
+}
+
+/**
+ * Sticky left columns for list tables (# / Created At / ID).
+ * Fixed min-widths keep `left` offsets aligned while the rest of the row scrolls.
+ */
+export const stickyListCol = {
+  index: {
+    head: 'sticky left-0 z-20 min-w-12 w-12 bg-white print:static',
+    cell: 'sticky left-0 z-10 min-w-12 w-12 bg-white group-hover:bg-gray-50 print:static',
+  },
+  createdAt: {
+    head: 'sticky left-12 z-20 min-w-[8.5rem] w-[8.5rem] bg-white whitespace-nowrap print:static',
+    cell: 'sticky left-12 z-10 min-w-[8.5rem] w-[8.5rem] bg-white whitespace-nowrap group-hover:bg-gray-50 print:static',
+  },
+  id: {
+    head: 'sticky left-[11.5rem] z-20 min-w-[9rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
+    cell: 'sticky left-[11.5rem] z-10 min-w-[9rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
+  },
+} as const;
+
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return <table className={cn('w-full', className)} {...props} />;
 }
@@ -10,7 +34,12 @@ export function TableHeaderRow({ className, ...props }: HTMLAttributes<HTMLTable
 }
 
 export function TableBodyRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('border-b border-gray-400 hover:bg-gray-50 [&_td]:align-top', className)} {...props} />;
+  return (
+    <tr
+      className={cn('group border-b border-gray-400 hover:bg-gray-50 [&_td]:align-top', className)}
+      {...props}
+    />
+  );
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
