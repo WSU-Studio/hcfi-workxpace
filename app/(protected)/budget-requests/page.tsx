@@ -22,7 +22,7 @@ import Tooltip from '@/components/ui/Tooltip';
 import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
 import EditWarningModal from '@/components/ui/EditWarningModal';
 import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
-import { formatDate, formatTime } from '@/lib/utils';
+import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import {
   ALL_FISCAL_YEARS,
   type FiscalYearFilterValue,
@@ -36,6 +36,7 @@ interface BudgetRequest {
   subject: string;
   createdAt: string;
   status: string;
+  grandTotal?: number | string;
   requestorName?: string | null;
   canEdit?: boolean;
   canReview?: boolean;
@@ -196,7 +197,7 @@ export default function BudgetRequestsPage() {
       </div>
       <Card>
         <TableScroll>
-          <Table className="min-w-[960px]">
+          <Table className="min-w-[1024px]">
             <thead>
               <TableHeaderRow>
                 <TableHead className={stickyListCol.index.head}>#</TableHead>
@@ -204,6 +205,7 @@ export default function BudgetRequestsPage() {
                 <TableHead className={stickyListCol.id.head}>ID</TableHead>
                 <TableHead>Subject</TableHead>
                 <TableHead>Requested By</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Budget Plan</TableHead>
@@ -212,7 +214,7 @@ export default function BudgetRequestsPage() {
             </thead>
             <tbody>
               {currentRequests.length === 0 ? (
-                <TableEmptyRow colSpan={9}>
+                <TableEmptyRow colSpan={10}>
                   No budget requests. <Link href="/budget-requests/new" className="text-blue-600 hover:underline">Create one</Link> from an approved budget plan.
                 </TableEmptyRow>
               ) : (
@@ -228,6 +230,9 @@ export default function BudgetRequestsPage() {
                     <TableCell className={stickyListCol.id.cell}>{r.code}</TableCell>
                   <TableCell>{r.subject}</TableCell>
                   <TableCell>{r.requestorName ?? '-'}</TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                    {formatCurrency(Number(r.grandTotal ?? 0))}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1">
                       {(() => {

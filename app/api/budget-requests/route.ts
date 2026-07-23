@@ -78,6 +78,11 @@ export async function GET(request: Request) {
 
     const requests = rows.map(({ approvalSchema, ...r }) => ({
       ...r,
+      grandTotal: Number(r.grandTotal ?? 0),
+      totalAmount: Number(r.totalAmount ?? 0),
+      vatAmount: Number(r.vatAmount ?? 0),
+      whtAmount: Number(r.whtAmount ?? 0),
+      invoiceAmount: Number(r.invoiceAmount ?? 0),
       requestorName: r.requestorId ? requestorNameMap.get(r.requestorId) ?? null : null,
       canEdit:
         !!session?.user?.id &&
