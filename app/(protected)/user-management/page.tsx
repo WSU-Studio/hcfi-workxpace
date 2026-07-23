@@ -10,7 +10,16 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import SearchInput from '@/components/ui/SearchInput';
 import { formatDate } from '@/lib/utils';
-import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import {
+  Table,
+  TableBodyRow,
+  TableCell,
+  TableEmptyRow,
+  TableHead,
+  TableHeaderRow,
+  TableScroll,
+  stickyListCol,
+} from '@/components/ui/Table';
 import UserActions from './components/UserActions';
 import { UserListItem } from '@/types/user-management';
 import { isConfinsEmployeeSyncEnabled } from '@/lib/deployment/tenant-features';
@@ -243,56 +252,58 @@ export default function UserManagementPage() {
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-600">{error}</div>}
 
       <Card>
-        <Table>
-          <thead>
-            <TableHeaderRow>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Employee ID</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-16" />
-            </TableHeaderRow>
-          </thead>
-          <tbody>
-            {currentUsers.length === 0 ? (
-              <TableEmptyRow colSpan={8}>{searchKeyword.trim() ? 'No users match your search' : 'No users yet'}</TableEmptyRow>
-            ) : (
-              currentUsers.map((user, index) => (
-                <TableBodyRow key={user.id}>
-                  <TableCell>{startIndex + index + 1}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <p className="font-medium text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-700 -mt-1">{user.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{user.employeeId}</TableCell>
-                  <TableCell>{user.role ? `${user.role.roleCode} - ${user.role.roleName}` : '-'}</TableCell>
-                  <TableCell>{user.department ? `${user.department.code} - ${user.department.name}` : '-'}</TableCell>
-                  <TableCell>
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </TableCell>
-                  <TableCell>{formatDate(user.createdAt)}</TableCell>
-                  <TableCell>
-                    <UserActions
-                      userId={user.id}
-                      sessionUserId={session?.user?.id}
-                      canEditUser={canEditUser}
-                      canDeleteUser={canDeleteUser}
-                      canChangeAccess={canChangeAccess}
-                      onDelete={fetchUsers}
-                    />
-                  </TableCell>
-                </TableBodyRow>
-              ))
-            )}
-          </tbody>
-        </Table>
+        <TableScroll>
+          <Table className="min-w-[960px]">
+            <thead>
+              <TableHeaderRow>
+                <TableHead className={stickyListCol.index.head}>#</TableHead>
+                <TableHead className={stickyListCol.name.head}>Name</TableHead>
+                <TableHead>Employee ID</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="w-16" />
+              </TableHeaderRow>
+            </thead>
+            <tbody>
+              {currentUsers.length === 0 ? (
+                <TableEmptyRow colSpan={8}>{searchKeyword.trim() ? 'No users match your search' : 'No users yet'}</TableEmptyRow>
+              ) : (
+                currentUsers.map((user, index) => (
+                  <TableBodyRow key={user.id}>
+                    <TableCell className={stickyListCol.index.cell}>{startIndex + index + 1}</TableCell>
+                    <TableCell className={stickyListCol.name.cell}>
+                      <div className="flex min-w-0 flex-col">
+                        <p className="truncate font-medium text-gray-900">{user.name}</p>
+                        <p className="truncate text-xs text-gray-700 -mt-1">{user.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.employeeId}</TableCell>
+                    <TableCell>{user.role ? `${user.role.roleCode} - ${user.role.roleName}` : '-'}</TableCell>
+                    <TableCell>{user.department ? `${user.department.code} - ${user.department.name}` : '-'}</TableCell>
+                    <TableCell>
+                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </TableCell>
+                    <TableCell>{formatDate(user.createdAt)}</TableCell>
+                    <TableCell>
+                      <UserActions
+                        userId={user.id}
+                        sessionUserId={session?.user?.id}
+                        canEditUser={canEditUser}
+                        canDeleteUser={canDeleteUser}
+                        canChangeAccess={canChangeAccess}
+                        onDelete={fetchUsers}
+                      />
+                    </TableCell>
+                  </TableBodyRow>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </TableScroll>
       </Card>
 
       <Pagination
