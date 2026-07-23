@@ -111,7 +111,7 @@ export default function DivisionPage() {
               <TableHeaderRow>
                 <TableHead className={stickyListCol.index.head}>#</TableHead>
                 <TableHead className={stickyListCol.code.head}>Code</TableHead>
-                <TableHead className={stickyListCol.nameAfterCode.head}>Name</TableHead>
+                <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Departments</TableHead>
                 <TableHead className="w-16" />
@@ -125,10 +125,12 @@ export default function DivisionPage() {
                   <TableBodyRow key={row.id}>
                     <TableCell className={stickyListCol.index.cell}>{startIndex + i + 1}</TableCell>
                     <TableCell className={stickyListCol.code.cell}>{row.code}</TableCell>
-                    <TableCell className={cn(stickyListCol.nameAfterCode.cell, 'truncate')} title={row.name}>
+                    <TableCell className="truncate" title={row.name}>
                       {row.name}
                     </TableCell>
-                    <TableCell>{stripHtmlTags(row.description)}</TableCell>
+                    <TableCell title={stripHtmlTags(row.description) || undefined}>
+                      <div className="line-clamp-3 max-w-xs">{stripHtmlTags(row.description)}</div>
+                    </TableCell>
                     <TableCell>{row._count?.departments ?? row.departments?.length ?? 0}</TableCell>
                     <TableCell>
                       <DivisionActions
