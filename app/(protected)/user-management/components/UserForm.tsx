@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -31,6 +32,7 @@ const initialForm: UserFormData = {
 
 export default function UserForm({ userId }: UserFormProps) {
   const router = useRouter();
+  const { data: session, update: updateSession } = useSession();
   const [isLoading, setIsLoading] = useState(Boolean(userId));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -101,6 +103,10 @@ export default function UserForm({ userId }: UserFormProps) {
       if (!response.ok) {
         setError(data.error ?? 'Failed to save user');
         return;
+      }
+      // Editing own profile (e.g. department) — refresh JWT so Create BP shows the new dept.
+      if (userId && session?.user?.id === userId) {
+        await updateSession();
       }
       router.push('/user-management');
       router.refresh();

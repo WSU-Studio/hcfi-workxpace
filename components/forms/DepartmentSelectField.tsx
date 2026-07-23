@@ -80,11 +80,10 @@ export default function DepartmentSelectField({
 
   const isLockedToOwnDepartment = !canCrossDepartment;
 
-  // When the user is locked to their own department but the form value drifts
-  // (e.g. options endpoint default, or a stale state), surface the user's own
-  // department label instead of empty/whitespace. Server still re-validates.
+  // When locked, only show the session user's department — never fall back to a
+  // stale form value (e.g. alphabetically-first ACCOUNTING) from options bootstrap.
   const displayDepartment = isLockedToOwnDepartment
-    ? userDepartment ?? selectedDepartment
+    ? userDepartment
     : selectedDepartment;
 
   return (

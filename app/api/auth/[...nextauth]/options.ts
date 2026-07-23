@@ -23,7 +23,7 @@ import {
 import type { ActivityAccess, MenuAccess } from '@/types/access-control';
 
 /** How often JWT reloads role/access from DB (avoids a query on every API call). */
-const ACCESS_REFRESH_MS = 60_000;
+const ACCESS_REFRESH_MS = 30_000;
 
 const credentialsProvider = CredentialsProvider({
   name: 'Credentials',
