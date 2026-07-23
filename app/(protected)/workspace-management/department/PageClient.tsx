@@ -5,12 +5,21 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Department } from '@/types/department';
-import { stripHtmlTags } from '@/lib/utils';
+import { stripHtmlTags, cn } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
-import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import {
+  Table,
+  TableBodyRow,
+  TableCell,
+  TableEmptyRow,
+  TableHead,
+  TableHeaderRow,
+  TableScroll,
+  stickyListCol,
+} from '@/components/ui/Table';
 import DepartmentActions from './components/DepartmentActions';
 import { canShowMasterCrud, canShowMasterEdit, isSyncManagedMaster } from '@/lib/workspace-master-ui-policy';
 import MasterSyncBanner from '@/components/workspace-management/MasterSyncBanner';
@@ -163,45 +172,49 @@ export default function DepartmentPage() {
       {error && <div className="text-red-500 py-4">{error}</div>}
 
       <Card>
-        <Table>
-          <thead>
-            <TableHeaderRow>
-              <TableHead>#</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Division</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Head</TableHead>
-              <TableHead className="w-16" />
-            </TableHeaderRow>
-          </thead>
-          <tbody>
-            {currentDepartments.length === 0 ? (
-              <TableEmptyRow colSpan={7}>{searchKeyword.trim() ? 'No matches' : 'No departments'}</TableEmptyRow>
-            ) : (
-              currentDepartments.map((dept, i) => (
-                <TableBodyRow key={dept.id}>
-                  <TableCell>{startIndex + i + 1}</TableCell>
-                  <TableCell>{dept.code}</TableCell>
-                  <TableCell>{dept.name}</TableCell>
-                  <TableCell>
-                    {dept.division ? `${dept.division.code} — ${dept.division.name}` : '-'}
-                  </TableCell>
-                  <TableCell>{stripHtmlTags(dept.description)}</TableCell>
-                  <TableCell>{(dept.head as { name?: string })?.name ?? '-'}</TableCell>
-                  <TableCell>
-                    <DepartmentActions
-                      departmentId={dept.id}
-                      onDelete={refetch}
-                      canEdit={canEditDepartment}
-                      canDelete={canDeleteDepartment}
-                    />
-                  </TableCell>
-                </TableBodyRow>
-              ))
-            )}
-          </tbody>
-        </Table>
+        <TableScroll>
+          <Table className="min-w-[800px]">
+            <thead>
+              <TableHeaderRow>
+                <TableHead className={stickyListCol.index.head}>#</TableHead>
+                <TableHead className={stickyListCol.code.head}>Code</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Division</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Head</TableHead>
+                <TableHead className="w-16" />
+              </TableHeaderRow>
+            </thead>
+            <tbody>
+              {currentDepartments.length === 0 ? (
+                <TableEmptyRow colSpan={7}>{searchKeyword.trim() ? 'No matches' : 'No departments'}</TableEmptyRow>
+              ) : (
+                currentDepartments.map((dept, i) => (
+                  <TableBodyRow key={dept.id}>
+                    <TableCell className={stickyListCol.index.cell}>{startIndex + i + 1}</TableCell>
+                    <TableCell className={stickyListCol.code.cell}>{dept.code}</TableCell>
+                    <TableCell className="truncate" title={dept.name}>
+                      {dept.name}
+                    </TableCell>
+                    <TableCell>
+                      {dept.division ? `${dept.division.code} — ${dept.division.name}` : '-'}
+                    </TableCell>
+                    <TableCell>{stripHtmlTags(dept.description)}</TableCell>
+                    <TableCell>{(dept.head as { name?: string })?.name ?? '-'}</TableCell>
+                    <TableCell>
+                      <DepartmentActions
+                        departmentId={dept.id}
+                        onDelete={refetch}
+                        canEdit={canEditDepartment}
+                        canDelete={canDeleteDepartment}
+                      />
+                    </TableCell>
+                  </TableBodyRow>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </TableScroll>
       </Card>
       <Pagination
         currentPage={currentPage}
