@@ -77,25 +77,28 @@ export class ConfinsMasterSyncService {
       if (!code || !name) continue;
 
       const existing = await prisma.department.findUnique({ where: { code } });
+      const isActive = row.IsActive !== false;
       if (!existing) {
         await prisma.department.create({
           data: {
             code,
             name,
             description: syncDescription('department'),
+            isActive,
           },
         });
         created += 1;
+        if (!isActive) deactivated += 1;
         continue;
       }
 
-      // Preserve local enrichment (description, headId, divisionId). Confins owns code/name only.
+      // Preserve local enrichment (description, headId, divisionId). Confins owns code/name/isActive.
       await prisma.department.update({
         where: { id: existing.id },
-        data: { name },
+        data: { name, isActive },
       });
       updated += 1;
-      if (row.IsActive === false) deactivated += 1;
+      if (!isActive) deactivated += 1;
     }
 
     return {
