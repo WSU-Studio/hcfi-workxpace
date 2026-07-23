@@ -11,6 +11,7 @@ export function TableScroll({ className, ...props }: HTMLAttributes<HTMLDivEleme
  * Fixed min-widths keep `left` offsets aligned while the rest of the row scrolls.
  * - BP/BR/PR: index → createdAt → id (edge shadow)
  * - User list: index → name (edge shadow)
+ * - Master (Division/Department): index → code → name (edge shadow)
  */
 export const stickyListCol = {
   index: {
@@ -28,6 +29,16 @@ export const stickyListCol = {
   name: {
     head: 'sticky left-12 z-20 min-w-[14rem] w-[14rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
     cell: 'sticky left-12 z-10 min-w-[14rem] w-[14rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
+  },
+  /** Second sticky col after # (e.g. master Code). */
+  code: {
+    head: 'sticky left-12 z-20 min-w-[6.5rem] w-[6.5rem] bg-white whitespace-nowrap print:static',
+    cell: 'sticky left-12 z-10 min-w-[6.5rem] w-[6.5rem] bg-white whitespace-nowrap group-hover:bg-gray-50 print:static',
+  },
+  /** Third sticky col after # + Code (e.g. master Name) — edge shadow. */
+  nameAfterCode: {
+    head: 'sticky left-[9.5rem] z-20 min-w-[12rem] w-[12rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
+    cell: 'sticky left-[9.5rem] z-10 min-w-[12rem] w-[12rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
   },
 } as const;
 

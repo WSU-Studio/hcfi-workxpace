@@ -5,12 +5,21 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Division } from '@/types/division';
-import { stripHtmlTags } from '@/lib/utils';
+import { cn, stripHtmlTags } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Card from '@/components/ui/Card';
 import SearchInput from '@/components/ui/SearchInput';
-import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import {
+  Table,
+  TableBodyRow,
+  TableCell,
+  TableEmptyRow,
+  TableHead,
+  TableHeaderRow,
+  TableScroll,
+  stickyListCol,
+} from '@/components/ui/Table';
 import DivisionActions from './components/DivisionActions';
 
 export default function DivisionPage() {
@@ -96,41 +105,45 @@ export default function DivisionPage() {
       {error && <div className="text-red-500 py-4">{error}</div>}
 
       <Card>
-        <Table>
-          <thead>
-            <TableHeaderRow>
-              <TableHead>#</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Departments</TableHead>
-              <TableHead className="w-16" />
-            </TableHeaderRow>
-          </thead>
-          <tbody>
-            {currentRows.length === 0 ? (
-              <TableEmptyRow colSpan={6}>{searchKeyword.trim() ? 'No matches' : 'No divisions'}</TableEmptyRow>
-            ) : (
-              currentRows.map((row, i) => (
-                <TableBodyRow key={row.id}>
-                  <TableCell>{startIndex + i + 1}</TableCell>
-                  <TableCell>{row.code}</TableCell>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>{stripHtmlTags(row.description)}</TableCell>
-                  <TableCell>{row._count?.departments ?? row.departments?.length ?? 0}</TableCell>
-                  <TableCell>
-                    <DivisionActions
-                      divisionId={row.id}
-                      onDelete={refetch}
-                      canEdit={canEdit}
-                      canDelete={canDelete}
-                    />
-                  </TableCell>
-                </TableBodyRow>
-              ))
-            )}
-          </tbody>
-        </Table>
+        <TableScroll>
+          <Table className="min-w-[720px]">
+            <thead>
+              <TableHeaderRow>
+                <TableHead className={stickyListCol.index.head}>#</TableHead>
+                <TableHead className={stickyListCol.code.head}>Code</TableHead>
+                <TableHead className={stickyListCol.nameAfterCode.head}>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Departments</TableHead>
+                <TableHead className="w-16" />
+              </TableHeaderRow>
+            </thead>
+            <tbody>
+              {currentRows.length === 0 ? (
+                <TableEmptyRow colSpan={6}>{searchKeyword.trim() ? 'No matches' : 'No divisions'}</TableEmptyRow>
+              ) : (
+                currentRows.map((row, i) => (
+                  <TableBodyRow key={row.id}>
+                    <TableCell className={stickyListCol.index.cell}>{startIndex + i + 1}</TableCell>
+                    <TableCell className={stickyListCol.code.cell}>{row.code}</TableCell>
+                    <TableCell className={cn(stickyListCol.nameAfterCode.cell, 'truncate')} title={row.name}>
+                      {row.name}
+                    </TableCell>
+                    <TableCell>{stripHtmlTags(row.description)}</TableCell>
+                    <TableCell>{row._count?.departments ?? row.departments?.length ?? 0}</TableCell>
+                    <TableCell>
+                      <DivisionActions
+                        divisionId={row.id}
+                        onDelete={refetch}
+                        canEdit={canEdit}
+                        canDelete={canDelete}
+                      />
+                    </TableCell>
+                  </TableBodyRow>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </TableScroll>
       </Card>
       <Pagination
         currentPage={currentPage}
