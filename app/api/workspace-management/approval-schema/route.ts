@@ -4,8 +4,20 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { validateApprovalSchemaCode } from '@/lib/forms/approval-schema-validation';
+import { selectableDepartmentWhere } from '@/lib/department/selectable';
 
 export const dynamic = 'force-dynamic';
+
+async function assertActiveDepartment(departmentId: string, allowId?: string | null) {
+  if (allowId && departmentId === allowId) return null;
+  const department = await prisma.department.findUnique({
+    where: { id: departmentId },
+    select: { isActive: true, code: true },
+  });
+  if (!department) return 'Invalid department';
+  if (!department.isActive) return `Department ${department.code} is inactive and cannot be selected`;
+  return null;
+}
 
 export async function GET() {
   try {
@@ -19,7 +31,10 @@ export async function GET() {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
+    const departments = await prisma.department.findMany({
+      where: selectableDepartmentWhere(),
+      orderBy: { code: 'asc' },
+    });
     const roles = await prisma.role.findMany({ orderBy: { roleCode: 'asc' } });
     return NextResponse.json({ schemas, departments, roles });
   } catch (error) {
@@ -37,6 +52,11 @@ export async function POST(request: Request) {
     const codeResult = validateApprovalSchemaCode(body.code);
     if (!codeResult.ok) {
       return NextResponse.json({ error: codeResult.error }, { status: 400 });
+    }
+
+    const departmentError = await assertActiveDepartment(String(body.departmentId ?? ''));
+    if (departmentError) {
+      return NextResponse.json({ error: departmentError }, { status: 400 });
     }
 
     const schema = await prisma.approvalSchema.create({
@@ -64,8 +84,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(schema);
   } catch (error) {
-    // Surface the unique-constraint clash with a user-facing message instead
-    // of a generic 500 so the form can show it inline.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Code already in use by another approval schema' },

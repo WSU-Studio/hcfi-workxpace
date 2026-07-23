@@ -80,6 +80,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         description: body.description || null,
         headId: body.headId || null,
         divisionId: body.divisionId || null,
+        isActive: body.isActive !== false,
       },
     });
 

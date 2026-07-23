@@ -72,6 +72,19 @@ export default function UserForm({ userId }: UserFormProps) {
           departmentId: user.departmentId ?? data.departments?.[0]?.id ?? '',
           isActive: user.isActive !== false,
         });
+        // Keep current (possibly inactive) department visible on edit so the value is not blank.
+        if (user.department?.id) {
+          setDepartments((prev) => {
+            if (prev.some((item) => item.id === user.department.id)) return prev;
+            return [
+              ...prev,
+              {
+                id: user.department.id,
+                label: `${user.department.code} - ${user.department.name} (inactive)`,
+              },
+            ];
+          });
+        }
       } catch {
         setError('Failed to load form');
       } finally {

@@ -153,7 +153,7 @@ export default function DepartmentPage() {
           onSync={runSync}
           latestSync={latestSync}
           message={syncMessage}
-          note="Code & name dari Confins. Division, description, dan head tetap bisa diedit di aplikasi."
+          note="Code & name dari Confins. Division, description, head, dan status active tetap bisa diedit di aplikasi."
         />
       )}
       <div className="flex items-center justify-between gap-4">
@@ -173,7 +173,7 @@ export default function DepartmentPage() {
 
       <Card>
         <TableScroll>
-          <Table className="min-w-[800px]">
+          <Table className="min-w-[880px]">
             <thead>
               <TableHeaderRow>
                 <TableHead className={stickyListCol.index.head}>#</TableHead>
@@ -182,12 +182,13 @@ export default function DepartmentPage() {
                 <TableHead>Division</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Head</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-16" />
               </TableHeaderRow>
             </thead>
             <tbody>
               {currentDepartments.length === 0 ? (
-                <TableEmptyRow colSpan={7}>{searchKeyword.trim() ? 'No matches' : 'No departments'}</TableEmptyRow>
+                <TableEmptyRow colSpan={8}>{searchKeyword.trim() ? 'No matches' : 'No departments'}</TableEmptyRow>
               ) : (
                 currentDepartments.map((dept, i) => (
                   <TableBodyRow key={dept.id}>
@@ -201,6 +202,17 @@ export default function DepartmentPage() {
                     </TableCell>
                     <TableCell>{stripHtmlTags(dept.description)}</TableCell>
                     <TableCell>{(dept.head as { name?: string })?.name ?? '-'}</TableCell>
+                    <TableCell>
+                      <span
+                        className={
+                          dept.isActive !== false
+                            ? 'text-emerald-700'
+                            : 'text-gray-500'
+                        }
+                      >
+                        {dept.isActive !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <DepartmentActions
                         departmentId={dept.id}

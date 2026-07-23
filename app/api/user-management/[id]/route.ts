@@ -68,6 +68,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (emailTaken) return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
     if (employeeTaken) return NextResponse.json({ error: 'Employee ID already in use' }, { status: 400 });
     if (!role || !department) return NextResponse.json({ error: 'Invalid role or department' }, { status: 400 });
+    if (!department.isActive && departmentId !== existing.departmentId) {
+      return NextResponse.json(
+        { error: `Department ${department.code} is inactive and cannot be selected` },
+        { status: 400 }
+      );
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({

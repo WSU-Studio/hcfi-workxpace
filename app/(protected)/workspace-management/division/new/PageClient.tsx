@@ -30,7 +30,7 @@ export default function NewDivisionPage() {
   const [errors, setErrors] = useState<{ code?: string; name?: string; general?: string }>({});
 
   useEffect(() => {
-    fetch('/api/workspace-management/department')
+    fetch('/api/workspace-management/department?activeOnly=true')
       .then((res) => (res.ok ? res.json() : { departments: [] }))
       .then((data) => setDepartments(data.departments ?? []))
       .catch(() => setDepartments([]));

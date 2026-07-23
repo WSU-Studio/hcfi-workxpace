@@ -25,6 +25,7 @@ export default function NewDepartmentPage() {
     description: '',
     headId: '',
     divisionId: '',
+    isActive: true,
   });
   const [errors, setErrors] = useState<{ code?: string; name?: string; description?: string; headId?: string; general?: string }>({});
   const [divisions, setDivisions] = useState<Array<{ id: string; code: string; name: string }>>([]);
@@ -130,6 +131,15 @@ export default function NewDepartmentPage() {
               ))}
             </Select>
           </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Active
+          </label>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <ButtonLink href="/workspace-management/department" variant="outline">
               <X className="w-4 h-4" />

@@ -14,6 +14,7 @@ interface Department {
   code: string;
   name: string;
   description: string | null;
+  isActive?: boolean;
   head?: { name: string } | null;
   division?: { code: string; name: string } | null;
 }
@@ -82,6 +83,10 @@ export default function DepartmentDetailPage() {
         <div>
           <label className="text-sm text-gray-500">Head</label>
           <p className="font-medium">{department.head?.name ?? '-'}</p>
+        </div>
+        <div>
+          <label className="text-sm text-gray-500">Status</label>
+          <p className="font-medium">{department.isActive !== false ? 'Active' : 'Inactive'}</p>
         </div>
         {canEditDepartment && (
           <div className="pt-4">

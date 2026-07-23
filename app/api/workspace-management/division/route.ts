@@ -51,6 +51,15 @@ export async function POST(request: Request) {
       });
 
       if (departmentIds.length > 0) {
+        const inactive = await tx.department.findMany({
+          where: { id: { in: departmentIds }, isActive: false },
+          select: { code: true },
+        });
+        if (inactive.length > 0) {
+          throw new Error(
+            `Inactive departments cannot be assigned: ${inactive.map((d) => d.code).join(', ')}`
+          );
+        }
         await tx.department.updateMany({
           where: { id: { in: departmentIds } },
           data: { divisionId: created.id },
@@ -68,6 +77,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(division);
   } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message.startsWith('Inactive departments')) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     console.error('Failed to create division:', error);
     return NextResponse.json({ error: 'Failed to create division' }, { status: 500 });
   }

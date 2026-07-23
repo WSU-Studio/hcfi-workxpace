@@ -6,9 +6,13 @@ import { isSyncManagedMaster } from '@/lib/workspace-master-ui-policy';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const activeOnly = searchParams.get('activeOnly') === 'true';
+
     const departments = await prisma.department.findMany({
+      where: activeOnly ? { isActive: true } : undefined,
       include: {
         head: { select: { id: true, name: true } },
         division: { select: { id: true, code: true, name: true } },
@@ -49,6 +53,7 @@ export async function POST(request: Request) {
         description: body.description || null,
         headId: body.headId || null,
         divisionId: body.divisionId || null,
+        isActive: body.isActive !== false,
       },
     });
 

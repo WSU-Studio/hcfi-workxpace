@@ -31,6 +31,7 @@ export default function EditDepartmentPage() {
     description: '',
     headId: '',
     divisionId: '',
+    isActive: true,
   });
   const [errors, setErrors] = useState<{
     code?: string;
@@ -56,6 +57,7 @@ export default function EditDepartmentPage() {
             description: d.description ?? '',
             headId: d.headId ?? '',
             divisionId: d.divisionId ?? '',
+            isActive: d.isActive !== false,
           });
         }
         if (typeof deptData.identityFieldsLocked === 'boolean') {
@@ -78,6 +80,7 @@ export default function EditDepartmentPage() {
             description: formData.description,
             headId: formData.headId,
             divisionId: formData.divisionId,
+            isActive: formData.isActive,
           }
         : formData;
 
@@ -117,7 +120,7 @@ export default function EditDepartmentPage() {
       {identityLocked && (
         <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-sm">
           Code and name come from Confins and cannot be changed here. You can still update division,
-          description, and department head.
+          description, department head, and active status.
         </div>
       )}
       <Card className="p-6">
@@ -188,6 +191,15 @@ export default function EditDepartmentPage() {
               ))}
             </Select>
           </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Active
+          </label>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <ButtonLink href="/workspace-management/department" variant="outline">
               <X className="w-4 h-4" />

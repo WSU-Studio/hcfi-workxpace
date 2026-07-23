@@ -5,6 +5,7 @@ interface DepartmentOption {
   code: string;
   name: string;
   divisionId?: string | null;
+  isActive?: boolean;
 }
 
 interface DepartmentMembershipChecklistProps {
@@ -17,7 +18,7 @@ interface DepartmentMembershipChecklistProps {
 
 /**
  * Multi-select checklist for mapping Departments into a Division.
- * Single responsibility: toggle membership IDs only.
+ * Inactive departments are not offered for new selection (already-selected inactive stay visible).
  */
 export default function DepartmentMembershipChecklist({
   departments,
@@ -26,6 +27,9 @@ export default function DepartmentMembershipChecklist({
   currentDivisionId,
 }: DepartmentMembershipChecklistProps) {
   const selected = new Set(selectedIds);
+  const visibleDepartments = departments.filter(
+    (department) => department.isActive !== false || selected.has(department.id)
+  );
 
   const toggle = (id: string) => {
     const next = new Set(selected);
@@ -34,13 +38,14 @@ export default function DepartmentMembershipChecklist({
     onChange(Array.from(next));
   };
 
-  if (departments.length === 0) {
-    return <p className="text-sm text-gray-500">No departments available. Create a department first.</p>;
+  if (visibleDepartments.length === 0) {
+    return <p className="text-sm text-gray-500">No active departments available.</p>;
   }
 
   return (
     <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
-      {departments.map((department) => {
+      {visibleDepartments.map((department) => {
+        const inactive = department.isActive === false;
         const assignedElsewhere =
           Boolean(department.divisionId) &&
           department.divisionId !== currentDivisionId &&
@@ -59,10 +64,16 @@ export default function DepartmentMembershipChecklist({
             <span className="min-w-0">
               <span className="font-medium text-gray-900">
                 {department.code} — {department.name}
+                {inactive ? ' (inactive)' : ''}
               </span>
               {assignedElsewhere ? (
                 <span className="mt-0.5 block text-xs text-amber-700">
                   Currently in another division (selecting will reassign)
+                </span>
+              ) : null}
+              {inactive ? (
+                <span className="mt-0.5 block text-xs text-amber-700">
+                  Inactive — uncheck to remove; cannot newly assign inactive departments
                 </span>
               ) : null}
             </span>

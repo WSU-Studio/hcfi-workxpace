@@ -5,6 +5,25 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 
 export const dynamic = 'force-dynamic';
 
+async function assertAssignableDepartments(
+  departmentIds: string[],
+  currentDivisionId?: string
+): Promise<string | null> {
+  if (departmentIds.length === 0) return null;
+  const blocked = await prisma.department.findMany({
+    where: {
+      id: { in: departmentIds },
+      isActive: false,
+      ...(currentDivisionId ? { NOT: { divisionId: currentDivisionId } } : {}),
+    },
+    select: { code: true },
+  });
+  if (blocked.length > 0) {
+    return `Inactive departments cannot be assigned: ${blocked.map((d) => d.code).join(', ')}`;
+  }
+  return null;
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -12,12 +31,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       prisma.division.findUnique({
         where: { id },
         include: {
-          departments: { select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } },
+          departments: {
+            select: { id: true, code: true, name: true, isActive: true },
+            orderBy: { code: 'asc' },
+          },
           _count: { select: { departments: true } },
         },
       }),
       prisma.department.findMany({
-        select: { id: true, code: true, name: true, divisionId: true },
+        where: {
+          OR: [{ isActive: true }, { divisionId: id }],
+        },
+        select: { id: true, code: true, name: true, divisionId: true, isActive: true },
         orderBy: { code: 'asc' },
       }),
     ]);
@@ -60,13 +85,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Division code already exists' }, { status: 400 });
     }
 
+    const assignError = await assertAssignableDepartments(departmentIds, id);
+    if (assignError) {
+      return NextResponse.json({ error: assignError }, { status: 400 });
+    }
+
     const division = await prisma.$transaction(async (tx) => {
       await tx.division.update({
         where: { id },
         data: { code, name, description },
       });
 
-      // Reset membership, then assign selected departments to this division.
       await tx.department.updateMany({
         where: { divisionId: id },
         data: { divisionId: null },
@@ -82,7 +111,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return tx.division.findUnique({
         where: { id },
         include: {
-          departments: { select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } },
+          departments: {
+            select: { id: true, code: true, name: true, isActive: true },
+            orderBy: { code: 'asc' },
+          },
           _count: { select: { departments: true } },
         },
       });

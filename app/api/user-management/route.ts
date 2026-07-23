@@ -10,6 +10,7 @@ import {
   fullActivityAccess,
   fullMenuAccess,
 } from '@/lib/default-access';
+import { selectableDepartmentWhere } from '@/lib/department/selectable';
 
 const ADMIN_ROLE_CODE = 'ADMIN';
 
@@ -39,6 +40,7 @@ export async function GET() {
     });
 
     const departments = await prisma.department.findMany({
+      where: selectableDepartmentWhere(),
       select: { id: true, code: true, name: true },
       orderBy: { name: 'asc' },
     });
@@ -81,6 +83,9 @@ export async function POST(request: Request) {
     if (existingEmail) return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
     if (existingEmployee) return NextResponse.json({ error: 'Employee ID already in use' }, { status: 400 });
     if (!role || !department) return NextResponse.json({ error: 'Invalid role or department' }, { status: 400 });
+    if (!department.isActive) {
+      return NextResponse.json({ error: `Department ${department.code} is inactive and cannot be selected` }, { status: 400 });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
