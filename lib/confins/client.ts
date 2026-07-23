@@ -17,6 +17,7 @@ type ConfinsRequestOptions = {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const LOCAL_DEV = process.env.NODE_ENV !== 'production';
+const BODY_PREVIEW_CHARS = 240;
 
 const resolveConfinsBaseUrl = (): string =>
   process.env.CONFINS_BASE_URL || process.env.CREDIT_SIMULATION_API_URL || '';
@@ -26,6 +27,18 @@ const isMockEnabledFromEnv = (): boolean =>
 
 const isMockFallbackEnabled = (): boolean =>
   process.env.CONFINS_MOCK_FALLBACK !== 'false';
+
+function previewBody(text: string): string {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  if (!compact) return '(empty)';
+  return compact.length > BODY_PREVIEW_CHARS
+    ? `${compact.slice(0, BODY_PREVIEW_CHARS)}…`
+    : compact;
+}
+
+function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
 
 export class ConfinsClient {
   private readonly baseUrl: string;
@@ -55,10 +68,11 @@ export class ConfinsClient {
       throw new Error('Missing required env: ADINSKEY');
     }
 
+    const url = `${this.baseUrl}${options.path}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
     try {
-      const response = await fetch(`${this.baseUrl}${options.path}`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,22 +82,47 @@ export class ConfinsClient {
         signal: controller.signal,
       });
 
-      const text = await response.text();
-      const data = (text ? JSON.parse(text) : {}) as ConfinsEnvelope<T[]>;
+      const rawText = await response.text();
+      const text = stripBom(rawText).trim();
+      const contentType = response.headers.get('content-type') ?? '';
+
+      let data: ConfinsEnvelope<T[]> = {};
+      if (text) {
+        try {
+          data = JSON.parse(text) as ConfinsEnvelope<T[]>;
+        } catch {
+          throw new Error(
+            `Invalid JSON from Confins (${response.status} ${contentType || 'no-content-type'}) ` +
+              `path=${options.path} body=${previewBody(text)}`,
+          );
+        }
+      }
 
       if (!response.ok) {
-        const message = data?.Message || `Confins request failed with status ${response.status}`;
+        const message =
+          data?.Message ||
+          `Confins request failed with status ${response.status} path=${options.path} body=${previewBody(text)}`;
         throw new Error(message);
       }
 
       if (!Array.isArray(data?.ReturnObject)) {
-        throw new Error('Invalid Confins response: ReturnObject is not an array');
+        const statusHint = data?.StatusCode ? ` StatusCode=${data.StatusCode}` : '';
+        const messageHint = data?.Message ? ` Message=${data.Message}` : '';
+        throw new Error(
+          `Invalid Confins response: ReturnObject is not an array` +
+            ` path=${options.path}${statusHint}${messageHint}` +
+            (text ? ` body=${previewBody(text)}` : ''),
+        );
       }
 
       return data.ReturnObject;
     } catch (error) {
-      if (error instanceof SyntaxError) {
-        throw new Error('Invalid JSON from Confins');
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Confins request timed out after ${DEFAULT_TIMEOUT_MS}ms path=${options.path}`);
+      }
+      // Keep payload/parse failures visible — do not hide them behind mock data.
+      if (error instanceof Error && error.message.startsWith('Invalid JSON from Confins')) {
+        throw error;
       }
       if (!liveOnly && isMockFallbackEnabled()) {
         const { getConfinsMockData } = await import('./mock-data');

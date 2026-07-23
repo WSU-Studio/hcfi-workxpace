@@ -90,15 +90,21 @@ async function postWithFallback<T>(
   paths: string[],
   body: Record<string, unknown>,
 ): Promise<T[]> {
-  let lastError: unknown = null;
+  const failures: string[] = [];
   for (const path of paths) {
     try {
       return await client.post<T>({ path, body, liveOnly: true });
     } catch (error) {
-      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push(`${path}: ${message}`);
+      console.warn('[Confins] path failed, trying next', { path, message });
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('Confins request failed');
+  throw new Error(
+    failures.length > 0
+      ? `Confins request failed after ${failures.length} path(s): ${failures.join(' | ')}`
+      : 'Confins request failed',
+  );
 }
 
 /**

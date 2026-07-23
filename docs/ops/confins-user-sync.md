@@ -165,6 +165,8 @@ Running Option A and B together causes **double sync** (2x Confins API load, red
 | `503 CRON_SECRET is not configured` | Missing env on server | Add to `.env`, restart PM2 |
 | `matchedInConfins: 0` | Email mismatch | Confins `Username` must match Workxpace `email` exactly |
 | Confins API error | `CONFINS_BASE_URL` / `ADINSKEY` | Check Confins connectivity from server |
+| `Invalid JSON from Confins (... body=...)` | Confins/gateway returned HTML or non-JSON (wrong URL, auth, WAF, downtime) | Check `body=` preview in the error; verify `CONFINS_BASE_URL` + `ADINSKEY` on the server; `curl` the employee path from the PM2 host |
+| `ReturnObject is not an array` | Confins returned an error envelope without employee rows | Read `StatusCode` / `Message` in the error; confirm AdInsKey and path |
 | `errors[].reason: EmpNo already assigned` | Duplicate EmpNo in Confins | Resolve in Confins or manually in User Management |
 
 ## Code map
