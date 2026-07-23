@@ -26,7 +26,11 @@ export type BudgetRequestSnapshotSource = {
   opexAllocation: string | null;
   opexType: string | null;
   grandTotal: Prisma.Decimal;
-  department: { code: string; name: string } | null;
+  department: {
+    code: string;
+    name: string;
+    division?: { code: string; name: string } | null;
+  } | null;
   project: { code: string; name: string } | null;
   budgetPlan: {
     code: string;
@@ -46,7 +50,13 @@ export type BudgetForReconciliation = BudgetRequestSnapshotSource & {
 };
 
 export const budgetForReconciliationInclude = {
-  department: true,
+  department: {
+    select: {
+      code: true,
+      name: true,
+      division: { select: { code: true, name: true } },
+    },
+  },
   project: { select: { code: true, name: true } },
   budgetPlan: {
     select: {

@@ -32,7 +32,6 @@ export type SaveRowWithStaging = {
   interfaceId?: string | null;
   paymentRequestNo?: string | null;
   currencyCode?: string | null;
-  divisionName?: string | null;
 };
 
 type Tx = Prisma.TransactionClient;
@@ -47,6 +46,18 @@ function pickString(snapshot: Record<string, unknown> | undefined, key: string):
   if (!snapshot) return null;
   const v = snapshot[key];
   return typeof v === 'string' ? v : null;
+}
+
+async function resolveDivisionNameFromDepartment(
+  tx: Tx,
+  departmentId: string | null | undefined,
+): Promise<string | null> {
+  if (!departmentId) return null;
+  const department = await tx.department.findUnique({
+    where: { id: departmentId },
+    select: { division: { select: { name: true } } },
+  });
+  return department?.division?.name?.trim() || null;
 }
 
 export async function upsertDataMartStaging(
@@ -95,10 +106,10 @@ export async function upsertDataMartStaging(
     row.paymentRequestNo ??
     pickString(snap, 'paymentRequestNo') ??
     pickString(snap, 'PaymentRequestNo');
+  // Division is Workxpace-only (Confins has no division). Resolve via Department → Division master.
   const divisionName =
-    row.divisionName ??
-    pickFirstString(snap, ['DivisionName', 'divisionName']) ??
-    pickString(snap, 'Division');
+    (await resolveDivisionNameFromDepartment(tx, br.departmentId)) ??
+    (await resolveDivisionNameFromDepartment(tx, saved.departmentId));
 
   const journalNo = pickFirstString(snap, ['JournalNo', 'journalNo', 'JournalNumber', 'journalNumber']);
   const voucherEgl = pickFirstString(snap, ['VoucherEgl', 'voucherEgl', 'VoucherEGL', 'VoucherNo']);

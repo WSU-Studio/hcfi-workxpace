@@ -131,6 +131,7 @@ export async function GET(request: Request) {
           quarter: true,
           originOffice: true,
           divisionName: true,
+          departmentId: true,
           departmentName: true,
           requestorName: true,
           incomingReferenceId: true,
@@ -172,22 +173,64 @@ export async function GET(request: Request) {
     // display names at read time (production data stays untouched).
     const labelMaps = await loadClassificationLabelMaps();
 
-    const serialized = rows.map((r) => ({
-      ...r,
-      expenseCategory: resolveClassificationLabel(labelMaps.categoryById, r.expenseCategory),
-      categoryKeyIndex: resolveClassificationLabel(labelMaps.categoryKeyIndexById, r.categoryKeyIndex),
-      costCenter: resolveClassificationLabel(labelMaps.costCenterById, r.costCenter),
-      opexAllocation: resolveClassificationLabel(labelMaps.opexAllocationById, r.opexAllocation),
-      paidAmount: r.paidAmount.toString(),
-      expectedAmount: r.expectedAmount.toString(),
-      planAmount: r.planAmount?.toString() ?? null,
-      costDriverMetric: r.costDriverMetric?.toString() ?? null,
-      costPerUnit: r.costPerUnit?.toString() ?? null,
-      invoiceDate: r.invoiceDate?.toISOString() ?? null,
-      paymentRequestDate: r.paymentRequestDate?.toISOString() ?? null,
-      budgetRequestApprovedAt: r.budgetRequestApprovedAt?.toISOString() ?? null,
-      savedAt: r.savedAt.toISOString(),
-    }));
+    // Division is Workxpace-only. Fill blanks from Department → Division master.
+    const budgetRequestIds = [...new Set(rows.filter((r) => !r.divisionName).map((r) => r.budgetRequestId))];
+    const brDepartmentByBudgetRequestId = new Map<string, string>();
+    if (budgetRequestIds.length > 0) {
+      const budgetRequests = await prisma.budgetRequest.findMany({
+        where: { id: { in: budgetRequestIds } },
+        select: { id: true, departmentId: true },
+      });
+      for (const br of budgetRequests) {
+        brDepartmentByBudgetRequestId.set(br.id, br.departmentId);
+      }
+    }
+
+    const departmentIdsNeedingDivision = new Set<string>();
+    for (const r of rows) {
+      if (r.divisionName) continue;
+      if (r.departmentId) departmentIdsNeedingDivision.add(r.departmentId);
+      const brDepartmentId = brDepartmentByBudgetRequestId.get(r.budgetRequestId);
+      if (brDepartmentId) departmentIdsNeedingDivision.add(brDepartmentId);
+    }
+
+    const divisionNameByDepartmentId = new Map<string, string>();
+    if (departmentIdsNeedingDivision.size > 0) {
+      const departments = await prisma.department.findMany({
+        where: { id: { in: [...departmentIdsNeedingDivision] } },
+        select: { id: true, division: { select: { name: true } } },
+      });
+      for (const dept of departments) {
+        if (dept.division?.name) {
+          divisionNameByDepartmentId.set(dept.id, dept.division.name);
+        }
+      }
+    }
+
+    const serialized = rows.map((r) => {
+      const brDepartmentId = brDepartmentByBudgetRequestId.get(r.budgetRequestId);
+      return {
+        ...r,
+        expenseCategory: resolveClassificationLabel(labelMaps.categoryById, r.expenseCategory),
+        categoryKeyIndex: resolveClassificationLabel(labelMaps.categoryKeyIndexById, r.categoryKeyIndex),
+        costCenter: resolveClassificationLabel(labelMaps.costCenterById, r.costCenter),
+        opexAllocation: resolveClassificationLabel(labelMaps.opexAllocationById, r.opexAllocation),
+        divisionName:
+          r.divisionName ??
+          (r.departmentId ? divisionNameByDepartmentId.get(r.departmentId) : undefined) ??
+          (brDepartmentId ? divisionNameByDepartmentId.get(brDepartmentId) : undefined) ??
+          null,
+        paidAmount: r.paidAmount.toString(),
+        expectedAmount: r.expectedAmount.toString(),
+        planAmount: r.planAmount?.toString() ?? null,
+        costDriverMetric: r.costDriverMetric?.toString() ?? null,
+        costPerUnit: r.costPerUnit?.toString() ?? null,
+        invoiceDate: r.invoiceDate?.toISOString() ?? null,
+        paymentRequestDate: r.paymentRequestDate?.toISOString() ?? null,
+        budgetRequestApprovedAt: r.budgetRequestApprovedAt?.toISOString() ?? null,
+        savedAt: r.savedAt.toISOString(),
+      };
+    });
 
     return NextResponse.json({ rows: serialized, total, limit, offset });
   } catch (e) {

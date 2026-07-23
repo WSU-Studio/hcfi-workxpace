@@ -27,7 +27,7 @@ export const FPA_DATA_MART_SPEC_ROWS: readonly FpaSpecRow[] = [
   { no: 6, fieldLabel: 'Quarter', fieldKey: 'quarter', source: 'computed', description: '', stagingColumn: 'quarter' },
   { no: 7, fieldLabel: 'Year', fieldKey: 'year', source: 'confinsEgL', description: 'Setara FY kalender/periode pembukuan.', stagingColumn: 'fiscalYear' },
   { no: 8, fieldLabel: 'Origin Office', fieldKey: 'originOffice', source: 'mixed', description: 'Prefer API Org; fallback plan eBudget.', apiHints: ['OriginOffice'], stagingColumn: 'originOffice' },
-  { no: 9, fieldLabel: 'Division Name', fieldKey: 'divisionName', source: 'ebudgetDict', description: '', stagingColumn: 'divisionName', apiHints: ['DivisionName'] },
+  { no: 9, fieldLabel: 'Division Name', fieldKey: 'divisionName', source: 'ebudgetDict', description: 'Workxpace Division master via Department mapping (not from Confins)', stagingColumn: 'divisionName', apiHints: [] },
   { no: 10, fieldLabel: 'Department Name', fieldKey: 'departmentName', source: 'mixed', description: 'Prefer API Payment Request.', apiHints: ['DepartmentName'], stagingColumn: 'departmentName' },
   { no: 11, fieldLabel: 'GL Account', fieldKey: 'glAccountCode', source: 'confinsEgL', description: '', stagingColumn: 'glAccountCode' },
   { no: 12, fieldLabel: 'GL Account Name', fieldKey: 'glAccountName', source: 'confinsEgL', description: '', stagingColumn: 'glAccountName' },
