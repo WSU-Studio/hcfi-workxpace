@@ -15,8 +15,8 @@ name: Sync Confins Employees
 
 on:
   schedule:
-    # 02:00 WIB = 19:00 UTC (previous calendar day)
-    - cron: '0 19 * * *'
+    # 09:00 WIB = 02:00 UTC — Confins is typically only up ~08:00–17:00 WIB
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 jobs:
