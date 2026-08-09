@@ -101,6 +101,8 @@ interface ValidateBudgetPlanFormInput {
   formData: BudgetPlanFormValues;
   selectedMonths: number[];
   schemasForDepartment: { id: string }[];
+  /** Sum of monthly allocations — must be > 0 to create/save. */
+  totalAllocation: number;
   requireDepartmentAndSubject?: boolean;
 }
 
@@ -108,6 +110,7 @@ export function validateBudgetPlanForm({
   formData,
   selectedMonths,
   schemasForDepartment,
+  totalAllocation,
   requireDepartmentAndSubject = true,
 }: ValidateBudgetPlanFormInput): string | null {
   if (requireDepartmentAndSubject && (!formData.departmentId || !formData.subject)) {
@@ -122,6 +125,10 @@ export function validateBudgetPlanForm({
 
   if (selectedMonths.length === 0) {
     return 'Select at least one month for allocation';
+  }
+
+  if (!Number.isFinite(totalAllocation) || totalAllocation <= 0) {
+    return 'Total budget allocation must be greater than 0';
   }
 
   const descriptionSize = new TextEncoder().encode(formData.description || '').length;

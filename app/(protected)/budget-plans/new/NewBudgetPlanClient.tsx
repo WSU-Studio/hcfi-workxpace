@@ -125,6 +125,7 @@ export default function NewBudgetPlanClient() {
       formData,
       selectedMonths: selectedMonthsSorted,
       schemasForDepartment: schemasForDept,
+      totalAllocation,
     });
     if (validationError) {
       setError(validationError);

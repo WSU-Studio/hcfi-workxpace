@@ -150,6 +150,7 @@ export default function NewBudgetRequestClient() {
       selectedMonths,
       lineItems,
       totalAmount: taxSummary.totalAmount,
+      grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
     });
 

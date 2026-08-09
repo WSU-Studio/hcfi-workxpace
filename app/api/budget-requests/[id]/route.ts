@@ -300,6 +300,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       monthlyAllocations,
     } = normalizedPayload;
 
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !Number.isFinite(normalizedGrandTotal) || normalizedGrandTotal <= 0) {
+      return NextResponse.json(
+        { error: 'Grand total must be greater than 0' },
+        { status: 400 },
+      );
+    }
+
     const normalizedOriginOffice = normalizeOptionalString(originOffice);
     const normalizedProjectId = normalizeOptionalString(projectId);
 

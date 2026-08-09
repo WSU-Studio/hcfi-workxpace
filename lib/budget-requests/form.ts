@@ -205,6 +205,8 @@ interface ValidateBudgetRequestFormInput {
   selectedMonths: number[];
   lineItems: BudgetRequestLineItemInput[];
   totalAmount: number;
+  /** Final payable amount (invoice − WHT). Must be > 0. */
+  grandTotal?: number;
   schemasForDepartment: { id: string }[];
   requireBudgetPlan?: boolean;
 }
@@ -214,6 +216,7 @@ export function validateBudgetRequestForm({
   selectedMonths,
   lineItems,
   totalAmount,
+  grandTotal,
   schemasForDepartment,
   requireBudgetPlan = false,
 }: ValidateBudgetRequestFormInput): BudgetRequestValidationError | null {
@@ -257,6 +260,14 @@ export function validateBudgetRequestForm({
   if (!hasItemName || totalAmount <= 0) {
     return {
       message: 'Add item details with a total amount greater than 0',
+      field: 'items',
+    };
+  }
+
+  const finalAmount = grandTotal ?? totalAmount;
+  if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
+    return {
+      message: 'Grand total must be greater than 0',
       field: 'items',
     };
   }

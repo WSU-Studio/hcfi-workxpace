@@ -213,6 +213,7 @@ export default function EditBudgetRequestPage() {
       selectedMonths,
       lineItems,
       totalAmount: taxSummary.totalAmount,
+      grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
     });
 

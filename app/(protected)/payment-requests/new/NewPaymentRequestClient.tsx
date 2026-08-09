@@ -160,6 +160,7 @@ export default function NewPaymentRequestClient() {
       formData,
       lineItems,
       totalAmount: taxSummary.totalAmount,
+      grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
       isBudgetRequestSelected,
     });

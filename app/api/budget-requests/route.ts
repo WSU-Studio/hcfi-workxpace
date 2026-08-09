@@ -186,6 +186,13 @@ export async function POST(req: Request) {
       monthlyAllocations,
     } = normalizedPayload;
 
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !Number.isFinite(normalizedGrandTotal) || normalizedGrandTotal <= 0) {
+      return NextResponse.json(
+        { error: 'Grand total must be greater than 0' },
+        { status: 400 },
+      );
+    }
+
     const [dept, selectedPlan, selectedSchema] = await Promise.all([
       prisma.department.findUnique({ where: { id: departmentId } }),
       normalizedBudgetPlanId

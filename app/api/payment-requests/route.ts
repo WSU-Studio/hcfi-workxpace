@@ -252,6 +252,12 @@ export async function POST(req: Request) {
     if (lineItemsCreate.length === 0) {
       return NextResponse.json({ error: 'Add at least one line item with a name and amount' }, { status: 400 });
     }
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !Number.isFinite(normalizedGrandTotal) || normalizedGrandTotal <= 0) {
+      return NextResponse.json(
+        { error: 'Grand total must be greater than 0' },
+        { status: 400 },
+      );
+    }
 
     let resolvedDepartmentId =
       typeof departmentId === 'string' && departmentId.trim() !== '' ? departmentId : '';

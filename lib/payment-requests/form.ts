@@ -221,10 +221,19 @@ export function validatePaymentRequestForm(input: {
   formData: PaymentRequestFormValues;
   lineItems: BudgetRequestLineItemInput[];
   totalAmount: number;
+  /** Final payable amount (invoice − WHT). Must be > 0. */
+  grandTotal?: number;
   schemasForDepartment: { id: string }[];
   isBudgetRequestSelected: boolean;
 }): string | null {
-  const { formData, lineItems, totalAmount, schemasForDepartment, isBudgetRequestSelected } = input;
+  const {
+    formData,
+    lineItems,
+    totalAmount,
+    grandTotal,
+    schemasForDepartment,
+    isBudgetRequestSelected,
+  } = input;
 
   if (!formData.subject.trim() || !formData.payeeName.trim()) {
     return 'Enter subject and payee.';
@@ -247,6 +256,11 @@ export function validatePaymentRequestForm(input: {
   const hasItemName = lineItems.some((item) => item.item.trim().length > 0);
   if (!hasItemName || totalAmount <= 0) {
     return 'Add item details with a total amount greater than 0.';
+  }
+
+  const finalAmount = grandTotal ?? totalAmount;
+  if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
+    return 'Grand total must be greater than 0.';
   }
 
   const descriptionSize = new TextEncoder().encode(formData.description || '').length;

@@ -143,6 +143,19 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    const allocations = body.allocations || [];
+    const totalAllocation = allocations.reduce(
+      (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
+      0,
+    );
+    if (!Number.isFinite(totalAllocation) || totalAllocation <= 0) {
+      return NextResponse.json(
+        { error: 'Total budget allocation must be greater than 0' },
+        { status: 400 },
+      );
+    }
+
     const now = new Date();
     const year = String(now.getFullYear());
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -181,15 +194,10 @@ export async function POST(request: Request) {
       },
     });
 
-    const allocations = body.allocations || [];
     const selectedMonths = allocations
       .filter((a: { month: number; allocation: number }) => Number(a?.allocation ?? 0) > 0)
       .map((a: { month: number }) => a.month)
       .sort((a: number, b: number) => a - b);
-    const totalAllocation = allocations.reduce(
-      (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
-      0
-    );
     for (let m = 1; m <= 12; m++) {
       const alloc = allocations.find((a: { month: number }) => a.month === m);
       await prisma.budgetPlanAllocation.create({
