@@ -18,6 +18,7 @@ import {
   PaymentRequestFormOptions,
   validatePaymentRequestForm,
 } from '@/lib/payment-requests/form';
+import { ensureDepartmentOption } from '@/lib/department/selectable';
 
 type PaymentRequestApi = {
   id: string;
@@ -29,6 +30,7 @@ type PaymentRequestApi = {
   fiscalYear: number;
   originOffice: string | null;
   departmentId: string;
+  department?: { id: string; code: string; name: string };
   projectId: string | null;
   currency: string | null;
   payeeName: string | null;
@@ -119,6 +121,7 @@ export default function EditPaymentRequestPage() {
       fetch(`/api/payment-requests/${id}`).then((response) => (response.ok ? response.json() : null)),
     ])
       .then(([prListData, approvalSchemaData, optionsData, row]) => {
+        const data = row as PaymentRequestApi | null;
         setOptions({
           approvedBudgetRequests: prListData.approvedBudgetRequests || [],
           approvalSchemas:
@@ -126,7 +129,16 @@ export default function EditPaymentRequestPage() {
               (schema: { type: string }) => schema.type === 'PaymentRequest',
             ) || [],
           fiscalYears: optionsData.fiscalYears || [],
-          departments: optionsData.departments || [],
+          departments: ensureDepartmentOption(
+            optionsData.departments || [],
+            data?.department
+              ? {
+                  id: data.departmentId,
+                  code: data.department.code,
+                  name: data.department.name,
+                }
+              : undefined,
+          ),
           projects: optionsData.projects || [],
           originOffices: optionsData.originOffices || [],
           categoryOptions: optionsData.categoryOptions || [],
@@ -136,12 +148,11 @@ export default function EditPaymentRequestPage() {
           accountOptions: optionsData.accountOptions || [],
         });
 
-        if (!row) {
+        if (!data) {
           setLoadError('Request not found');
           return;
         }
 
-        const data = row as PaymentRequestApi;
         if (session?.user?.id && data.requestorId !== session.user.id) {
           router.replace(`/payment-requests/${id}`);
           return;

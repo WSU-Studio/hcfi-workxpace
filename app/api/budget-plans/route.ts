@@ -132,8 +132,17 @@ export async function POST(request: Request) {
 
     const dept = await prisma.department.findUnique({
       where: { id: body.departmentId },
-      select: { code: true },
+      select: { code: true, isActive: true },
     });
+    if (!dept) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 400 });
+    }
+    if (!dept.isActive) {
+      return NextResponse.json(
+        { error: `Department ${dept.code} is inactive and cannot be selected` },
+        { status: 400 },
+      );
+    }
     const now = new Date();
     const year = String(now.getFullYear());
     const month = String(now.getMonth() + 1).padStart(2, '0');

@@ -337,6 +337,12 @@ export async function POST(req: Request) {
     if (!dept) {
       return NextResponse.json({ error: 'Department not found' }, { status: 400 });
     }
+    if (!dept.isActive) {
+      return NextResponse.json(
+        { error: `Department ${dept.code} is inactive and cannot be selected` },
+        { status: 400 },
+      );
+    }
 
     const now = new Date();
     const codeYear = String(now.getFullYear());

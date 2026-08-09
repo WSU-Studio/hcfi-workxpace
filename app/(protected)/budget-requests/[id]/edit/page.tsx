@@ -19,6 +19,7 @@ import {
   selectedMonthsFromAllocations,
   validateBudgetRequestForm,
 } from '@/lib/budget-requests/form';
+import { ensureDepartmentOption } from '@/lib/department/selectable';
 
 type BudgetRequestApi = {
   id: string;
@@ -29,6 +30,7 @@ type BudgetRequestApi = {
   approvalSchemaId: string | null;
   fiscalYear: number;
   departmentId: string;
+  department?: { id: string; code: string; name: string };
   originOffice?: string | null;
   projectId?: string | null;
   requestorId: string | null;
@@ -116,6 +118,7 @@ export default function EditBudgetRequestPage() {
       fetch(`/api/budget-requests/${id}`).then((response) => (response.ok ? response.json() : null)),
     ])
       .then(([listData, schemaData, budgetPlanOptionsData, budgetRequestData]) => {
+        const data = budgetRequestData as BudgetRequestApi | null;
         setOptions({
           plans: listData.plans || [],
           approvalSchemas:
@@ -123,17 +126,25 @@ export default function EditBudgetRequestPage() {
               (schema: { type: string }) => schema.type === 'BudgetRequest',
             ) || [],
           fiscalYears: budgetPlanOptionsData.fiscalYears || [],
-          departments: budgetPlanOptionsData.departments || [],
+          departments: ensureDepartmentOption(
+            budgetPlanOptionsData.departments || [],
+            data?.department
+              ? {
+                  id: data.departmentId,
+                  code: data.department.code,
+                  name: data.department.name,
+                }
+              : undefined,
+          ),
           projects: budgetPlanOptionsData.projects || [],
           originOffices: budgetPlanOptionsData.originOffices || [],
         });
 
-        if (!budgetRequestData) {
+        if (!data) {
           setLoadError('Request not found');
           return;
         }
 
-        const data = budgetRequestData as BudgetRequestApi;
         if (session?.user?.id && data.requestorId !== session.user.id) {
           router.replace(`/budget-requests/${id}`);
           return;

@@ -17,6 +17,7 @@ import {
   canEditClassificationFields,
   pickClassificationFields,
 } from '@/lib/access/classification';
+import { selectableDepartmentWhere } from '@/lib/department/selectable';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       : null;
 
     const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
-    const departments = await prisma.department.findMany({ orderBy: { code: 'asc' } });
+    const departments = await prisma.department.findMany({
+      where: selectableDepartmentWhere([plan.departmentId]),
+      orderBy: { code: 'asc' },
+    });
     const projects = await prisma.project.findMany({ orderBy: { code: 'asc' } });
     const originOfficeMaster = (prisma as unknown as {
       originOfficeMaster: OriginOfficeMasterDelegate;

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { loadClassificationOptions } from '@/lib/classification-options';
+import { selectableDepartmentWhere } from '@/lib/department/selectable';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,11 +26,18 @@ type OriginOfficeMasterDelegate = {
   >;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    // Edit forms may keep the current (possibly inactive) department visible.
+    const includeDepartmentId = searchParams.get('includeDepartmentId');
+
     const [fiscalYears, departments, projects, approvalSchemas] = await Promise.all([
       prisma.fiscalYear.findMany({ where: { isActive: true }, orderBy: { year: 'desc' } }),
-      prisma.department.findMany({ orderBy: { code: 'asc' } }),
+      prisma.department.findMany({
+        where: selectableDepartmentWhere([includeDepartmentId]),
+        orderBy: { code: 'asc' },
+      }),
       prisma.project.findMany({ orderBy: { code: 'asc' } }),
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
