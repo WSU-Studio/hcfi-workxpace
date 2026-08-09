@@ -239,6 +239,13 @@ export function validateBudgetRequestForm({
     };
   }
 
+  if (!schemasForDepartment.some((schema) => schema.id === formData.approvalSchemaId)) {
+    return {
+      message: 'Selected approval schema does not belong to the selected department',
+      field: 'approvalSchema',
+    };
+  }
+
   if (selectedMonths.length === 0) {
     return {
       message: 'Select at least one month for request allocation',

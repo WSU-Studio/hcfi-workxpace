@@ -263,6 +263,26 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Department is required' }, { status: 400 });
     }
 
+    const selectedSchema = await prisma.approvalSchema.findUnique({
+      where: { id: approvalSchemaId },
+      select: { id: true, departmentId: true, type: true },
+    });
+    if (!selectedSchema) {
+      return NextResponse.json({ error: 'Approval schema not found' }, { status: 400 });
+    }
+    if (selectedSchema.departmentId !== nextDepartmentId) {
+      return NextResponse.json(
+        { error: 'Approval schema must belong to the selected department' },
+        { status: 400 },
+      );
+    }
+    if (selectedSchema.type !== 'BudgetRequest') {
+      return NextResponse.json(
+        { error: 'Approval schema type must be BudgetRequest' },
+        { status: 400 },
+      );
+    }
+
     const normalizedPayload = normalizeBudgetRequestBody(body, existing.fiscalYear);
     if ('error' in normalizedPayload) {
       return NextResponse.json({ error: normalizedPayload.error }, { status: 400 });

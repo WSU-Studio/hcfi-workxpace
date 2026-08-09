@@ -84,13 +84,18 @@ export default function BudgetRequestForm({
   const { plans, fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
   const selectedPlan = plans.find((plan) => plan.id === formData.budgetPlanId);
 
+  const schemasForDept = useMemo(
+    () => approvalSchemas.filter((schema) => schema.departmentId === formData.departmentId),
+    [approvalSchemas, formData.departmentId],
+  );
+
   const approvalSchemaOptions = useMemo(
     () =>
-      approvalSchemas.map((schema) => ({
+      schemasForDept.map((schema) => ({
         value: schema.id,
         label: schema.name,
       })),
-    [approvalSchemas],
+    [schemasForDept],
   );
 
   const planOptions = useMemo(
@@ -149,9 +154,9 @@ export default function BudgetRequestForm({
           placeholder="Select approval schema..."
           searchPlaceholder="Search approval schema..."
         />
-        {approvalSchemas.length === 0 ? (
+        {formData.departmentId && schemasForDept.length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
-            No approval schema is configured for budget requests.
+            No approval schema is configured for the selected department.
           </p>
         ) : null}
         {formData.approvalSchemaId ? (
@@ -230,7 +235,17 @@ export default function BudgetRequestForm({
           canCrossDepartment={canCrossDepartment}
           forcedReadonly={isBudgetPlanSelected}
           onChange={(departmentId) =>
-            onFormDataChange((previous) => ({ ...previous, departmentId }))
+            onFormDataChange((previous) => {
+              const schemaStillValid = approvalSchemas.some(
+                (schema) =>
+                  schema.id === previous.approvalSchemaId && schema.departmentId === departmentId,
+              );
+              return {
+                ...previous,
+                departmentId,
+                approvalSchemaId: schemaStillValid ? previous.approvalSchemaId : '',
+              };
+            })
           }
         />
 

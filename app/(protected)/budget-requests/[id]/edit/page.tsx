@@ -184,6 +184,10 @@ export default function EditBudgetRequestPage() {
     loadExistingSupportingDocs,
   ]);
 
+  const schemasForDept = options.approvalSchemas.filter(
+    (schema) => schema.departmentId === formData.departmentId,
+  );
+
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
     setError(message);
     notifyFormError(message, { fieldRef: field ? fieldRefs[field] : errorBannerRef });
@@ -198,7 +202,7 @@ export default function EditBudgetRequestPage() {
       selectedMonths,
       lineItems,
       totalAmount: taxSummary.totalAmount,
-      schemasForDepartment: options.approvalSchemas,
+      schemasForDepartment: schemasForDept,
     });
 
     if (validationError) {

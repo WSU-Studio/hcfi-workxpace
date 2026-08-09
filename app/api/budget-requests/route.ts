@@ -186,7 +186,7 @@ export async function POST(req: Request) {
       monthlyAllocations,
     } = normalizedPayload;
 
-    const [dept, selectedPlan] = await Promise.all([
+    const [dept, selectedPlan, selectedSchema] = await Promise.all([
       prisma.department.findUnique({ where: { id: departmentId } }),
       normalizedBudgetPlanId
         ? prisma.budgetPlan.findUnique({
@@ -201,9 +201,28 @@ export async function POST(req: Request) {
             },
           })
         : Promise.resolve(null),
+      prisma.approvalSchema.findUnique({
+        where: { id: approvalSchemaId },
+        select: { id: true, departmentId: true, type: true },
+      }),
     ]);
     if (!dept) {
       return NextResponse.json({ error: 'Department not found' }, { status: 400 });
+    }
+    if (!selectedSchema) {
+      return NextResponse.json({ error: 'Approval schema not found' }, { status: 400 });
+    }
+    if (selectedSchema.departmentId !== departmentId) {
+      return NextResponse.json(
+        { error: 'Approval schema must belong to the selected department' },
+        { status: 400 },
+      );
+    }
+    if (selectedSchema.type !== 'BudgetRequest') {
+      return NextResponse.json(
+        { error: 'Approval schema type must be BudgetRequest' },
+        { status: 400 },
+      );
     }
     if (normalizedBudgetPlanId && !selectedPlan) {
       return NextResponse.json({ error: 'Budget plan not found' }, { status: 400 });
