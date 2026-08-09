@@ -25,6 +25,8 @@ import {
   getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
+import DocumentPrintHeader from '@/components/print/DocumentPrintHeader';
+import DocumentPrintRequesterDetails from '@/components/print/DocumentPrintRequesterDetails';
 
 type HistoryEntry = {
   id: string;
@@ -263,334 +265,364 @@ export default function PaymentRequestDetailPage() {
         </div>
       </div>
 
-      <div ref={printableRef} className="space-y-6">
-      <div className="min-w-0">
-        <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Payment Request</p>
-        <h1 className="text-2xl font-semibold">{data.subject}</h1>
-        <p className="hidden text-sm text-gray-600 print:block">
-          {data.code} · FY {data.fiscalYear ?? '-'} · {data.department?.name}
-        </p>
-      </div>
+      <div className="hidden print:block">
+        <DocumentPrintHeader
+          className="hidden print:table"
+          number={data.code}
+          title="Budget Request"
+          classification="Decision Making"
+          sectionLabel="Requester"
+        />
 
-      <Card className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <span className="text-gray-500">ID:</span> {data.code}
-          </div>
-          <div>
-            <span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}
-          </div>
-          <div>
-            <span className="text-gray-500">Requestor:</span> {data.requestorName ?? '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Status:</span>{' '}
-            {(() => {
-              const display = getRequestStatusDisplay(data.status);
-              return (
-                <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
-                  {display.label}
-                </span>
-              );
-            })()}
-          </div>
-          <div>
-            <span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear ?? '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Origin Office:</span> {data.originOffice ?? '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Project:</span>{' '}
-            {data.project ? `${data.project.code} — ${data.project.name}` : '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Grand total:</span>{' '}
-            <span className="font-medium">
-              {formatCurrency(data.amount)} {data.currency}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500">Payee:</span> {data.payeeName}
-          </div>
-          <div>
-            <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Vendor Invoice No:</span> {data.vendorInvoiceNo || '-'}
-          </div>
-          <div>
-            <span className="text-gray-500">Date Needed:</span>{' '}
-            {data.dateNeeded ? formatDate(data.dateNeeded) : '-'}
-          </div>
-        </div>
-
-        {data.budgetRequest ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-medium text-slate-900">Related budget request</p>
-            <p className="mt-1 text-sm text-slate-700">
-              {data.budgetRequest.code} — {data.budgetRequest.subject}
-            </p>
-            <p className="mt-1 text-xs text-slate-600">
-              BR total (grand): {formatCurrency(data.budgetRequest.grandTotal)} · Status BR: {data.budgetRequest.status}
-            </p>
-          </div>
+        {orderedLevels.length ? (
+          <ApprovalEscalationPrintGrid
+            levels={orderedLevels}
+            stepProgresses={stepProgresses}
+            showRequestor
+            requestorStepProgress={requestorStepProgress}
+          />
         ) : (
-          <p className="text-sm text-gray-500">No related budget request selected.</p>
+          <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
         )}
 
-        {data.description ? (
-          <div>
-            <span className="text-gray-500">Description:</span>{' '}
-            <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-100">
-              <RichTextContent value={data.description} />
-            </div>
-          </div>
-        ) : null}
+        <DocumentPrintRequesterDetails
+          className="table"
+          date={data.requestDate}
+          teamName={data.department?.name ?? '-'}
+          subject={data.subject}
+          purpose=""
+          plan={data.description}
+        />
+      </div>
 
-        <div className="print:hidden">
-          <span className="text-gray-500">Supporting Documents:</span>
-          <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
+      <div ref={printableRef} className="space-y-6 print:hidden">
+        <div className="min-w-0">
+          <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Payment Request</p>
+          <h1 className="text-2xl font-semibold">{data.subject}</h1>
+          <p className="hidden text-sm text-gray-600 print:block">
+            {data.code} · FY {data.fiscalYear ?? '-'} · {data.department?.name}
+          </p>
         </div>
 
-      </Card>
-
-      <Card collapsible header={<h3 className="font-medium">Request Allocation</h3>}>
-        {data.lineItems && data.lineItems.length > 0 ? (
-          <Table>
-            <thead>
-              <TableHeaderRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Subtotal</TableHead>
-                <TableHead className="text-right">Deduction</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableHeaderRow>
-            </thead>
-            <tbody>
-              {data.lineItems.map((li, index) => (
-                <TableBodyRow key={`${li.item}-${index}`}>
-                  <TableCell>{li.item}</TableCell>
-                  <TableCell className="text-right">{li.qty}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0))}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(Number(li.subtotal ?? li.qty * Number(li.unitPrice ?? 0)))}
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(li.total ?? 0))}</TableCell>
-                </TableBodyRow>
-              ))}
-              <TableBodyRow className="bg-gray-50 font-medium">
-                <TableCell colSpan={5} className="text-right">
-                  Transaction amount
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(
-                    Number(data.totalAmount ?? data.lineItems.reduce((s, l) => s + Number(l.total ?? 0), 0))
-                  )}
-                </TableCell>
-              </TableBodyRow>
-              <TableBodyRow>
-                <TableCell colSpan={5} className="text-right">
-                  VAT / PPN
-                </TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(data.vatAmount ?? 0))}</TableCell>
-              </TableBodyRow>
-              <TableBodyRow>
-                <TableCell colSpan={5} className="text-right">
-                  Invoice amount
-                </TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(data.invoiceAmount ?? 0))}</TableCell>
-              </TableBodyRow>
-              <TableBodyRow>
-                <TableCell colSpan={5} className="text-right">
-                  WHT / PPh
-                </TableCell>
-                <TableCell className="text-right">({formatCurrency(Number(data.whtAmount ?? 0))})</TableCell>
-              </TableBodyRow>
-              <TableBodyRow className="bg-green-200/60 font-semibold">
-                <TableCell colSpan={5} className="text-right">
-                  Grand total
-                </TableCell>
-                <TableCell className="text-right">{formatCurrency(data.amount)}</TableCell>
-              </TableBodyRow>
-            </tbody>
-          </Table>
-        ) : null}
-
-        <div className="space-y-3 border-t border-gray-100 mt-6">
-          <h3 className="font-medium">Classification</h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div><span className="text-gray-500">Cost Center:</span> {data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-'}</div>
-            <div><span className="text-gray-500">Category:</span> {data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-'}</div>
-            <div><span className="text-gray-500">Category Key Index:</span> {data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ?? data.categoryKeyIndex ?? '-'}</div>
-            <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
-            <div><span className="text-gray-500">Type:</span> {opexType}</div>
-            <div><span className="text-gray-500">Opex Allocation:</span> {data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ?? data.opexAllocation ?? '-'}</div>
-          </div>
-          
-          {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <ReadonlyField label="Cost Center" value={costCenterLabel} />
-            <ReadonlyField label="Category" value={categoryLabel} />
-            <ReadonlyField label="Category Key Index" value={categoryKeyIndexLabel} />
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="md:col-span-2">
-              <ReadonlyField label="Kode Akun" value={accountLabel} />
+        <Card className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <span className="text-gray-500">ID:</span> {data.code}
+            </div>
+            <div>
+              <span className="text-gray-500">Request Date:</span> {formatDate(data.requestDate)}
+            </div>
+            <div>
+              <span className="text-gray-500">Requestor:</span> {data.requestorName ?? '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Status:</span>{' '}
+              {(() => {
+                const display = getRequestStatusDisplay(data.status);
+                return (
+                  <span className={`rounded px-2 py-0.5 text-sm ${display.chipClass}`}>
+                    {display.label}
+                  </span>
+                );
+              })()}
+            </div>
+            <div>
+              <span className="text-gray-500">Department:</span> {data.department?.name ?? '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Fiscal Year:</span> {data.fiscalYear ?? '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Origin Office:</span> {data.originOffice ?? '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Project:</span>{' '}
+              {data.project ? `${data.project.code} — ${data.project.name}` : '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Grand total:</span>{' '}
+              <span className="font-medium">
+                {formatCurrency(data.amount)} {data.currency}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500">Payee:</span> {data.payeeName}
+            </div>
+            <div>
+              <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Vendor Invoice No:</span> {data.vendorInvoiceNo || '-'}
+            </div>
+            <div>
+              <span className="text-gray-500">Date Needed:</span>{' '}
+              {data.dateNeeded ? formatDate(data.dateNeeded) : '-'}
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <ReadonlyField label="Type" value={opexType} />
-            {opexType === 'OPEX' ? <ReadonlyField label="Opex Allocation" value={opexAllocationLabel} /> : null}
-          </div>
-          
-          <ReadonlyField label="Payee" value={data.payeeName} />
-          {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
-          
-          {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null} */}
-        </div>
 
-      </Card>
-
-      <div className="print:break-before-page print:text-sm">
-        <Card
-          collapsible
-          collapsed={!orderedLevels.length}
-          header={<h3 className="font-medium">Approval Escalation</h3>}
-        >
-          {orderedLevels.length ? (
-            <>
-              <Table className="print:hidden">
-                <thead>
-                  <TableHeaderRow>
-                    <TableHead>#</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Updated At</TableHead>
-                  </TableHeaderRow>
-                </thead>
-                <tbody>
-                  {orderedLevels.map((level, index) => {
-                    const stepProgress = stepProgresses[index];
-                    const stepStatusLabel = stepProgress.statusLabel;
-                    return (
-                      <TableBodyRow key={level.stepOrder}>
-                        <TableCell>{level.stepOrder}</TableCell>
-                        <TableCell>{level.role?.roleName ?? '-'}</TableCell>
-                        <TableCell>{level.levelType}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
-                              stepStatusLabel === 'Reviewed' || stepStatusLabel === 'Approved'
-                                ? 'bg-green-100 text-green-800'
-                                : stepStatusLabel === 'Revision'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : stepStatusLabel === 'Declined'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {stepStatusLabel}
-                          </span>
-                        </TableCell>
-                        <TableCell>{stepProgress.timestampLabel}</TableCell>
-                      </TableBodyRow>
-                    );
-                  })}
-                </tbody>
-              </Table>
-
-              <ApprovalStepNotesList
-                levels={orderedLevels}
-                stepProgresses={stepProgresses}
-                className="print:hidden"
-              />
-
-              <div className="hidden print:block">
-                <ApprovalEscalationPrintGrid
-                  levels={orderedLevels}
-                  stepProgresses={stepProgresses}
-                  // showRequestor
-                  requestorStepProgress={requestorStepProgress}
-                />
-              </div>
-            </>
+          {data.budgetRequest ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">Related budget request</p>
+              <p className="mt-1 text-sm text-slate-700">
+                {data.budgetRequest.code} — {data.budgetRequest.subject}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                BR total (grand): {formatCurrency(data.budgetRequest.grandTotal)} · Status BR: {data.budgetRequest.status}
+              </p>
+            </div>
           ) : (
-            <p className="text-sm text-gray-500">No approval schema — approval by non-requestor.</p>
+            <p className="text-sm text-gray-500">No related budget request selected.</p>
           )}
 
-          {data.canReview ? (
-            <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4 print:hidden">
-              <Link
-                href={`/payment-requests/${id}/review`}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              >
-                <ScanSearch className="h-4 w-4" />
-                Review
-              </Link>
+          {data.description ? (
+            <div>
+              <span className="text-gray-500">Description:</span>{' '}
+              <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-100">
+                <RichTextContent value={data.description} />
+              </div>
             </div>
           ) : null}
-        </Card>
-      </div>
 
-      <Card collapsible collapsed 
-        className="print:hidden"
-        header={<h3 className="font-medium">Activity History</h3>}>
-        {data.histories?.length ? (
-          <div className="space-y-2">
-            {data.histories.map((history) => (
-              <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm print:px-0 print:pt-0 print:pb-2 print:bg-transparent print:border-b print:border-gray-200">
-                <p>
-                  <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
-                  <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
-                  <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
-                </p>
-                {history.details?.fromStatus &&
-                history.details?.status &&
-                history.details.fromStatus !== history.details.status ? (
-                  <p className="text-gray-600">
-                    Status: {history.details.fromStatus} → {history.details.status}
-                  </p>
-                ) : history.details?.status ? (
-                  <p className="text-gray-600">Status: {history.details.status}</p>
-                ) : null}
-                {history.details?.previousStatus ? (
-                  <p className="text-gray-600">Previous status: {history.details.previousStatus}</p>
-                ) : null}
-                {history.details?.declineReason ? (
-                  <p className="text-gray-600">Reason: {history.details.declineReason}</p>
-                ) : null}
-                {history.details?.approvalNote ? (
-                  <p className="text-gray-600">Note: {history.details.approvalNote}</p>
-                ) : null}
-                {history.details?.qtyUnitPriceAdjustmentNote ? (
-                  <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
-                ) : null}
-              </div>
-            ))}
+          <div className="print:hidden">
+            <span className="text-gray-500">Supporting Documents:</span>
+            <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
           </div>
-        ) : (
-          <p className="text-sm text-gray-500">No history yet.</p>
-        )}
-      </Card>
-      </div>
 
-      <EditWarningModal
-        isOpen={isEditWarningOpen}
-        entityType="payment-request"
-        subject={data.subject}
-        onCancel={() => setIsEditWarningOpen(false)}
-        onContinue={() => {
-          setIsEditWarningOpen(false);
-          router.push(`/payment-requests/${id}/edit`);
-        }}
-      />
+        </Card>
+
+        <Card collapsible header={<h3 className="font-medium">Request Allocation</h3>}>
+          {data.lineItems && data.lineItems.length > 0 ? (
+            <Table>
+              <thead>
+                <TableHeaderRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-right">Subtotal</TableHead>
+                  <TableHead className="text-right">Deduction</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableHeaderRow>
+              </thead>
+              <tbody>
+                {data.lineItems.map((li, index) => (
+                  <TableBodyRow key={`${li.item}-${index}`}>
+                    <TableCell>{li.item}</TableCell>
+                    <TableCell className="text-right">{li.qty}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(li.unitPrice ?? 0))}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(Number(li.subtotal ?? li.qty * Number(li.unitPrice ?? 0)))}
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(li.deduction ?? 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(li.total ?? 0))}</TableCell>
+                  </TableBodyRow>
+                ))}
+                <TableBodyRow className="bg-gray-50 font-medium">
+                  <TableCell colSpan={5} className="text-right">
+                    Transaction amount
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(
+                      Number(data.totalAmount ?? data.lineItems.reduce((s, l) => s + Number(l.total ?? 0), 0))
+                    )}
+                  </TableCell>
+                </TableBodyRow>
+                <TableBodyRow>
+                  <TableCell colSpan={5} className="text-right">
+                    VAT / PPN
+                  </TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(data.vatAmount ?? 0))}</TableCell>
+                </TableBodyRow>
+                <TableBodyRow>
+                  <TableCell colSpan={5} className="text-right">
+                    Invoice amount
+                  </TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(data.invoiceAmount ?? 0))}</TableCell>
+                </TableBodyRow>
+                <TableBodyRow>
+                  <TableCell colSpan={5} className="text-right">
+                    WHT / PPh
+                  </TableCell>
+                  <TableCell className="text-right">({formatCurrency(Number(data.whtAmount ?? 0))})</TableCell>
+                </TableBodyRow>
+                <TableBodyRow className="bg-green-200/60 font-semibold">
+                  <TableCell colSpan={5} className="text-right">
+                    Grand total
+                  </TableCell>
+                  <TableCell className="text-right">{formatCurrency(data.amount)}</TableCell>
+                </TableBodyRow>
+              </tbody>
+            </Table>
+          ) : null}
+
+          <div className="space-y-3 border-t border-gray-100 mt-6">
+            <h3 className="font-medium">Classification</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div><span className="text-gray-500">Cost Center:</span> {data.costCenterOptions?.find((item) => item.id === data.costCenter)?.name ?? data.costCenter ?? '-'}</div>
+              <div><span className="text-gray-500">Category:</span> {data.categoryOptions?.find((item) => item.id === data.category)?.name ?? data.category ?? '-'}</div>
+              <div><span className="text-gray-500">Category Key Index:</span> {data.categoryKeyIndexOptions?.find((item) => item.id === data.categoryKeyIndex)?.name ?? data.categoryKeyIndex ?? '-'}</div>
+              <div><span className="text-gray-500">Kode Akun:</span> {accountLabel}</div>
+              <div><span className="text-gray-500">Type:</span> {opexType}</div>
+              <div><span className="text-gray-500">Opex Allocation:</span> {data.opexAllocationOptions?.find((item) => item.id === data.opexAllocation)?.name ?? data.opexAllocation ?? '-'}</div>
+            </div>
+            
+            {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <ReadonlyField label="Cost Center" value={costCenterLabel} />
+              <ReadonlyField label="Category" value={categoryLabel} />
+              <ReadonlyField label="Category Key Index" value={categoryKeyIndexLabel} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="md:col-span-2">
+                <ReadonlyField label="Kode Akun" value={accountLabel} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <ReadonlyField label="Type" value={opexType} />
+              {opexType === 'OPEX' ? <ReadonlyField label="Opex Allocation" value={opexAllocationLabel} /> : null}
+            </div>
+            
+            <ReadonlyField label="Payee" value={data.payeeName} />
+            {data.paymentPurpose ? <ReadonlyField label="Payment purpose" value={data.paymentPurpose} /> : null}
+            
+            {data.notes ? <ReadonlyField label="Notes" value={data.notes} /> : null} */}
+          </div>
+
+        </Card>
+
+        <div className="print:break-before-page print:text-sm">
+          <Card
+            collapsible
+            collapsed={!orderedLevels.length}
+            header={<h3 className="font-medium">Approval Escalation</h3>}
+          >
+            {orderedLevels.length ? (
+              <>
+                <Table className="print:hidden">
+                  <thead>
+                    <TableHeaderRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Updated At</TableHead>
+                    </TableHeaderRow>
+                  </thead>
+                  <tbody>
+                    {orderedLevels.map((level, index) => {
+                      const stepProgress = stepProgresses[index];
+                      const stepStatusLabel = stepProgress.statusLabel;
+                      return (
+                        <TableBodyRow key={level.stepOrder}>
+                          <TableCell>{level.stepOrder}</TableCell>
+                          <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                          <TableCell>{level.levelType}</TableCell>
+                          <TableCell>
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
+                                stepStatusLabel === 'Reviewed' || stepStatusLabel === 'Approved'
+                                  ? 'bg-green-100 text-green-800'
+                                  : stepStatusLabel === 'Revision'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : stepStatusLabel === 'Declined'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {stepStatusLabel}
+                            </span>
+                          </TableCell>
+                          <TableCell>{stepProgress.timestampLabel}</TableCell>
+                        </TableBodyRow>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+
+                <ApprovalStepNotesList
+                  levels={orderedLevels}
+                  stepProgresses={stepProgresses}
+                  className="print:hidden"
+                />
+
+                <div className="hidden print:block">
+                  <ApprovalEscalationPrintGrid
+                    levels={orderedLevels}
+                    stepProgresses={stepProgresses}
+                    // showRequestor
+                    requestorStepProgress={requestorStepProgress}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No approval schema — approval by non-requestor.</p>
+            )}
+
+            {data.canReview ? (
+              <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4 print:hidden">
+                <Link
+                  href={`/payment-requests/${id}/review`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  <ScanSearch className="h-4 w-4" />
+                  Review
+                </Link>
+              </div>
+            ) : null}
+          </Card>
+        </div>
+
+        <Card collapsible collapsed 
+          className="print:hidden"
+          header={<h3 className="font-medium">Activity History</h3>}>
+          {data.histories?.length ? (
+            <div className="space-y-2">
+              {data.histories.map((history) => (
+                <div key={history.id} className="rounded-lg bg-gray-50 p-3 text-sm print:px-0 print:pt-0 print:pb-2 print:bg-transparent print:border-b print:border-gray-200">
+                  <p>
+                    <span className="font-medium">{history.user?.name || 'Unknown User'}</span>{' '}
+                    <span className="text-gray-700">{history.action.toLowerCase()}</span>{' '}
+                    <span className="text-gray-500">on {formatDateTime(history.timestamp)}</span>
+                  </p>
+                  {history.details?.fromStatus &&
+                  history.details?.status &&
+                  history.details.fromStatus !== history.details.status ? (
+                    <p className="text-gray-600">
+                      Status: {history.details.fromStatus} → {history.details.status}
+                    </p>
+                  ) : history.details?.status ? (
+                    <p className="text-gray-600">Status: {history.details.status}</p>
+                  ) : null}
+                  {history.details?.previousStatus ? (
+                    <p className="text-gray-600">Previous status: {history.details.previousStatus}</p>
+                  ) : null}
+                  {history.details?.declineReason ? (
+                    <p className="text-gray-600">Reason: {history.details.declineReason}</p>
+                  ) : null}
+                  {history.details?.approvalNote ? (
+                    <p className="text-gray-600">Note: {history.details.approvalNote}</p>
+                  ) : null}
+                  {history.details?.qtyUnitPriceAdjustmentNote ? (
+                    <p className="text-amber-700">{history.details.qtyUnitPriceAdjustmentNote}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No history yet.</p>
+          )}
+        </Card>
+        </div>
+
+        <EditWarningModal
+          isOpen={isEditWarningOpen}
+          entityType="payment-request"
+          subject={data.subject}
+          onCancel={() => setIsEditWarningOpen(false)}
+          onContinue={() => {
+            setIsEditWarningOpen(false);
+            router.push(`/payment-requests/${id}/edit`);
+          }}
+        />
       </div>
 
       <aside className="sticky top-24 z-10 w-full shrink-0 self-start xl:w-96 print:hidden">
