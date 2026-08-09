@@ -265,9 +265,9 @@ export default function PaymentRequestDetailPage() {
         </div>
       </div>
 
-      <div className="hidden print:block">
+      <div className="hidden print:block print:w-full print:max-w-full print:overflow-hidden space-y-6">
         <DocumentPrintHeader
-          className="hidden print:table"
+          className="table w-full max-w-full"
           number={data.code}
           title="Budget Request"
           classification="Decision Making"
@@ -286,7 +286,7 @@ export default function PaymentRequestDetailPage() {
         )}
 
         <DocumentPrintRequesterDetails
-          className="table"
+          className="table w-full max-w-full"
           date={data.requestDate}
           teamName={data.department?.name ?? '-'}
           subject={data.subject}

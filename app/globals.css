@@ -62,12 +62,24 @@ body {
   /* Hanya hindari page break pada elemen kecil (baris tabel, blok kecil
    * yang ditandai .print-keep-together). Card/section sengaja DIBIARKAN
    * boleh terpotong agar konten mengalir dan tidak meninggalkan whitespace
-   * besar yang membuat hasil cetak jadi banyak halaman tidak perlu. */
+   * besar yang membuat hasil cetak jadi banyak halaman tidak perlu.
+   * Baris dengan .print-row-breakable (mis. Plan panjang) boleh terpotong
+   * antar halaman. */
   .print-keep-together,
   thead,
-  tr {
+  tr:not(.print-row-breakable) {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  tr.print-row-breakable {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  tr.print-row-breakable > td {
+    break-inside: auto;
+    page-break-inside: auto;
   }
 
   thead {

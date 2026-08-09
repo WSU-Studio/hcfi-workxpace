@@ -1,4 +1,4 @@
-import RichTextContent from "../ui/RichTextContent";
+import RichTextContent from '../ui/RichTextContent';
 
 const DEFAULT_COMPANY_NAME = 'PT Hyundai Capital Finance Indonesia';
 
@@ -33,6 +33,7 @@ const cellLastCol = 'border-b border-gray-400 px-2 py-2 text-left text-sm align-
  *
  * Uses border-separate (not collapse) so horizontal rules between Subject/Purpose/Plan
  * remain visible — border-collapse + colspan often drops those edges in Chrome print.
+ * Plan row is breakable across pages; table-fixed keeps width within the page.
  */
 export default function DocumentPrintRequesterDetails({
   date,
@@ -45,34 +46,50 @@ export default function DocumentPrintRequesterDetails({
 }: DocumentPrintRequesterDetailsProps) {
   return (
     <table
-      className={`w-full border-separate border-spacing-0 border border-gray-400 text-xs text-gray-900 ${className}`}
+      className={`w-full max-w-full table-fixed border-separate border-spacing-0 border border-gray-400 text-xs text-gray-900 ${className}`}
       role="presentation"
     >
+      <colgroup>
+        <col className="w-[16%]" />
+        <col className="w-[34%]" />
+        <col className="w-[16%]" />
+        <col className="w-[34%]" />
+      </colgroup>
       <tbody>
         <tr>
-          <td className={`w-[16%] ${cell} text-gray-800`}>Date</td>
-          <td className={`w-[34%] ${cell} text-gray-900`}>{formatDotDate(date)}</td>
-          <td className={`w-[16%] ${cell} text-gray-800`}>Team Name</td>
-          <td className={`w-[34%] ${cellLastCol} text-gray-900`}>{teamName || '-'}</td>
+          <td className={`${cell} text-gray-800`}>Date</td>
+          <td className={`${cell} text-gray-900`}>{formatDotDate(date)}</td>
+          <td className={`${cell} text-gray-800`}>Team Name</td>
+          <td className={`${cellLastCol} text-gray-900`}>{teamName || '-'}</td>
         </tr>
         <tr>
           <td className={`${cell} text-gray-800`}>Subject</td>
-          <td colSpan={3} className={`${cellLastCol} text-gray-900`}>
+          <td colSpan={3} className={`${cellLastCol} break-words text-gray-900`}>
             {subject || '-'}
           </td>
         </tr>
         <tr>
           <td className={`${cell} text-gray-800`}>Purpose</td>
-          <td colSpan={3} className={`${cellLastCol} text-gray-900`}>
+          <td colSpan={3} className={`${cellLastCol} break-words text-gray-900`}>
             {purpose?.trim() ? purpose : '-'}
           </td>
         </tr>
-        <tr>
+        <tr className="print-row-breakable">
           <td className={`${cell} align-top text-gray-800`}>Plan</td>
-          <td colSpan={3} className={`${cellLastCol} align-top whitespace-pre-wrap text-gray-900`}>
-            <span className="text-xs min-h-80 block">
-              {plan?.trim() ? <RichTextContent value={plan} /> : '-'}
-            </span>
+          <td
+            colSpan={3}
+            className={`${cellLastCol} align-top break-words text-gray-900`}
+          >
+            <div className="min-w-0 max-w-full overflow-hidden break-words [overflow-wrap:anywhere]">
+              {plan?.trim() ? (
+                <RichTextContent
+                  value={plan}
+                  className="max-w-full text-xs [&_p]:my-1 [&_table]:w-full [&_table]:max-w-full [&_table]:table-fixed [&_td]:break-words [&_th]:break-words"
+                />
+              ) : (
+                '-'
+              )}
+            </div>
           </td>
         </tr>
         <tr>
