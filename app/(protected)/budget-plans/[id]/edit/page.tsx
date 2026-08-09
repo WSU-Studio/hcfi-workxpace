@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import BudgetPlanForm from '@/components/budget-plans/BudgetPlanForm';
 import { useBudgetPlanForm } from '@/hooks/useBudgetPlanForm';
+import { notifyFormError } from '@/lib/forms/feedback';
 import {
   allocationsFromPlanRows,
   BudgetPlanFormOptions,
@@ -37,6 +39,7 @@ export default function EditBudgetPlanPage() {
     approvalSchemas: [],
   });
   const [error, setError] = useState('');
+  const errorBannerRef = useRef<HTMLDivElement | null>(null);
   const [histories, setHistories] = useState<{
     id: string;
     action: string;
@@ -69,6 +72,7 @@ export default function EditBudgetPlanPage() {
     splitEvenly,
     removeExistingSupportingDoc,
     formatAllocationDisplay,
+    fieldRefs,
   } = useBudgetPlanForm();
 
   const formatDateTime = (date: string) =>
@@ -121,6 +125,11 @@ export default function EditBudgetPlanPage() {
     (schema) => schema.departmentId === formData.departmentId,
   );
 
+  const reportError = (message: string, field?: keyof typeof fieldRefs) => {
+    setError(message);
+    notifyFormError(message, { fieldRef: field ? fieldRefs[field] : errorBannerRef });
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
@@ -133,7 +142,7 @@ export default function EditBudgetPlanPage() {
       requireDepartmentAndSubject: false,
     });
     if (validationError) {
-      setError(validationError);
+      reportError(validationError.message, validationError.field);
       return;
     }
 
@@ -145,7 +154,9 @@ export default function EditBudgetPlanPage() {
         try {
           newlyUploadedDocs = await uploadBudgetPlanSupportingDocs(attachmentFiles);
         } catch (uploadError) {
-          setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload supporting documents');
+          reportError(
+            uploadError instanceof Error ? uploadError.message : 'Failed to upload supporting documents',
+          );
           return;
         } finally {
           setIsUploadingAttachments(false);
@@ -164,13 +175,13 @@ export default function EditBudgetPlanPage() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        setError(typeof body?.error === 'string' ? body.error : 'Failed');
+        reportError(typeof body?.error === 'string' ? body.error : 'Failed');
         return;
       }
 
       router.push(`/budget-plans/${id}`);
     } catch {
-      setError('Failed');
+      reportError('Failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -182,7 +193,18 @@ export default function EditBudgetPlanPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Edit Budget Plan</h1>
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</div>
+        <div
+          ref={errorBannerRef}
+          role="alert"
+          aria-live="assertive"
+          className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-red-700 shadow-sm"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
+          <div className="flex-1">
+            <p className="font-semibold">Submission failed</p>
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        </div>
       )}
       <Card className="p-6">
         <BudgetPlanForm
@@ -207,6 +229,7 @@ export default function EditBudgetPlanPage() {
           onRemoveExistingSupportingDoc={removeExistingSupportingDoc}
           userDepartmentId={userDepartmentId}
           canCrossDepartment={canCrossDepartment}
+          fieldRefs={fieldRefs}
           cancelHref={`/budget-plans/${id}`}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}

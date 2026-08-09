@@ -26,6 +26,7 @@ import {
   MONTH_NAMES,
 } from '@/lib/budget-plans/form';
 import { sortApprovalLevels } from '@/lib/approval-schema';
+import type { BudgetPlanFieldRefs } from '@/hooks/useBudgetPlanForm';
 
 export interface BudgetPlanFormProps {
   mode: 'create' | 'edit';
@@ -49,6 +50,7 @@ export interface BudgetPlanFormProps {
   onRemoveExistingSupportingDoc?: (url: string) => void;
   userDepartmentId?: string;
   canCrossDepartment?: boolean;
+  fieldRefs: BudgetPlanFieldRefs;
   cancelHref: string;
   onSubmit: (event: React.FormEvent) => void;
   isSubmitting: boolean;
@@ -78,6 +80,7 @@ export default function BudgetPlanForm({
   onRemoveExistingSupportingDoc,
   userDepartmentId = '',
   canCrossDepartment = false,
+  fieldRefs,
   cancelHref,
   onSubmit,
   isSubmitting,
@@ -171,15 +174,17 @@ export default function BudgetPlanForm({
           )}
         </div>
 
-        <DepartmentSelectField
-          value={formData.departmentId}
-          departments={departments}
-          userDepartmentId={userDepartmentId}
-          canCrossDepartment={canCrossDepartment}
-          onChange={(departmentId) =>
-            onFormDataChange((previous) => ({ ...previous, departmentId }))
-          }
-        />
+        <div ref={fieldRefs.department}>
+          <DepartmentSelectField
+            value={formData.departmentId}
+            departments={departments}
+            userDepartmentId={userDepartmentId}
+            canCrossDepartment={canCrossDepartment}
+            onChange={(departmentId) =>
+              onFormDataChange((previous) => ({ ...previous, departmentId }))
+            }
+          />
+        </div>
 
         <div>
           <label className="block mb-1.5 font-medium">Project</label>
@@ -195,7 +200,7 @@ export default function BudgetPlanForm({
         </div>
       </div>
 
-      <div>
+      <div ref={fieldRefs.subject}>
         <label className="block mb-1.5 font-medium">Subject *</label>
         <Input
           type="text"
@@ -211,7 +216,7 @@ export default function BudgetPlanForm({
         />
       </div>
 
-      <div>
+      <div ref={fieldRefs.description}>
         <label className="block mb-1.5 font-medium">Description</label>
         <RichTextEditor
           value={formData.description}
@@ -231,10 +236,10 @@ export default function BudgetPlanForm({
         disabled={isSubmitting || isUploadingAttachments}
       />
 
-      <div>
+      <div ref={fieldRefs.allocations}>
         <h3 className="font-medium mb-3">Monthly Allocation</h3>
 
-        <div className="mb-4">
+        <div ref={fieldRefs.months} className="mb-4">
           <MonthChecklistSelector
             selectedMonths={selectedMonths}
             onChange={onSelectedMonthsChange}
@@ -317,7 +322,7 @@ export default function BudgetPlanForm({
         </div>
       </div>
 
-      <div>
+      <div ref={fieldRefs.approvalSchema}>
         <label className="block mb-1.5 font-medium">Approval Schema *</label>
         <Select
           value={formData.approvalSchemaId}

@@ -97,6 +97,19 @@ export function toAllocationPayload(
     }));
 }
 
+export type BudgetPlanValidationField =
+  | 'subject'
+  | 'description'
+  | 'department'
+  | 'approvalSchema'
+  | 'months'
+  | 'allocations';
+
+export type BudgetPlanValidationError = {
+  message: string;
+  field: BudgetPlanValidationField;
+};
+
 interface ValidateBudgetPlanFormInput {
   formData: BudgetPlanFormValues;
   selectedMonths: number[];
@@ -112,28 +125,39 @@ export function validateBudgetPlanForm({
   schemasForDepartment,
   totalAllocation,
   requireDepartmentAndSubject = true,
-}: ValidateBudgetPlanFormInput): string | null {
-  if (requireDepartmentAndSubject && (!formData.departmentId || !formData.subject)) {
-    return 'Fill required fields';
+}: ValidateBudgetPlanFormInput): BudgetPlanValidationError | null {
+  if (requireDepartmentAndSubject && !formData.departmentId) {
+    return { message: 'Department is required', field: 'department' };
+  }
+
+  if (requireDepartmentAndSubject && !formData.subject) {
+    return { message: 'Subject is required', field: 'subject' };
   }
 
   if (!formData.approvalSchemaId) {
-    return schemasForDepartment.length === 0
-      ? 'No approval schema is configured for the selected department. Set one up before submitting.'
-      : 'Select an approval schema before submitting';
+    return {
+      message:
+        schemasForDepartment.length === 0
+          ? 'No approval schema is configured for the selected department. Set one up before submitting.'
+          : 'Select an approval schema before submitting',
+      field: 'approvalSchema',
+    };
   }
 
   if (selectedMonths.length === 0) {
-    return 'Select at least one month for allocation';
+    return { message: 'Select at least one month for allocation', field: 'months' };
   }
 
   if (!Number.isFinite(totalAllocation) || totalAllocation <= 0) {
-    return 'Total budget allocation must be greater than 0';
+    return {
+      message: 'Total budget allocation must be greater than 0',
+      field: 'allocations',
+    };
   }
 
   const descriptionSize = new TextEncoder().encode(formData.description || '').length;
   if (descriptionSize > DESCRIPTION_MAX_BYTES) {
-    return 'Description is too large. Maximum 200KB.';
+    return { message: 'Description is too large. Maximum 200KB.', field: 'description' };
   }
 
   return null;

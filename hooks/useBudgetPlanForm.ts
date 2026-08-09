@@ -1,13 +1,23 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   BudgetPlanFormValues,
+  BudgetPlanValidationField,
   createDefaultFormValues,
   createEmptyAllocations,
   formatAllocationDisplay,
   parseBaseAmount,
 } from '@/lib/budget-plans/form';
+
+export interface BudgetPlanFieldRefs {
+  subject: React.RefObject<HTMLDivElement | null>;
+  description: React.RefObject<HTMLDivElement | null>;
+  department: React.RefObject<HTMLDivElement | null>;
+  approvalSchema: React.RefObject<HTMLDivElement | null>;
+  months: React.RefObject<HTMLDivElement | null>;
+  allocations: React.RefObject<HTMLDivElement | null>;
+}
 
 export function useBudgetPlanForm(initialValues?: Partial<BudgetPlanFormValues>) {
   const [formData, setFormData] = useState<BudgetPlanFormValues>({
@@ -19,6 +29,22 @@ export function useBudgetPlanForm(initialValues?: Partial<BudgetPlanFormValues>)
   const [baseAmount, setBaseAmount] = useState('');
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [existingSupportingDocs, setExistingSupportingDocs] = useState<string[]>([]);
+
+  const subjectFieldRef = useRef<HTMLDivElement | null>(null);
+  const descriptionFieldRef = useRef<HTMLDivElement | null>(null);
+  const departmentFieldRef = useRef<HTMLDivElement | null>(null);
+  const approvalSchemaFieldRef = useRef<HTMLDivElement | null>(null);
+  const monthsFieldRef = useRef<HTMLDivElement | null>(null);
+  const allocationsFieldRef = useRef<HTMLDivElement | null>(null);
+
+  const fieldRefs: BudgetPlanFieldRefs = {
+    subject: subjectFieldRef,
+    description: descriptionFieldRef,
+    department: departmentFieldRef,
+    approvalSchema: approvalSchemaFieldRef,
+    months: monthsFieldRef,
+    allocations: allocationsFieldRef,
+  };
 
   const selectedMonthsSorted = useMemo(
     () => [...selectedMonths].sort((a, b) => a - b),
@@ -56,6 +82,8 @@ export function useBudgetPlanForm(initialValues?: Partial<BudgetPlanFormValues>)
     setExistingSupportingDocs((previous) => previous.filter((item) => item !== url));
   };
 
+  const getFieldRef = (field: BudgetPlanValidationField) => fieldRefs[field];
+
   return {
     formData,
     setFormData,
@@ -75,5 +103,7 @@ export function useBudgetPlanForm(initialValues?: Partial<BudgetPlanFormValues>)
     splitEvenly,
     removeExistingSupportingDoc,
     formatAllocationDisplay,
+    fieldRefs,
+    getFieldRef,
   };
 }
