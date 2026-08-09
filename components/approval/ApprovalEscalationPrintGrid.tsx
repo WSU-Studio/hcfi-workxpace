@@ -88,43 +88,59 @@ export default function ApprovalEscalationPrintGrid({
   const filledCount = levels.length + (showRequestorColumn ? 1 : 0);
   // Each filled column occupies 1/9 of the page; unused slots stay empty to the right.
   const widthPercent = Math.min(filledCount / PRINT_COLUMN_SLOTS, 1) * 100;
+  const sideLabelWidthRem = 1.75;
 
   return (
     <div className={`overflow-x-auto -mx-2 px-2 print:overflow-visible print:mx-0 print:px-0 ${className}`}>
       <div
-        className="grid overflow-hidden rounded-lg border border-gray-400 bg-white print:rounded-none"
+        className="flex max-w-full overflow-hidden rounded-lg border border-gray-400 bg-white print:rounded-none"
         style={{
-          width: `${widthPercent}%`,
-          maxWidth: '100%',
-          gridTemplateColumns: `repeat(${filledCount}, minmax(0, 1fr))`,
+          width: `min(100%, calc(${widthPercent}% + ${sideLabelWidthRem}rem))`,
         }}
       >
-        {showRequestorColumn && requestorStepProgress ? (
-          <ApprovalPrintColumn
-            roleLabel={requestorRoleLabel}
-            progress={requestorStepProgress}
-            stamp={getRequestorStamp(requestorStepProgress)}
-            isLastCol={levels.length === 0}
-          />
-        ) : null}
+        <div
+          className="hidden print:flex shrink-0 items-center justify-center self-stretch border-r border-gray-400"
+          style={{ width: `${sideLabelWidthRem}rem` }}
+          aria-hidden
+        >
+          <span className="-rotate-90 whitespace-nowrap text-xs font-semibold tracking-wide text-gray-800">
+            Approval
+          </span>
+        </div>
 
-        {levels.map((level, index) => {
-          const progress = stepProgresses[index] ?? {
-            statusLabel: 'Pending',
-            timestampLabel: '-',
-            actorName: null,
-            note: null,
-          };
-          return (
+        <div
+          className="grid min-w-0 flex-1"
+          style={{
+            gridTemplateColumns: `repeat(${filledCount}, minmax(0, 1fr))`,
+          }}
+        >
+          {showRequestorColumn && requestorStepProgress ? (
             <ApprovalPrintColumn
-              key={level.stepOrder}
-              roleLabel={level.role?.roleName ?? '-'}
-              progress={progress}
-              stamp={getReviewerStamp(progress)}
-              isLastCol={index === levels.length - 1}
+              roleLabel={requestorRoleLabel}
+              progress={requestorStepProgress}
+              stamp={getRequestorStamp(requestorStepProgress)}
+              isLastCol={levels.length === 0}
             />
-          );
-        })}
+          ) : null}
+
+          {levels.map((level, index) => {
+            const progress = stepProgresses[index] ?? {
+              statusLabel: 'Pending',
+              timestampLabel: '-',
+              actorName: null,
+              note: null,
+            };
+            return (
+              <ApprovalPrintColumn
+                key={level.stepOrder}
+                roleLabel={level.role?.roleName ?? '-'}
+                progress={progress}
+                stamp={getReviewerStamp(progress)}
+                isLastCol={index === levels.length - 1}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );

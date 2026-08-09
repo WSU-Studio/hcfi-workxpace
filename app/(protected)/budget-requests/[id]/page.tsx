@@ -276,7 +276,7 @@ export default function BudgetRequestDetailPage() {
             sectionLabel="Requester"
           />
 
-          <Card className="space-y-4 print:border-transparent">
+          <Card className="space-y-4 print:border-transparent print:p-0">
             <h3 className="font-medium print:hidden">Approval Escalation</h3>
             {orderedLevels.length ? (
               <ApprovalEscalationPrintGrid
