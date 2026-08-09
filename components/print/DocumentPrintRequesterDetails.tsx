@@ -80,7 +80,7 @@ export default function DocumentPrintRequesterDetails({
             colSpan={3}
             className={`${cellLastCol} align-top break-words text-gray-900`}
           >
-            <div className="min-w-0 max-w-full overflow-hidden break-words [overflow-wrap:anywhere]">
+            <div className="min-h-40 min-w-0 max-w-full overflow-hidden break-words [overflow-wrap:anywhere]">
               {plan?.trim() ? (
                 <RichTextContent
                   value={plan}

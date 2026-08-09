@@ -302,7 +302,7 @@ export default function BudgetRequestDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Description</p>
-              <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-24">
                 <RichTextContent value={data.description} />
               </div>
             </div>
@@ -507,14 +507,14 @@ export default function BudgetRequestDetailPage() {
                 stepProgresses={stepProgresses}
               />
 
-              <div className="hidden print:block">
+              {/* <div className="hidden print:block">
                 <ApprovalEscalationPrintGrid
                   levels={orderedLevels}
                   stepProgresses={stepProgresses}
                   showRequestor
                   requestorStepProgress={requestorStepProgress}
                 />
-              </div>
+              </div> */}
             </>
           ) : (
             <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
