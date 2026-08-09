@@ -24,6 +24,7 @@ import {
 } from '@/components/budget-requests/BudgetRequestDetailSections';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
+import DocumentPrintHeader from '@/components/print/DocumentPrintHeader';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
 import { normalizeSupportingDocs } from '@/lib/supporting-docs';
 import { formatBudgetRequestOriginOfficeLabel } from '@/lib/budget-requests/display';
@@ -31,7 +32,6 @@ import { isBudgetRequestCompactDetailView } from '@/lib/deployment-ui-policy';
 import {
   getMultiStepApprovalProgress,
   getRequestorSubmissionStepProgress,
-  getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
 
@@ -268,8 +268,16 @@ export default function BudgetRequestDetailPage() {
             </div>
           </div>
 
-          <Card className="space-y-4">
-            <h3 className="font-medium">Approval Escalation</h3>
+          <DocumentPrintHeader
+            className="hidden print:table"
+            number={data.code}
+            title="Budget Request"
+            classification="Decision Making"
+            sectionLabel="Requester"
+          />
+
+          <Card className="space-y-4 print:border-transparent">
+            <h3 className="font-medium print:hidden">Approval Escalation</h3>
             {orderedLevels.length ? (
               <ApprovalEscalationPrintGrid
                 levels={orderedLevels}
@@ -384,12 +392,16 @@ export default function BudgetRequestDetailPage() {
       </div>
 
       <div ref={printableRef} className="space-y-6">
+      <DocumentPrintHeader
+        className="hidden print:table"
+        number={data.code}
+        title="Budget Request"
+        classification="Decision Making"
+        sectionLabel="Requester"
+      />
+
       <div className="min-w-0">
-        <p className="hidden text-xs uppercase tracking-wide text-gray-500 print:block">Budget Request</p>
         <h1 className="text-2xl font-semibold">{data.subject}</h1>
-        <p className="hidden text-sm text-gray-600 print:block">
-          {data.code} · FY {data.fiscalYear} · {data.department?.name}
-        </p>
       </div>
 
       <Card className="space-y-4">

@@ -39,6 +39,9 @@ body {
 :root[data-exporting='pdf'] .print\:block {
   display: block !important;
 }
+:root[data-exporting='pdf'] .print\:table {
+  display: table !important;
+}
 :root[data-exporting='pdf'] .print\:overflow-visible {
   overflow: visible !important;
 }
