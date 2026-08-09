@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Download, Pencil, Printer, ScanSearch, Eye } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import EditWarningModal from '@/components/ui/EditWarningModal';
