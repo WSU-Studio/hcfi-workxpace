@@ -25,6 +25,7 @@ import {
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import DocumentPrintHeader from '@/components/print/DocumentPrintHeader';
+import DocumentPrintRequesterDetails from '@/components/print/DocumentPrintRequesterDetails';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
 import { normalizeSupportingDocs } from '@/lib/supporting-docs';
 import { formatBudgetRequestOriginOfficeLabel } from '@/lib/budget-requests/display';
@@ -290,7 +291,7 @@ export default function BudgetRequestDetailPage() {
             )}
           </Card>
 
-          <Card className="space-y-4">
+          <Card className="space-y-4 print:hidden">
             <div>
               <p className="text-sm text-gray-500">Request Date</p>
               <p className="text-base font-medium text-gray-900">{formatDate(data.requestDate)}</p>
@@ -310,6 +311,15 @@ export default function BudgetRequestDetailPage() {
               <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
             </div>
           </Card>
+
+          <DocumentPrintRequesterDetails
+            className="hidden print:table"
+            date={data.requestDate}
+            teamName={data.department?.name ?? '-'}
+            subject={data.subject}
+            purpose=""
+            plan={data.description}
+          />
 
           <EditWarningModal
             isOpen={isEditWarningOpen}
@@ -400,7 +410,16 @@ export default function BudgetRequestDetailPage() {
         sectionLabel="Requester"
       />
 
-      <div className="min-w-0">
+      <DocumentPrintRequesterDetails
+        className="hidden print:table"
+        date={data.requestDate}
+        teamName={data.department?.name ?? '-'}
+        subject={data.subject}
+        purpose={data.description}
+        plan={data.notes}
+      />
+
+      <div className="min-w-0 print:hidden">
         <h1 className="text-2xl font-semibold">{data.subject}</h1>
       </div>
 
