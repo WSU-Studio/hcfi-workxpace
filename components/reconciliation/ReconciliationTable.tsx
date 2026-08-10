@@ -8,13 +8,14 @@ import {
   TableEmptyRow,
   TableHead,
   TableHeaderRow,
+  stickyListCol,
 } from '@/components/ui/Table';
 import type { ConfinsCashDisbursement } from '@/lib/integrations/confins-mock/types';
 import {
   getRequestDateRaw,
   parseConfinsShortDate,
 } from '@/lib/integrations/confins/v103-budget-real';
-import { formatSignedCurrency, formatDate } from '@/lib/utils';
+import { cn, formatSignedCurrency, formatDate } from '@/lib/utils';
 import { ReconciliationRow } from '@/types/reconciliation';
 import { useMemo, useState } from 'react';
 
@@ -88,8 +89,11 @@ export default function ReconciliationTable({
       <Table className="min-w-[1200px] text-sm">
         <thead className="bg-gray-50">
           <TableHeaderRow className="border-gray-200">
+            <TableHead className={cn(stickyListCol.index.head, 'bg-gray-50 text-xs font-semibold uppercase text-gray-600')}>
+              #
+            </TableHead>
             <TableHead
-              className="text-xs font-semibold uppercase text-gray-600"
+              className={cn(stickyListCol.createdAt.head, 'bg-gray-50 text-xs font-semibold uppercase text-gray-600')}
               aria-sort={requestDateSort === 'asc' ? 'ascending' : 'descending'}
             >
               <button
@@ -104,7 +108,11 @@ export default function ReconciliationTable({
                 </span>
               </button>
             </TableHead>
-            <TableHead className="text-xs font-semibold uppercase text-gray-600">Source</TableHead>
+            <TableHead
+              className={cn(stickyListCol.id.head, 'bg-gray-50 text-xs font-semibold uppercase text-gray-600')}
+            >
+              Source
+            </TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Budget Request</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Incoming ID</TableHead>
             <TableHead className="text-xs font-semibold uppercase text-gray-600">Description</TableHead>
@@ -117,13 +125,16 @@ export default function ReconciliationTable({
           </TableHeaderRow>
         </thead>
         <tbody>
-          {rows.length === 0 && <TableEmptyRow colSpan={11}>No reconciliation data. Run sync.</TableEmptyRow>}
-          {sortedRows.map((row) => {
+          {rows.length === 0 && <TableEmptyRow colSpan={12}>No reconciliation data. Run sync.</TableEmptyRow>}
+          {sortedRows.map((row, index) => {
             const payment = row.payment;
             return (
               <TableBodyRow key={payment.id} className="border-gray-200">
-                <TableCell>{renderRequestDate(payment)}</TableCell>
-                <TableCell>{payment.dataInterfaceSource ?? '-'}</TableCell>
+                <TableCell className={cn(stickyListCol.index.cell, 'tabular-nums text-gray-500')}>
+                  {index + 1}
+                </TableCell>
+                <TableCell className={stickyListCol.createdAt.cell}>{renderRequestDate(payment)}</TableCell>
+                <TableCell className={stickyListCol.id.cell}>{payment.dataInterfaceSource ?? '-'}</TableCell>
                 <TableCell>{row.matchedRequest?.code ?? '-'}</TableCell>
                 <TableCell className="font-medium text-gray-700">{payment.incomingReferenceId}</TableCell>
                 <TableCell>{payment.description}</TableCell>
