@@ -179,6 +179,8 @@ export default function ReconciliationPage() {
           debitRowCount?: number;
           filteredRowCount?: number;
           sourceTypes?: string;
+          sourceTypeCounts?: Record<string, number>;
+          sourceTypeErrors?: Record<string, string>;
           edgeCaseCount?: number;
           confinsMockEnabled?: boolean;
           dataSource?: string;
@@ -212,21 +214,26 @@ export default function ReconciliationPage() {
       const eligibleCount = payData.meta?.eligibleRowCount ?? payData.meta?.debitRowCount ?? 0;
       const shown = payData.meta?.recordCount ?? 0;
       const sourceTypes = payData.meta?.sourceTypes ?? 'CONFINS,EGL';
-      // const edgeCases = payData.meta?.edgeCaseCount ?? 0;
+      const counts = payData.meta?.sourceTypeCounts ?? {};
+      const errors = payData.meta?.sourceTypeErrors ?? {};
+      const countHint = Object.keys(counts).length
+        ? ` ${Object.entries(counts)
+            .map(([st, n]) => `${st}=${n}`)
+            .join(', ')}.`
+        : '';
+      const errorHint = Object.keys(errors).length
+        ? ` WARNING: ${Object.entries(errors)
+            .map(([st, msg]) => `${st} failed (${msg})`)
+            .join('; ')}.`
+        : '';
       const sourceHint =
         payData.meta?.dataSource === 'confins-api'
           ? 'Confins API'
           : payData.meta?.dataSource === 'confins-mock-fixture'
             ? 'fixture/mock Confins'
             : 'mock lokal';
-      // const edgeHint =
-      //   edgeCases > 0
-      //     ? ` Termasuk ${edgeCases} baris contoh QA (Mock API aktif).`
-      //     : matchedRequest === 0 && rawCount > 0
-      //       ? ' Tidak ada RequestDate yang cocok dengan bulan/tahun filter — tabel kosong (bukan bug API).'
-      //       : '';
       setSyncMessage(
-        `Synced from ${sourceHint} [${sourceTypes}]: ${shown} rows shown for RequestDate ${month}/${fiscalYear} (${rawCount} from API, ${eligibleCount} after DC filter).`
+        `Synced from ${sourceHint} [${sourceTypes}]: ${shown} rows shown for RequestDate ${month}/${fiscalYear} (${rawCount} from API, ${eligibleCount} after DC filter).${countHint}${errorHint}`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';

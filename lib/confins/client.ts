@@ -13,6 +13,14 @@ type ConfinsRequestOptions = {
    * Ignores "Activate Mock API" and mock fallback — fails loudly if API is down.
    */
   liveOnly?: boolean;
+  /** Override default request timeout (ms). Budget-real / EGL payloads can exceed 30s. */
+  timeoutMs?: number;
+  /**
+   * When false, network/timeout errors are rethrown instead of returning mock fixture.
+   * Use for multi-sourceType reconciliation so a failed EGL call is not replaced by
+   * CONFINS mock rows.
+   */
+  allowMockFallback?: boolean;
 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -50,7 +58,7 @@ export class ConfinsClient {
   }
 
   async post<T>(options: ConfinsRequestOptions): Promise<T[]> {
-    const { liveOnly = false } = options;
+    const { liveOnly = false, timeoutMs = DEFAULT_TIMEOUT_MS, allowMockFallback = true } = options;
 
     if (!liveOnly) {
       const mockEnabled = await this.isMockEnabled();
@@ -70,7 +78,7 @@ export class ConfinsClient {
 
     const url = `${this.baseUrl}${options.path}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -118,13 +126,13 @@ export class ConfinsClient {
       return data.ReturnObject;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Confins request timed out after ${DEFAULT_TIMEOUT_MS}ms path=${options.path}`);
+        throw new Error(`Confins request timed out after ${timeoutMs}ms path=${options.path}`);
       }
       // Keep payload/parse failures visible — do not hide them behind mock data.
       if (error instanceof Error && error.message.startsWith('Invalid JSON from Confins')) {
         throw error;
       }
-      if (!liveOnly && isMockFallbackEnabled()) {
+      if (!liveOnly && allowMockFallback && isMockFallbackEnabled()) {
         const { getConfinsMockData } = await import('./mock-data');
         return (await getConfinsMockData(options.path)) as T[];
       }

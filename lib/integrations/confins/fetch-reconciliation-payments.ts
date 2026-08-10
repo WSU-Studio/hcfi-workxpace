@@ -29,6 +29,9 @@ export type ReconciliationPaymentsFetchOptions = {
 /** Payment Request (99PYREQ…) ada di CONFINS; jurnal manual di EGL. Rekonsiliasi tarik keduanya. */
 const DEFAULT_RECONCILIATION_SOURCE_TYPES = ['CONFINS', 'EGL'] as const;
 
+/** EGL payload bisa multi-MB; 30s default client sering timeout. */
+const BUDGET_REAL_TIMEOUT_MS = 120_000;
+
 export type ReconciliationPaymentsResult = {
   payments: ConfinsCashDisbursement[];
   meta: ConfinsMockListMeta & {
@@ -41,6 +44,10 @@ export type ReconciliationPaymentsResult = {
     filteredRowCount: number;
     /** SourceType yang dipakai saat fetch (comma-separated). */
     sourceTypes: string;
+    /** Raw row count per sourceType (setelah hit API, sebelum filter DC). */
+    sourceTypeCounts: Record<string, number>;
+    /** Error per sourceType bila salah satu hit gagal (yang lain tetap dipakai). */
+    sourceTypeErrors: Record<string, string>;
     /** Selalu 0 — edge-case injection sudah dimatikan. */
     edgeCaseCount: number;
     confinsMockEnabled: boolean;
@@ -59,29 +66,66 @@ function resolveReconciliationSourceTypes(options: ReconciliationPaymentsFetchOp
   return [...DEFAULT_RECONCILIATION_SOURCE_TYPES];
 }
 
+type BudgetRealFetchChunk = {
+  sourceType: string;
+  rows: ConfinsBudgetRealApiRow[];
+  error?: string;
+};
+
 async function fetchBudgetRealRows(
   client: ConfinsClient,
   sourceTypes: string[],
   bodyBase: Omit<Record<string, unknown>, 'sourceType'>,
   confinsMockEnabled: boolean
-): Promise<ConfinsBudgetRealApiRow[]> {
+): Promise<{ rows: ConfinsBudgetRealApiRow[]; counts: Record<string, number>; errors: Record<string, string> }> {
   // Mock fixture tidak membedakan sourceType — satu fetch cukup agar tidak duplikat.
   if (confinsMockEnabled && sourceTypes.length > 1) {
-    return client.post<ConfinsBudgetRealApiRow>({
+    const rows = await client.post<ConfinsBudgetRealApiRow>({
       path: CONFINS_BUDGET_REAL_PATH,
       body: { ...bodyBase, sourceType: sourceTypes[0] },
     });
+    const counts: Record<string, number> = {};
+    for (const st of sourceTypes) counts[st] = st === sourceTypes[0] ? rows.length : 0;
+    return { rows, counts, errors: {} };
   }
 
-  const chunks = await Promise.all(
-    sourceTypes.map((sourceType) =>
-      client.post<ConfinsBudgetRealApiRow>({
-        path: CONFINS_BUDGET_REAL_PATH,
-        body: { ...bodyBase, sourceType },
-      })
-    )
+  const chunks: BudgetRealFetchChunk[] = await Promise.all(
+    sourceTypes.map(async (sourceType) => {
+      try {
+        const rows = await client.post<ConfinsBudgetRealApiRow>({
+          path: CONFINS_BUDGET_REAL_PATH,
+          body: { ...bodyBase, sourceType },
+          timeoutMs: BUDGET_REAL_TIMEOUT_MS,
+          // Jangan ganti EGL yang gagal dengan fixture CONFINS — biarkan error terlihat.
+          allowMockFallback: false,
+        });
+        return { sourceType, rows };
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Unknown error';
+        console.error(`reconciliation budget-real sourceType=${sourceType}:`, message);
+        return { sourceType, rows: [] as ConfinsBudgetRealApiRow[], error: message };
+      }
+    })
   );
-  return chunks.flat();
+
+  const counts: Record<string, number> = {};
+  const errors: Record<string, string> = {};
+  const rows: ConfinsBudgetRealApiRow[] = [];
+
+  for (const chunk of chunks) {
+    counts[chunk.sourceType] = chunk.rows.length;
+    if (chunk.error) errors[chunk.sourceType] = chunk.error;
+    rows.push(...chunk.rows);
+  }
+
+  if (rows.length === 0 && Object.keys(errors).length === sourceTypes.length) {
+    const detail = Object.entries(errors)
+      .map(([st, msg]) => `${st}: ${msg}`)
+      .join(' | ');
+    throw new Error(`All Confins sourceType fetches failed (${detail})`);
+  }
+
+  return { rows, counts, errors };
 }
 
 async function resolveDepartmentName(departmentId?: string): Promise<string | undefined> {
@@ -107,7 +151,7 @@ export async function fetchReconciliationPayments(
   const confinsMockEnabled = await isConfinsMockEnabled();
 
   const client = new ConfinsClient();
-  const apiRows = await fetchBudgetRealRows(
+  const { rows: apiRows, counts: sourceTypeCounts, errors: sourceTypeErrors } = await fetchBudgetRealRows(
     client,
     sourceTypes,
     {
@@ -155,6 +199,8 @@ export async function fetchReconciliationPayments(
       eligibleRowCount,
       filteredRowCount,
       sourceTypes: sourceTypes.join(','),
+      sourceTypeCounts,
+      sourceTypeErrors,
       edgeCaseCount,
       confinsMockEnabled,
       dataSource:

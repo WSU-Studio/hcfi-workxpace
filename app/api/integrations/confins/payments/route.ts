@@ -5,6 +5,8 @@ import {
 } from '@/lib/integrations/confins/fetch-reconciliation-payments';
 
 export const dynamic = 'force-dynamic';
+/** Budget-real CONFINS+EGL bisa >30s (payload multi-MB). */
+export const maxDuration = 180;
 
 /**
  * Confins E-Budgeting 1.03 — budget realization / payment lines untuk rekonsiliasi.
