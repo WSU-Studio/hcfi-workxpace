@@ -47,8 +47,8 @@ export const stickyListCol = {
   },
   /** Report tables: second sticky label after date — edge shadow. */
   labelAfterDate: {
-    head: 'sticky left-[7rem] z-20 min-w-[14rem] w-[14rem] bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
-    cell: 'sticky left-[7rem] z-10 min-w-[14rem] w-[14rem] bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
+    head: 'sticky left-[7rem] z-20 min-w-[14rem] w-[14rem] max-w-[14rem] bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] print:static print:shadow-none',
+    cell: 'sticky left-[7rem] z-10 min-w-[14rem] w-[14rem] max-w-[14rem] overflow-hidden bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)] group-hover:bg-gray-50 print:static print:shadow-none',
   },
 } as const;
 
