@@ -548,6 +548,7 @@ model PaymentRequest {
   invoiceAmount    Decimal          @default(0) @db.Decimal(18, 2)
   currency         String           @default("IDR")
   payeeName        String
+  bankName         String?
   bankAccount      String?
   vendorInvoiceNo  String?
   dateNeeded       DateTime?
