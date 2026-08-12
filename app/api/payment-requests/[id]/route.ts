@@ -161,6 +161,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       budgetRequestId,
       currency,
       payeeName,
+      bankName,
       bankAccount,
       vendorInvoiceNo,
       dateNeeded,
@@ -331,6 +332,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           currency:
             typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'IDR',
           payeeName: payeeName.trim(),
+          bankName: typeof bankName === 'string' && bankName.trim() ? bankName.trim() : null,
           bankAccount: typeof bankAccount === 'string' && bankAccount.trim() ? bankAccount.trim() : null,
           vendorInvoiceNo:
             typeof vendorInvoiceNo === 'string' && vendorInvoiceNo.trim() ? vendorInvoiceNo.trim() : null,

@@ -64,6 +64,7 @@ export interface PaymentRequestFormValues {
   projectId: string;
   currency: string;
   payeeName: string;
+  bankName: string;
   bankAccount: string;
   vendorInvoiceNo: string;
   dateNeeded: string;
@@ -97,6 +98,7 @@ export function createDefaultFormValues(): PaymentRequestFormValues {
     projectId: '',
     currency: 'IDR',
     payeeName: '',
+    bankName: '',
     bankAccount: '',
     vendorInvoiceNo: '',
     dateNeeded: '',
@@ -187,6 +189,7 @@ export function clearBudgetRequestSelection(
     notes: '',
     approvalSchemaId: '',
     payeeName: '',
+    bankName: '',
     bankAccount: '',
     vendorInvoiceNo: '',
     dateNeeded: '',
@@ -299,6 +302,7 @@ export function buildPaymentRequestSubmitPayload(
     lineItems: buildLineItemsPayload(lineItems),
     currency: formData.currency,
     payeeName: formData.payeeName.trim(),
+    bankName: formData.bankName.trim() || null,
     bankAccount: formData.bankAccount.trim() || null,
     vendorInvoiceNo: formData.vendorInvoiceNo.trim() || null,
     dateNeeded: parseDateInputValue(formData.dateNeeded),
