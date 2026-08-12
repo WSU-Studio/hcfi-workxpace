@@ -265,7 +265,7 @@ export default function PaymentRequestDetailPage() {
         </div>
       </div>
 
-      <div className="hidden print:block border-2 border-gray-300 print:w-full print:max-w-full print:overflow-hidden space-y-6">
+      <div className="hidden print:block print:w-full print:max-w-full print:overflow-hidden space-y-6">
         <DocumentPrintHeader
           className="table w-full max-w-full"
           number={data.code}
@@ -273,6 +273,74 @@ export default function PaymentRequestDetailPage() {
           classification="Decision Making"
           sectionLabel="Requester"
         />
+
+        {data.lineItems && data.lineItems.length > 0 ? (
+          <table
+            className="w-full border-collapse border border-gray-400 text-center text-xs text-gray-900"
+            role="presentation"
+          >
+            <thead>
+              <tr>
+                <th className="p-0.5 border border-gray-400 text-center">No</th>
+                <th className="p-0.5 border border-gray-400 text-center">Product / Service Description</th>
+                <th className="p-0.5 border border-gray-400 text-center">Qty</th>
+                <th className="p-0.5 border border-gray-400 text-center">Unit Price</th>
+                <th className="p-0.5 border border-gray-400 text-center">Subtotal</th>
+                <th className="p-0.5 border border-gray-400 text-center">Deduction</th>
+                <th className="p-0.5 border border-gray-400 text-center">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.lineItems.map((li, index) => (
+                <tr key={`${li.item}-${index}`}>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">{index + 1}</td>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">{li.item}</td>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">{li.qty}</td>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">{formatCurrency(Number(li.unitPrice ?? 0))}</td>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">
+                    {formatCurrency(Number(li.subtotal ?? li.qty * Number(li.unitPrice ?? 0)))}
+                  </td>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">{formatCurrency(Number(li.deduction ?? 0))}</td>
+                  <td className="px-0.5 py-1 border border-gray-400 text-center">{formatCurrency(Number(li.total ?? 0))}</td>
+                </tr>
+              ))}
+              <tr className="bg-gray-50 font-medium">
+                <td colSpan={6} className="px-0.5 py-1 border border-gray-400 text-right">
+                  Transaction amount
+                </td>
+                <td className="px-0.5 py-1 border border-gray-400 text-center">
+                  {formatCurrency(
+                    Number(data.totalAmount ?? data.lineItems.reduce((s, l) => s + Number(l.total ?? 0), 0))
+                  )}
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={6} className="px-0.5 py-1 border border-gray-400 text-right">
+                  VAT / PPN
+                </td>
+                <td className="px-0.5 py-1 border border-gray-400 text-center">{formatCurrency(Number(data.vatAmount ?? 0))}</td>
+              </tr>
+              <tr>
+                <td colSpan={6} className="px-0.5 py-1 border border-gray-400 text-right">
+                  Invoice amount
+                </td>
+                <td className="px-0.5 py-1 border border-gray-400 text-center">{formatCurrency(Number(data.invoiceAmount ?? 0))}</td>
+              </tr>
+              <tr>
+                <td colSpan={6} className="px-0.5 py-1 border border-gray-400 text-right">
+                  WHT / PPh
+                </td>
+                <td className="px-0.5 py-1 border border-gray-400 text-center">({formatCurrency(Number(data.whtAmount ?? 0))})</td>
+              </tr>
+              <tr className="bg-green-200/60 font-semibold">
+                <td colSpan={6} className="px-0.5 py-1 border border-gray-400 text-right">
+                  Grand total
+                </td>
+                <td className="px-0.5 py-1 border border-gray-400 text-center">{formatCurrency(data.amount)}</td>
+              </tr>
+            </tbody>
+          </table>
+        ) : null}
 
         {orderedLevels.length ? (
           <ApprovalEscalationPrintGrid
@@ -284,15 +352,6 @@ export default function PaymentRequestDetailPage() {
         ) : (
           <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
         )}
-
-        <DocumentPrintRequesterDetails
-          className="table w-full max-w-full"
-          date={data.requestDate}
-          teamName={data.department?.name ?? '-'}
-          subject={data.subject}
-          purpose=""
-          plan={data.description}
-        />
       </div>
 
       <div ref={printableRef} className="space-y-6 print:hidden">
