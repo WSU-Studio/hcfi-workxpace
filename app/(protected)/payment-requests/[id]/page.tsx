@@ -265,7 +265,7 @@ export default function PaymentRequestDetailPage() {
         </div>
       </div>
 
-      <div className="hidden print:block print:w-full print:max-w-full print:overflow-hidden space-y-6">
+      <div className="hidden print:block border-2 border-gray-300 print:w-full print:max-w-full print:overflow-hidden space-y-6">
         <DocumentPrintHeader
           className="table w-full max-w-full"
           number={data.code}

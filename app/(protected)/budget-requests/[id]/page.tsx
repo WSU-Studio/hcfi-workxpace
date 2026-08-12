@@ -269,16 +269,37 @@ export default function BudgetRequestDetailPage() {
             </div>
           </div>
 
-          <DocumentPrintHeader
-            className="hidden print:table"
-            number={data.code}
-            title="Budget Request"
-            classification="Decision Making"
-            sectionLabel="Requester"
-          />
+          <div className="hidden print:block border-2 border-gray-300 print:w-full print:max-w-full print:overflow-hidden space-y-6">
+            <DocumentPrintHeader
+              className="table w-full max-w-full"
+              number={data.code}
+              title="Budget Request"
+              classification="Decision Making"
+              sectionLabel="Requester"
+            />
 
-          <Card className="space-y-4 print:border-transparent print:p-0">
-            <h3 className="font-medium print:hidden">Approval Escalation</h3>
+            {orderedLevels.length ? (
+              <ApprovalEscalationPrintGrid
+                levels={orderedLevels}
+                stepProgresses={stepProgresses}
+                showRequestor
+                requestorStepProgress={requestorStepProgress}
+              />
+            ) : (
+              <p className="text-sm text-gray-500">No approval escalation schema configured.</p>
+            )}
+
+            <DocumentPrintRequesterDetails
+              date={data.requestDate}
+              teamName={data.department?.name ?? '-'}
+              subject={data.subject}
+              purpose=""
+              plan={data.description}
+            />
+          </div>
+
+          <Card className="space-y-4 print:hidden">
+            <h3 className="font-medium">Approval Escalation</h3>
             {orderedLevels.length ? (
               <ApprovalEscalationPrintGrid
                 levels={orderedLevels}
@@ -311,15 +332,6 @@ export default function BudgetRequestDetailPage() {
               <SupportingDocumentLinks urls={normalizeSupportingDocs(data.supportingDocs)} />
             </div>
           </Card>
-
-          <DocumentPrintRequesterDetails
-            className="hidden print:table"
-            date={data.requestDate}
-            teamName={data.department?.name ?? '-'}
-            subject={data.subject}
-            purpose=""
-            plan={data.description}
-          />
 
           <EditWarningModal
             isOpen={isEditWarningOpen}

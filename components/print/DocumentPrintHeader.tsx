@@ -42,7 +42,7 @@ export default function DocumentPrintHeader({
         </tr>
         {sectionLabel ? (
           <tr>
-            <td colSpan={3} className="border border-gray-400 bg-gray-100 px-2 py-2 font-bold">
+            <td colSpan={3} className="print-fill border border-gray-400 bg-gray-200 px-2 py-2 font-bold">
               {sectionLabel}
             </td>
           </tr>
