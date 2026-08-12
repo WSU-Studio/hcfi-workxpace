@@ -25,8 +25,7 @@ import {
   getRequestStatusDisplay,
   requiresEditConfirmation,
 } from '@/lib/budget-plan-approval-display';
-import DocumentPrintHeader from '@/components/print/DocumentPrintHeader';
-import DocumentPrintRequesterDetails from '@/components/print/DocumentPrintRequesterDetails';
+import PaymentRequestPrintHeader from '@/components/print/PaymentRequestPrintHeader';
 
 type HistoryEntry = {
   id: string;
@@ -266,12 +265,15 @@ export default function PaymentRequestDetailPage() {
       </div>
 
       <div className="hidden print:block print:w-full print:max-w-full print:overflow-hidden space-y-4">
-        <DocumentPrintHeader
-          className="table w-full max-w-full"
-          number={data.code}
-          title="Budget Request"
-          classification="Decision Making"
-          sectionLabel="Requester"
+        <PaymentRequestPrintHeader
+          preparedBy={data.requestorName ?? '-'}
+          department={data.department?.name ?? '-'}
+          purposeDescription={data.paymentPurpose || data.subject}
+          originOffice={data.originOffice ?? ''}
+          expenseType={data.opexType || data.type}
+          vendorInvoiceNo={data.vendorInvoiceNo}
+          dateNeeded={data.dateNeeded}
+          requestDate={data.requestDate}
         />
 
         {data.lineItems && data.lineItems.length > 0 ? (
