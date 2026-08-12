@@ -265,7 +265,7 @@ export default function PaymentRequestDetailPage() {
         </div>
       </div>
 
-      <div className="hidden print:block print:w-full print:max-w-full print:overflow-hidden space-y-6">
+      <div className="hidden print:block print:w-full print:max-w-full print:overflow-hidden space-y-4">
         <DocumentPrintHeader
           className="table w-full max-w-full"
           number={data.code}
@@ -341,6 +341,36 @@ export default function PaymentRequestDetailPage() {
             </tbody>
           </table>
         ) : null}
+
+        <div>
+          <span className="text-xs font-semibold">Notes:</span>
+          <div className="px-0.5 py-1 border border-gray-400 text-left min-h-16">{data.notes}</div>
+        </div>
+
+        <div>
+          <span className="text-xs font-semibold">Paid to:</span>
+          <table
+            className="max-w-full border-collapse border border-gray-400 text-center text-xs text-gray-900"
+            role="presentation"
+          >
+            <tbody>
+              <tr>
+                <td className="min-w-32 px-0.5 py-1 border border-gray-400 text-left">Beneficiary Name</td>
+                <td className="min-w-64 px-0.5 py-1 border border-gray-400 text-left">{data.payeeName}</td>
+              </tr>
+              <tr>
+                <td className="px-0.5 py-1 border border-gray-400 text-left">Bank Name</td>
+                <td className="px-0.5 py-1 border border-gray-400 text-left">
+                  {/* {data.bankName} */}
+                </td>
+              </tr>
+              <tr>
+                <td className="px-0.5 py-1 border border-gray-400 text-left">Bank Account No</td>
+                <td className="px-0.5 py-1 border border-gray-400 text-left">{data.bankAccount}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         {orderedLevels.length ? (
           <ApprovalEscalationPrintGrid
