@@ -219,7 +219,7 @@ export default function ReviewPaymentRequestPage() {
           </Link>
           <h1 className="text-2xl font-semibold">Review Payment Request</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -230,7 +230,7 @@ export default function ReviewPaymentRequestPage() {
             <Printer className="h-4 w-4" aria-hidden />
             Print
           </Button>
-        </div>
+        </div> */}
       </div>
 
       <Card className="space-y-4"
