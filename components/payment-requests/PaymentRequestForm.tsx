@@ -354,7 +354,7 @@ export default function PaymentRequestForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="col-span-2">
+        <div>
           <label className="mb-1.5 block font-medium">Payee *</label>
           <Input
             type="text"
@@ -367,6 +367,21 @@ export default function PaymentRequestForm({
             }
             placeholder="Vendor or beneficiary name"
             required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block font-medium">Bank Name</label>
+          <Input
+            type="text"
+            value={formData.bankName}
+            onChange={(event) =>
+              onFormDataChange((previous) => ({
+                ...previous,
+                bankName: event.target.value,
+              }))
+            }
+            placeholder="Bank name"
           />
         </div>
 

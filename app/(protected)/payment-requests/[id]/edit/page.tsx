@@ -34,6 +34,7 @@ type PaymentRequestApi = {
   projectId: string | null;
   currency: string | null;
   payeeName: string | null;
+  bankName?: string | null;
   bankAccount: string | null;
   vendorInvoiceNo?: string | null;
   dateNeeded?: string | null;
@@ -170,6 +171,7 @@ export default function EditPaymentRequestPage() {
           projectId: data.projectId ?? '',
           currency: data.currency ?? 'IDR',
           payeeName: data.payeeName ?? '',
+          bankName: data.bankName ?? '',
           bankAccount: data.bankAccount ?? '',
           vendorInvoiceNo: data.vendorInvoiceNo ?? '',
           dateNeeded: formatDateInputValue(data.dateNeeded),

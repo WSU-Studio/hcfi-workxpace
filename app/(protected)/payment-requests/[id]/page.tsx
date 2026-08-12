@@ -85,6 +85,7 @@ export default function PaymentRequestDetailPage() {
       total: number;
     }[];
     payeeName: string;
+    bankName?: string | null;
     bankAccount?: string | null;
     vendorInvoiceNo?: string | null;
     dateNeeded?: string | null;
@@ -362,9 +363,7 @@ export default function PaymentRequestDetailPage() {
               </tr>
               <tr>
                 <td className="px-0.5 py-1 border border-gray-400 text-left">Bank Name</td>
-                <td className="px-0.5 py-1 border border-gray-400 text-left">
-                  {/* {data.bankName} */}
-                </td>
+                <td className="px-0.5 py-1 border border-gray-400 text-left">{data.bankName || '-'}</td>
               </tr>
               <tr>
                 <td className="px-0.5 py-1 border border-gray-400 text-left">Bank Account No</td>
@@ -438,6 +437,9 @@ export default function PaymentRequestDetailPage() {
             </div>
             <div>
               <span className="text-gray-500">Payee:</span> {data.payeeName}
+            </div>
+            <div>
+              <span className="text-gray-500">Bank Name:</span> {data.bankName || '-'}
             </div>
             <div>
               <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}

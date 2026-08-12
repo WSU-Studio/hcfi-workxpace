@@ -56,6 +56,7 @@ export default function ReviewPaymentRequestPage() {
       total: number;
     }[];
     payeeName: string;
+    bankName?: string | null;
     bankAccount?: string | null;
     vendorInvoiceNo?: string | null;
     dateNeeded?: string | null;
@@ -277,6 +278,9 @@ export default function ReviewPaymentRequestPage() {
           </div>
           <div>
             <span className="text-gray-500">Payee:</span> {data.payeeName}
+          </div>
+          <div>
+            <span className="text-gray-500">Bank Name:</span> {data.bankName || '-'}
           </div>
           <div>
             <span className="text-gray-500">Bank Account:</span> {data.bankAccount || '-'}
