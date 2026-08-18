@@ -6,10 +6,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { validateApprovalSchemaCode } from '@/lib/forms/approval-schema-validation';
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
 import { parseSchemaDepartmentId } from '@/lib/approval-schema';
-import {
-  approvalLevelPicsWithUserInclude,
-  createApprovalLevelsForSchema,
-} from '@/lib/approval-level-pics';
+import { createApprovalLevelsForSchema } from '@/lib/approval-level-pics';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +29,6 @@ export async function GET() {
         approvalLevels: {
           include: {
             role: { select: { id: true, roleCode: true, roleName: true } },
-            ...approvalLevelPicsWithUserInclude,
           },
           orderBy: { stepOrder: 'asc' },
         },
