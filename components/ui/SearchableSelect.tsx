@@ -13,6 +13,11 @@ import {
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { inputFieldClassName } from '@/components/ui/Input';
+import {
+  computeDropdownLayout,
+  DEFAULT_LIST_MAX_HEIGHT,
+  type DropdownLayout,
+} from '@/components/ui/searchableDropdownLayout';
 import { cn } from '@/lib/utils';
 
 export interface SearchableSelectOption {
@@ -43,54 +48,8 @@ export interface SearchableSelectProps {
   dropdownMinWidth?: number;
 }
 
-interface DropdownLayout {
-  left: number;
-  width: number;
-  maxListHeight: number;
-  top?: number;
-  bottom?: number;
-}
-
-const DEFAULT_LIST_MAX_HEIGHT = 240;
-const SEARCH_ROW_HEIGHT = 45;
-const VIEWPORT_GAP = 8;
-
 function normalizeSearch(text: string): string {
   return text.trim().toLowerCase();
-}
-
-function computeDropdownLayout(
-  trigger: HTMLElement,
-  listMaxHeight: number,
-  dropdownMinWidth?: number,
-): DropdownLayout {
-  const rect = trigger.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_GAP;
-  const spaceAbove = rect.top - VIEWPORT_GAP;
-  const openUpward = spaceBelow < listMaxHeight + SEARCH_ROW_HEIGHT && spaceAbove > spaceBelow;
-
-  const viewportMaxWidth = window.innerWidth - VIEWPORT_GAP * 2;
-  const width = Math.min(viewportMaxWidth, Math.max(rect.width, dropdownMinWidth ?? rect.width));
-  let left = rect.left;
-  if (left + width > window.innerWidth - VIEWPORT_GAP) {
-    left = Math.max(VIEWPORT_GAP, window.innerWidth - VIEWPORT_GAP - width);
-  }
-
-  if (openUpward) {
-    return {
-      left,
-      width,
-      bottom: window.innerHeight - rect.top + VIEWPORT_GAP,
-      maxListHeight: Math.min(listMaxHeight, Math.max(80, spaceAbove - SEARCH_ROW_HEIGHT)),
-    };
-  }
-
-  return {
-    left,
-    width,
-    top: rect.bottom + VIEWPORT_GAP,
-    maxListHeight: Math.min(listMaxHeight, Math.max(80, spaceBelow - SEARCH_ROW_HEIGHT)),
-  };
 }
 
 /**
