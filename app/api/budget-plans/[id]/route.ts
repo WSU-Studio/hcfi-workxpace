@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { loadAccountOptions } from '@/lib/classification-options';
 import {
+  canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
   getNextApprovalStep,
   isNextStepFinal,
@@ -58,7 +59,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         department: true,
         project: true,
         allocations: { orderBy: { month: 'asc' } },
-        approvalSchema: { include: { approvalLevels: { include: { role: true }, orderBy: { stepOrder: 'asc' } } } },
+        approvalSchema: { include: { approvalLevels: { include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } }, orderBy: { stepOrder: 'asc' } } } },
         category: true,
         categoryKeyIndex: true,
         costCenter: true,
@@ -89,7 +90,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       loadAccountOptions(),
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
-        include: { department: true, approvalLevels: { include: { role: true } } },
+        include: { department: true, approvalLevels: { include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } } } },
       }),
       prisma.categoryMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.categoryKeyIndexMaster.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
@@ -123,9 +124,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       nextStepOrder = next?.stepOrder ?? null;
       // Defence in depth: requestor can never review their own plan.
       canReview =
-        !!next &&
-        userRoleIds.includes(next.roleId) &&
-        plan.requestorId !== session.user.id;
+        !!session?.user?.id &&
+        canUserActOnCurrentStep({
+          status: plan.status,
+          approvalLevels: plan.approvalSchema.approvalLevels,
+          histories: histories as unknown as BudgetPlanHistoryEntry[],
+          userRoleIds,
+          requestorId: plan.requestorId ?? null,
+          actorUserId: session.user.id,
+        });
     }
 
     const budgetRequestCount = plan._count?.budgetRequests ?? 0;
@@ -333,7 +340,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const before = await prisma.budgetPlan.findUnique({
         where: { id },
         include: {
-          approvalSchema: { include: { approvalLevels: true } },
+          approvalSchema: { include: { approvalLevels: { include: { pics: { select: { userId: true } } } } } },
           allocations: true,
         },
       });
@@ -363,7 +370,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           return NextResponse.json({ error: 'No available review step' }, { status: 400 });
         }
         const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
-        if (!userRoleIds.includes(next.roleId)) {
+        const allowed = canUserActOnCurrentStep({
+          status: before.status,
+          approvalLevels: levels,
+          histories: reviewHistories,
+          userRoleIds,
+          requestorId: before.requestorId ?? null,
+          actorUserId: session.user.id,
+        });
+        if (!allowed) {
           return NextResponse.json({ error: 'You are not allowed to review at this stage' }, { status: 403 });
         }
         if (body.status === 'Reviewed' || body.status === 'Approved') {

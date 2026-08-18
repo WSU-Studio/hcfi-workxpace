@@ -32,7 +32,10 @@ const paymentRequestListInclude = Prisma.validator<Prisma.PaymentRequestInclude>
   lineItems: { select: { id: true } },
   approvalSchema: {
     include: {
-      approvalLevels: { orderBy: { stepOrder: 'asc' } },
+      approvalLevels: {
+        include: { pics: { select: { userId: true } } },
+        orderBy: { stepOrder: 'asc' },
+      },
     },
   },
 });

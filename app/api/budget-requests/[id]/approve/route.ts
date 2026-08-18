@@ -29,7 +29,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         lineItems: { select: { item: true, qty: true, unitPrice: true, deduction: true, total: true } },
         approvalSchema: {
           include: {
-            approvalLevels: { orderBy: { stepOrder: 'asc' } },
+            approvalLevels: {
+              include: { pics: { select: { userId: true } } },
+              orderBy: { stepOrder: 'asc' },
+            },
           },
         },
       },

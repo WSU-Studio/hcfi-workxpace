@@ -15,6 +15,7 @@ import { createBudgetRequestNotifications } from '@/lib/budget-request-notificat
 import { sumPlanRealization } from '@/lib/budget-plan-realization';
 import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         approvalSchema: {
           include: {
             approvalLevels: {
-              include: { role: true },
+              include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } },
               orderBy: { stepOrder: 'asc' },
             },
           },
@@ -270,7 +271,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!selectedSchema) {
       return NextResponse.json({ error: 'Approval schema not found' }, { status: 400 });
     }
-    if (selectedSchema.departmentId !== nextDepartmentId) {
+    if (!schemaAppliesToDepartment(selectedSchema.departmentId, nextDepartmentId)) {
       return NextResponse.json(
         { error: 'Approval schema must belong to the selected department' },
         { status: 400 },
@@ -372,7 +373,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           approvalSchema: {
             include: {
               approvalLevels: {
-                include: { role: true },
+                include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } },
                 orderBy: { stepOrder: 'asc' },
               },
             },

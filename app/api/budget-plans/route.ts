@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       include: {
         department: { select: { id: true, code: true, name: true } },
         allocations: { orderBy: { month: 'asc' } },
-        approvalSchema: { include: { approvalLevels: true } },
+        approvalSchema: { include: { approvalLevels: { include: { pics: { select: { userId: true } } } } } },
         _count: { select: { budgetRequests: true } },
       },
       orderBy: { createdAt: 'desc' },

@@ -28,7 +28,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         budgetRequest: { select: { code: true, subject: true } },
         approvalSchema: {
           include: {
-            approvalLevels: { orderBy: { stepOrder: 'asc' } },
+            approvalLevels: {
+              include: { pics: { select: { userId: true } } },
+              orderBy: { stepOrder: 'asc' },
+            },
           },
         },
       },

@@ -69,7 +69,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         approvalSchema: {
           include: {
             approvalLevels: {
-              include: { role: true },
+              include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } },
               orderBy: { stepOrder: 'asc' },
             },
           },
@@ -360,7 +360,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           approvalSchema: {
             include: {
               approvalLevels: {
-                include: { role: true },
+                include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } },
                 orderBy: { stepOrder: 'asc' },
               },
             },

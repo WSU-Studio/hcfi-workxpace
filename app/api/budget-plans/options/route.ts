@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       prisma.project.findMany({ orderBy: { code: 'asc' } }),
       prisma.approvalSchema.findMany({
         where: { type: 'BudgetPlan' },
-        include: { department: true, approvalLevels: { include: { role: true } } },
+        include: { department: true, approvalLevels: { include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } } } },
       }),
     ]);
 
