@@ -33,6 +33,7 @@ export default function ApprovalSchemaPage() {
   const [schemas, setSchemas] = useState<Schema[]>([]);
   const [filtered, setFiltered] = useState<Schema[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
 
@@ -46,7 +47,14 @@ export default function ApprovalSchemaPage() {
   const fetchData = async () => {
     const res = await fetch('/api/workspace-management/approval-schema');
     const data = await res.json();
+    if (!res.ok) {
+      setSchemas([]);
+      setFiltered([]);
+      setLoadError(typeof data.error === 'string' ? data.error : 'Failed to load approval schemas');
+      return;
+    }
     const list = data.schemas || [];
+    setLoadError(null);
     setSchemas(list);
     setFiltered(list);
   };
@@ -107,7 +115,13 @@ export default function ApprovalSchemaPage() {
           </thead>
           <tbody>
             {currentSchemas.length === 0 ? (
-              <TableEmptyRow colSpan={6}>{searchKeyword.trim() ? 'No matches' : 'No approval schemas'}</TableEmptyRow>
+              <TableEmptyRow colSpan={6}>
+                {loadError
+                  ? loadError
+                  : searchKeyword.trim()
+                    ? 'No matches'
+                    : 'No approval schemas'}
+              </TableEmptyRow>
             ) : (
               currentSchemas.map((s, i) => (
                 <TableBodyRow key={s.id}>
