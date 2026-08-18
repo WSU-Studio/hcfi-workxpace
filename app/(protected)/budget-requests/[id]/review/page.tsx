@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatSignedCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import ApprovalEscalationRoleLabel from '@/components/approval/ApprovalEscalationRoleLabel';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import Input from '@/components/ui/Input';
@@ -84,7 +85,12 @@ export default function ReviewBudgetRequestPage() {
     department: { name: string };
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
     approvalSchema?: {
-      approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+      approvalLevels: {
+        stepOrder: number;
+        levelType: string;
+        role: { roleName: string } | null;
+        pics?: Array<{ user?: { name: string } | null }>;
+      }[];
     } | null;
     histories?: HistoryEntry[];
     accountOptions?: { id: string; accountCode: string; accountName: string }[];
@@ -817,7 +823,9 @@ export default function ReviewBudgetRequestPage() {
                   return (
                     <TableBodyRow key={level.stepOrder}>
                       <TableCell>{level.stepOrder}</TableCell>
-                      <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                      <TableCell>
+                        <ApprovalEscalationRoleLabel roleName={level.role?.roleName} pics={level.pics} />
+                      </TableCell>
                       <TableCell>{level.levelType}</TableCell>
                       <TableCell>
                         <span

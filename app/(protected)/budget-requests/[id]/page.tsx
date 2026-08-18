@@ -16,6 +16,7 @@ import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
+import ApprovalEscalationRoleLabel from '@/components/approval/ApprovalEscalationRoleLabel';
 import BudgetRequestPeriodAllocationSummary from '@/components/budget-requests/BudgetRequestPeriodAllocationSummary';
 import {
   BudgetRequestClassificationSection,
@@ -96,7 +97,12 @@ export default function BudgetRequestDetailPage() {
     lineItems: { item: string; qty: number; unitPrice: number; subtotal?: number; deduction?: number; total: number }[];
     allocations: { year: number; month: number; allocation: number }[];
     approvalSchema?: {
-      approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+      approvalLevels: {
+        stepOrder: number;
+        levelType: string;
+        role: { roleName: string } | null;
+        pics?: Array<{ user?: { name: string } | null }>;
+      }[];
     } | null;
     histories?: HistoryEntry[];
     canReview?: boolean;
@@ -490,7 +496,9 @@ export default function BudgetRequestDetailPage() {
                     return (
                       <TableBodyRow key={level.stepOrder}>
                         <TableCell>{level.stepOrder}</TableCell>
-                        <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                        <TableCell>
+                          <ApprovalEscalationRoleLabel roleName={level.role?.roleName} pics={level.pics} />
+                        </TableCell>
                         <TableCell>{level.levelType}</TableCell>
                         <TableCell>
                           <span
