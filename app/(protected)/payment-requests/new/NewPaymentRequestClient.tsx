@@ -17,6 +17,7 @@ import {
   validatePaymentRequestForm,
 } from '@/lib/payment-requests/form';
 import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
+import { filterSchemasForDepartment } from '@/lib/approval-schema';
 
 export default function NewPaymentRequestClient() {
   const router = useRouter();
@@ -140,9 +141,7 @@ export default function NewPaymentRequestClient() {
     options.departments,
     setFormData,
   ]);
-  const schemasForDept = options.approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(options.approvalSchemas, formData.departmentId);
 
   const budgetRequestContext = {
     approvedBudgetRequests: options.approvedBudgetRequests,

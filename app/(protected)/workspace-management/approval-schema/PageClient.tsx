@@ -10,6 +10,7 @@ import Card from '@/components/ui/Card';
 import SchemaActions from './components/SchemaActions';
 import SearchInput from '@/components/ui/SearchInput';
 import { Table, TableBodyRow, TableCell, TableEmptyRow, TableHead, TableHeaderRow } from '@/components/ui/Table';
+import { ALL_DEPARTMENTS_LABEL, schemaDepartmentDisplayName } from '@/lib/approval-schema';
 
 interface Level {
   stepOrder: number;
@@ -23,7 +24,7 @@ interface Schema {
   name: string;
   type: string;
   period: string;
-  department: { name: string };
+  department: { name: string } | null;
   approvalLevels: Level[];
 }
 
@@ -64,7 +65,8 @@ export default function ApprovalSchemaPage() {
             s.code?.toLowerCase().includes(kw) ||
             s.name?.toLowerCase().includes(kw) ||
             s.type?.toLowerCase().includes(kw) ||
-            s.department?.name?.toLowerCase().includes(kw),
+            s.department?.name?.toLowerCase().includes(kw) ||
+            (!s.department && ALL_DEPARTMENTS_LABEL.toLowerCase().includes(kw)),
         ),
       );
     }
@@ -112,7 +114,7 @@ export default function ApprovalSchemaPage() {
                   <TableCell>{startIndex + i + 1}</TableCell>
                   <TableCell className="font-mono text-sm">{s.code}</TableCell>
                   <TableCell>{s.name}</TableCell>
-                  <TableCell>{s.department?.name ?? '-'}</TableCell>
+                  <TableCell>{schemaDepartmentDisplayName(s.department)}</TableCell>
                   <TableCell>{s.type} - Default</TableCell>
                   <TableCell>
                     <SchemaActions

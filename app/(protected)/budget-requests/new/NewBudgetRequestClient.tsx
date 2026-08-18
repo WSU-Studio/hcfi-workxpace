@@ -18,6 +18,7 @@ import {
   validateBudgetRequestForm,
 } from '@/lib/budget-requests/form';
 import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
+import { filterSchemasForDepartment } from '@/lib/approval-schema';
 
 export default function NewBudgetRequestClient() {
   const router = useRouter();
@@ -132,9 +133,7 @@ export default function NewBudgetRequestClient() {
     options.departments,
     setFormData,
   ]);
-  const schemasForDept = options.approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(options.approvalSchemas, formData.departmentId);
 
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
     setError(message);

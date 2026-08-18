@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { prisma } from '@/lib/prisma';
+import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 
 /** Bulk import can run longer than default serverless limits on large XLSX. */
 export const maxDuration = 120;
@@ -151,7 +152,7 @@ export async function POST(req: NextRequest) {
                 { name: { in: approvalSchemaCodes } },
               ],
             },
-            select: { id: true, code: true, name: true },
+            select: { id: true, code: true, name: true, departmentId: true },
           })
         : Promise.resolve([]),
     ]);
@@ -217,6 +218,11 @@ export async function POST(req: NextRequest) {
             null;
           if (!approvalSchema) {
             throw new Error(`Approval Schema Code not found: ${approvalSchemaCode}`);
+          }
+          if (!schemaAppliesToDepartment(approvalSchema.departmentId, department.id)) {
+            throw new Error(
+              `Approval Schema Code ${approvalSchemaCode} cannot be used for department ${departmentCode}`,
+            );
           }
 
           codeSequence += 1;

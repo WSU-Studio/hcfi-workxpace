@@ -25,7 +25,7 @@ import {
   DESCRIPTION_MAX_BYTES,
   MONTH_NAMES,
 } from '@/lib/budget-plans/form';
-import { sortApprovalLevels } from '@/lib/approval-schema';
+import { filterSchemasForDepartment, schemaAppliesToDepartment, sortApprovalLevels } from '@/lib/approval-schema';
 import type { BudgetPlanFieldRefs } from '@/hooks/useBudgetPlanForm';
 
 export interface BudgetPlanFormProps {
@@ -88,9 +88,7 @@ export default function BudgetPlanForm({
   submitLabel,
 }: BudgetPlanFormProps) {
   const { fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
-  const schemasForDept = approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(approvalSchemas, formData.departmentId);
 
   const originOfficeOptions = useMemo(
     () =>
@@ -181,7 +179,18 @@ export default function BudgetPlanForm({
             userDepartmentId={userDepartmentId}
             canCrossDepartment={canCrossDepartment}
             onChange={(departmentId) =>
-              onFormDataChange((previous) => ({ ...previous, departmentId }))
+              onFormDataChange((previous) => {
+                const schemaStillValid = approvalSchemas.some(
+                  (schema) =>
+                    schema.id === previous.approvalSchemaId &&
+                    schemaAppliesToDepartment(schema.departmentId, departmentId),
+                );
+                return {
+                  ...previous,
+                  departmentId,
+                  approvalSchemaId: schemaStillValid ? previous.approvalSchemaId : '',
+                };
+              })
             }
           />
         </div>

@@ -21,7 +21,7 @@ import {
   BudgetRequestTaxSummary,
   DESCRIPTION_MAX_BYTES,
 } from '@/lib/budget-requests/form';
-import { sortApprovalLevels } from '@/lib/approval-schema';
+import { filterSchemasForDepartment, schemaAppliesToDepartment, sortApprovalLevels } from '@/lib/approval-schema';
 import type { BudgetRequestFieldRefs } from '@/hooks/useBudgetRequestForm';
 
 export interface BudgetRequestFormProps {
@@ -85,7 +85,7 @@ export default function BudgetRequestForm({
   const selectedPlan = plans.find((plan) => plan.id === formData.budgetPlanId);
 
   const schemasForDept = useMemo(
-    () => approvalSchemas.filter((schema) => schema.departmentId === formData.departmentId),
+    () => filterSchemasForDepartment(approvalSchemas, formData.departmentId),
     [approvalSchemas, formData.departmentId],
   );
 
@@ -238,7 +238,8 @@ export default function BudgetRequestForm({
             onFormDataChange((previous) => {
               const schemaStillValid = approvalSchemas.some(
                 (schema) =>
-                  schema.id === previous.approvalSchemaId && schema.departmentId === departmentId,
+                  schema.id === previous.approvalSchemaId &&
+                  schemaAppliesToDepartment(schema.departmentId, departmentId),
               );
               return {
                 ...previous,

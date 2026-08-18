@@ -18,6 +18,7 @@ import {
   PaymentRequestFormOptions,
   validatePaymentRequestForm,
 } from '@/lib/payment-requests/form';
+import { filterSchemasForDepartment } from '@/lib/approval-schema';
 import { ensureDepartmentOption } from '@/lib/department/selectable';
 
 type PaymentRequestApi = {
@@ -203,9 +204,7 @@ export default function EditPaymentRequestPage() {
     loadExistingSupportingDocs,
   ]);
 
-  const schemasForDept = options.approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(options.approvalSchemas, formData.departmentId);
 
   const budgetRequestContext = {
     approvedBudgetRequests: options.approvedBudgetRequests,

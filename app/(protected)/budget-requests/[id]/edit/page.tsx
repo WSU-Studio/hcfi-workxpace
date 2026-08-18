@@ -19,6 +19,7 @@ import {
   selectedMonthsFromAllocations,
   validateBudgetRequestForm,
 } from '@/lib/budget-requests/form';
+import { filterSchemasForDepartment } from '@/lib/approval-schema';
 import { ensureDepartmentOption } from '@/lib/department/selectable';
 
 type BudgetRequestApi = {
@@ -195,9 +196,7 @@ export default function EditBudgetRequestPage() {
     loadExistingSupportingDocs,
   ]);
 
-  const schemasForDept = options.approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(options.approvalSchemas, formData.departmentId);
 
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
     setError(message);

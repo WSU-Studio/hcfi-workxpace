@@ -17,6 +17,7 @@ import {
   uploadBudgetPlanSupportingDocs,
   validateBudgetPlanForm,
 } from '@/lib/budget-plans/form';
+import { filterSchemasForDepartment } from '@/lib/approval-schema';
 
 export default function EditBudgetPlanPage() {
   const params = useParams();
@@ -121,9 +122,7 @@ export default function EditBudgetPlanPage() {
       .finally(() => setIsLoading(false));
   }, [id, setAllocations, setExistingSupportingDocs, setFormData, setSelectedMonths]);
 
-  const schemasForDept = options.approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(options.approvalSchemas, formData.departmentId);
 
   const reportError = (message: string, field?: keyof typeof fieldRefs) => {
     setError(message);

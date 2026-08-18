@@ -13,6 +13,7 @@ import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display'
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
+import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,10 @@ export async function GET(request: Request) {
         department: { select: { name: true } },
         approvalSchema: {
           include: {
-            approvalLevels: { orderBy: { stepOrder: 'asc' } },
+            approvalLevels: {
+              include: { pics: { select: { userId: true } } },
+              orderBy: { stepOrder: 'asc' },
+            },
           },
         },
       },
@@ -225,7 +229,7 @@ export async function POST(req: Request) {
     if (!selectedSchema) {
       return NextResponse.json({ error: 'Approval schema not found' }, { status: 400 });
     }
-    if (selectedSchema.departmentId !== departmentId) {
+    if (!schemaAppliesToDepartment(selectedSchema.departmentId, departmentId)) {
       return NextResponse.json(
         { error: 'Approval schema must belong to the selected department' },
         { status: 400 },

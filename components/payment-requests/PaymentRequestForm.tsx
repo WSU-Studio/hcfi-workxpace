@@ -21,7 +21,7 @@ import {
   PaymentRequestFormValues,
   PaymentRequestTaxSummary,
 } from '@/lib/payment-requests/form';
-import { sortApprovalLevels } from '@/lib/approval-schema';
+import { filterSchemasForDepartment, schemaAppliesToDepartment, sortApprovalLevels } from '@/lib/approval-schema';
 
 export interface PaymentRequestFormProps {
   mode: 'create' | 'edit';
@@ -92,9 +92,7 @@ export default function PaymentRequestForm({
     accountOptions,
   } = options;
 
-  const schemasForDept = approvalSchemas.filter(
-    (schema) => schema.departmentId === formData.departmentId,
-  );
+  const schemasForDept = filterSchemasForDepartment(approvalSchemas, formData.departmentId);
 
   const budgetRequestOptions = useMemo(
     () => [
@@ -229,7 +227,18 @@ export default function PaymentRequestForm({
           canCrossDepartment={canCrossDepartment}
           forcedReadonly={isBudgetRequestSelected}
           onChange={(departmentId) =>
-            onFormDataChange((previous) => ({ ...previous, departmentId }))
+            onFormDataChange((previous) => {
+              const schemaStillValid = approvalSchemas.some(
+                (schema) =>
+                  schema.id === previous.approvalSchemaId &&
+                  schemaAppliesToDepartment(schema.departmentId, departmentId),
+              );
+              return {
+                ...previous,
+                departmentId,
+                approvalSchemaId: schemaStillValid ? previous.approvalSchemaId : '',
+              };
+            })
           }
         />
 
