@@ -17,6 +17,7 @@ import Button from '@/components/ui/Button';
 import { PenSquare, Printer } from 'lucide-react';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import ApprovalEscalationRoleLabel from '@/components/approval/ApprovalEscalationRoleLabel';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -45,7 +46,14 @@ export default function ReviewBudgetPlanPage() {
     opexType?: string | null;
     category?: { id: string; name: string } | null;
     costCenter?: { id: string; name: string } | null;
-    approvalSchema?: { approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } }[] };
+    approvalSchema?: {
+      approvalLevels: {
+        stepOrder: number;
+        levelType: string;
+        role: { roleName: string };
+        pics?: Array<{ user?: { name: string } | null }>;
+      }[];
+    };
   } | null>(null);
   const [accountOptions, setAccountOptions] = useState<{ id: string; accountCode: string; accountName: string; description: string }[]>([]);
   const accountSelectOptions = useMemo(
@@ -492,7 +500,9 @@ export default function ReviewBudgetPlanPage() {
                     return (
                       <TableBodyRow key={i}>
                         <TableCell>{l.stepOrder}</TableCell>
-                        <TableCell>{l.role?.roleName}</TableCell>
+                        <TableCell>
+                          <ApprovalEscalationRoleLabel roleName={l.role?.roleName} pics={l.pics} />
+                        </TableCell>
                         <TableCell>{l.levelType}</TableCell>
                         <TableCell>
                         <span

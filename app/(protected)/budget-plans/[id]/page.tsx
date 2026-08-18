@@ -21,6 +21,7 @@ import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
+import ApprovalEscalationRoleLabel from '@/components/approval/ApprovalEscalationRoleLabel';
 import { Download, Lock, Pencil, Printer, ScanSearch } from 'lucide-react';
 import BulkImportBadge from '@/components/budget-plans/BulkImportBadge';
 import RequestCountBadge from '@/components/budget-plans/RequestCountBadge';
@@ -54,7 +55,12 @@ type PlanDetail = {
   opexAllocation?: { id: string; name: string } | null;
   supportingDocs?: unknown;
   approvalSchema?: {
-    approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+    approvalLevels: {
+      stepOrder: number;
+      levelType: string;
+      role: { roleName: string } | null;
+      pics?: Array<{ user?: { name: string } | null }>;
+    }[];
   } | null;
   budgetRequestCount?: number;
 };
@@ -424,7 +430,9 @@ export default function BudgetPlanDetailPage() {
                     return (
                       <TableBodyRow key={i}>
                         <TableCell>{l.stepOrder}</TableCell>
-                        <TableCell>{l.role?.roleName ?? '-'}</TableCell>
+                        <TableCell>
+                          <ApprovalEscalationRoleLabel roleName={l.role?.roleName} pics={l.pics} />
+                        </TableCell>
                         <TableCell>{l.levelType}</TableCell>
                         <TableCell>
                           <span
