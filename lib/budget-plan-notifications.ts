@@ -14,6 +14,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { sendNotificationEmails } from '@/lib/email';
+import { resolveSchemaNotificationUserIds } from '@/lib/approval-level-pics';
 
 export type BudgetPlanNotificationVariant = 'submit' | 'resubmit';
 
@@ -44,29 +45,19 @@ export async function resolveBudgetPlanNotificationUserIds(
 ): Promise<string[]> {
   const plan = await prisma.budgetPlan.findUnique({
     where: { id: planId },
-    include: { approvalSchema: { include: { approvalLevels: true } } },
+    include: {
+      approvalSchema: {
+        include: { approvalLevels: { include: { pics: { select: { userId: true } } } } },
+      },
+    },
   });
   if (!plan) return [];
 
-  const roleIds = Array.from(
-    new Set((plan.approvalSchema?.approvalLevels || []).map((l) => l.roleId)),
-  );
-
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { id: plan.requestorId || undefined },
-        { roleId: { in: roleIds } },
-        { userRoles: { some: { roleId: { in: roleIds } } } },
-      ],
-    },
-    select: { id: true },
+  return resolveSchemaNotificationUserIds({
+    levels: plan.approvalSchema?.approvalLevels ?? [],
+    requestorId: plan.requestorId,
+    actorUserId,
   });
-
-  return Array.from(new Set(users.map((u) => u.id))).filter(
-    (id) => id !== actorUserId,
-  );
 }
 
 /** Resolve the user-facing notification title for a given status / variant. */

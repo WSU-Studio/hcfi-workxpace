@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { sendNotificationEmails } from '@/lib/email';
+import { resolveSchemaNotificationUserIds } from '@/lib/approval-level-pics';
 
 /** Users to notify (requestor + anyone with an approval-schema role), excluding the actor. */
 export async function resolvePaymentRequestNotificationRecipientIds(
@@ -8,26 +9,19 @@ export async function resolvePaymentRequestNotificationRecipientIds(
 ): Promise<string[]> {
   const request = await prisma.paymentRequest.findUnique({
     where: { id: requestId },
-    include: { approvalSchema: { include: { approvalLevels: true } } },
+    include: {
+      approvalSchema: {
+        include: { approvalLevels: { include: { pics: { select: { userId: true } } } } },
+      },
+    },
   });
   if (!request) return [];
 
-  const roleIds = Array.from(new Set((request.approvalSchema?.approvalLevels || []).map((level) => level.roleId)));
-  if (roleIds.length === 0) return [];
-
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { id: request.requestorId || undefined },
-        { roleId: { in: roleIds } },
-        { userRoles: { some: { roleId: { in: roleIds } } } },
-      ],
-    },
-    select: { id: true },
+  return resolveSchemaNotificationUserIds({
+    levels: request.approvalSchema?.approvalLevels ?? [],
+    requestorId: request.requestorId,
+    actorUserId,
   });
-
-  return Array.from(new Set(users.map((user) => user.id))).filter((id) => id !== actorUserId);
 }
 
 export async function createPaymentRequestApprovalNotifications(params: {

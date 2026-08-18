@@ -20,7 +20,25 @@ export type ApprovalLevel = {
   stepOrder: number;
   roleId: string;
   levelType: string;
+  picUserIds?: string[];
+  pics?: { userId: string }[];
 };
+
+export function picUserIdsForLevel(level: ApprovalLevel): string[] {
+  if (level.picUserIds && level.picUserIds.length > 0) return level.picUserIds;
+  return (level.pics ?? []).map((pic) => pic.userId);
+}
+
+export function userIsEligibleForLevel(
+  level: ApprovalLevel,
+  actorUserId: string,
+  userRoleIds: string[],
+): boolean {
+  if (!userRoleIds.includes(level.roleId)) return false;
+  const picUserIds = picUserIdsForLevel(level);
+  if (picUserIds.length === 0) return true;
+  return picUserIds.includes(actorUserId);
+}
 
 /**
  * Next pending approval step in the current cycle, accounting for multi-step
@@ -79,5 +97,5 @@ export function canUserActOnCurrentStep(params: {
   if (params.requestorId && params.requestorId === params.actorUserId) return false;
   const next = getNextApprovalStep(params.status, params.approvalLevels, params.histories);
   if (!next) return false;
-  return params.userRoleIds.includes(next.roleId);
+  return userIsEligibleForLevel(next, params.actorUserId, params.userRoleIds);
 }

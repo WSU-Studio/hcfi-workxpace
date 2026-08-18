@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { resolvePaymentRequestNotificationRecipientIds } from '@/lib/payment-request-notifications';
 
 export interface PaymentRequestCommentNotificationParams {
   requestId: string;
@@ -15,35 +16,6 @@ function truncatePreview(body: string, maxLength = 120): string {
   return `${trimmed.slice(0, maxLength - 1)}…`;
 }
 
-async function resolvePaymentRequestCommentNotificationUserIds(
-  requestId: string,
-  actorUserId: string,
-): Promise<string[]> {
-  const request = await prisma.paymentRequest.findUnique({
-    where: { id: requestId },
-    include: { approvalSchema: { include: { approvalLevels: true } } },
-  });
-  if (!request) return [];
-
-  const roleIds = Array.from(
-    new Set((request.approvalSchema?.approvalLevels || []).map((level) => level.roleId)),
-  );
-
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { id: request.requestorId || undefined },
-        { roleId: { in: roleIds } },
-        { userRoles: { some: { roleId: { in: roleIds } } } },
-      ],
-    },
-    select: { id: true },
-  });
-
-  return Array.from(new Set(users.map((user) => user.id))).filter((id) => id !== actorUserId);
-}
-
 /**
  * Notify approval-schema stakeholders, the requestor, @mentioned users, and
  * prior commenters when a new PR comment is posted. The actor is always excluded.
@@ -51,7 +23,7 @@ async function resolvePaymentRequestCommentNotificationUserIds(
 export async function createPaymentRequestCommentNotifications(
   params: PaymentRequestCommentNotificationParams,
 ): Promise<void> {
-  const stakeholderIds = await resolvePaymentRequestCommentNotificationUserIds(
+  const stakeholderIds = await resolvePaymentRequestNotificationRecipientIds(
     params.requestId,
     params.actorUserId,
   );
