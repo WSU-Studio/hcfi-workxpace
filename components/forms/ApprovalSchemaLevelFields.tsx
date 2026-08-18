@@ -128,7 +128,7 @@ export default function ApprovalSchemaLevelFields({
             ? level.picUsers.map(toOption)
             : roleOptions.filter((option) => level.picUserIds.includes(option.id)));
           return (
-            <div key={index} className="space-y-3 border-t border-gray-200 py-3">
+            <div key={index} className="space-y-2 border-t border-gray-200 py-3">
               <div className="flex items-center gap-3">
                 <span className="w-16 shrink-0 text-sm text-gray-500">Level {index + 1}</span>
                 <Select
@@ -161,8 +161,8 @@ export default function ApprovalSchemaLevelFields({
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-              <div className="pl-[4.5rem]">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Specific PIC</label>
+              <div className="pl-[4.75rem]">
+                <label className="mb-0.5 block text-xs font-medium text-gray-700">Specific PICs</label>
                 <UserMultiSelect
                   options={roleOptions}
                   selected={selected}
