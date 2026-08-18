@@ -60,6 +60,7 @@ model User {
   departmentHeadOf Department[] @relation("DepartmentHead")
   activityHistory  ActivityHistory[]
   notifications    Notification[]
+  approvalLevelPics ApprovalLevelPic[]
   budgetPlanComments BudgetPlanComment[]
   budgetPlanCommentMentions BudgetPlanCommentMention[]
   budgetRequestComments BudgetRequestComment[]
@@ -222,10 +223,11 @@ model ApprovalSchema {
   name            String
   type            String         // BudgetPlan | BudgetRequest | PaymentRequest
   period          String         @default("Unlimited") // Unlimited | Custom
-  departmentId    String
+  // Null = All Department: schema can be used when creating BP/BR/PR for any department.
+  departmentId    String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-  department      Department     @relation(fields: [departmentId], references: [id])
+  department      Department?    @relation(fields: [departmentId], references: [id])
   approvalLevels  ApprovalLevel[]
   budgetPlans     BudgetPlan[]
   budgetRequests  BudgetRequest[]
@@ -247,10 +249,25 @@ model ApprovalLevel {
   schema           ApprovalSchema    @relation(fields: [schemaId], references: [id], onDelete: Cascade)
   role             Role              @relation(fields: [roleId], references: [id])
   alternatingRules AlternatingRule[]
+  pics             ApprovalLevelPic[]
 
   @@index([schemaId])
   @@index([roleId])
   @@map("approval_levels")
+}
+
+model ApprovalLevelPic {
+  id              String        @id @default(cuid())
+  approvalLevelId String
+  userId          String
+  createdAt       DateTime      @default(now())
+  approvalLevel   ApprovalLevel @relation(fields: [approvalLevelId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([approvalLevelId, userId])
+  @@index([approvalLevelId])
+  @@index([userId])
+  @@map("approval_level_pics")
 }
 
 model AlternatingRule {
