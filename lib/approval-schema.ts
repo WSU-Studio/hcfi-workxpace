@@ -71,12 +71,18 @@ export function sortApprovalLevels(levels: ApprovalLevelOption[]): ApprovalLevel
 
 export const ALL_IN_ROLE_LABEL = 'All in role';
 
+export function schemaLevelPicNames(
+  pics: Array<{ user?: { name: string } | null }> | undefined,
+): string[] {
+  return (pics ?? [])
+    .map((pic) => pic.user?.name?.trim())
+    .filter((name): name is string => Boolean(name));
+}
+
 export function schemaLevelPicDisplayName(
   pics: Array<{ user?: { name: string } | null }> | undefined,
 ): string {
-  const names = (pics ?? [])
-    .map((pic) => pic.user?.name?.trim())
-    .filter((name): name is string => Boolean(name));
+  const names = schemaLevelPicNames(pics);
   if (names.length === 0) return ALL_IN_ROLE_LABEL;
   return names.join(', ');
 }
