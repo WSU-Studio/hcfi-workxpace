@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
+import { ALL_DEPARTMENTS_LABEL, schemaLevelPicDisplayName } from '@/lib/approval-schema';
 
 interface ApprovalLevel {
   id: string;
@@ -16,6 +17,7 @@ interface ApprovalLevel {
     roleCode: string;
     roleName: string;
   } | null;
+  pics?: Array<{ user?: { id: string; name: string } | null }>;
 }
 
 interface ApprovalSchemaDetail {
@@ -72,7 +74,11 @@ export default function ApprovalSchemaDetailPage() {
         </div>
         <div>
           <label className="text-sm text-gray-500">Department</label>
-          <p className="font-medium">{schema.department ? `${schema.department.code} - ${schema.department.name}` : '-'}</p>
+          <p className="font-medium">
+            {schema.department
+              ? `${schema.department.code} - ${schema.department.name}`
+              : ALL_DEPARTMENTS_LABEL}
+          </p>
         </div>
         <div>
           <label className="text-sm text-gray-500">Type</label>
@@ -92,6 +98,9 @@ export default function ApprovalSchemaDetailPage() {
               {schema.approvalLevels.map((level) => (
                 <div key={level.id} className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
                   <span className="font-medium">Level {level.stepOrder}</span> - {level.levelType} ({level.role?.roleCode} - {level.role?.roleName})
+                  <p className="mt-1 text-gray-600">
+                    Specific PIC: {schemaLevelPicDisplayName(level.pics)}
+                  </p>
                 </div>
               ))}
             </div>

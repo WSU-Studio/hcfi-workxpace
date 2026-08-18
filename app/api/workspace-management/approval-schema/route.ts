@@ -5,6 +5,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { validateApprovalSchemaCode } from '@/lib/forms/approval-schema-validation';
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
+import { parseSchemaDepartmentId } from '@/lib/approval-schema';
+import {
+  approvalLevelPicsWithUserInclude,
+  createApprovalLevelsForSchema,
+} from '@/lib/approval-level-pics';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +30,10 @@ export async function GET() {
       include: {
         department: { select: { id: true, code: true, name: true } },
         approvalLevels: {
-          include: { role: { select: { id: true, roleCode: true, roleName: true } } },
+          include: {
+            role: { select: { id: true, roleCode: true, roleName: true } },
+            ...approvalLevelPicsWithUserInclude,
+          },
           orderBy: { stepOrder: 'asc' },
         },
       },
@@ -54,9 +62,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: codeResult.error }, { status: 400 });
     }
 
-    const departmentError = await assertActiveDepartment(String(body.departmentId ?? ''));
-    if (departmentError) {
-      return NextResponse.json({ error: departmentError }, { status: 400 });
+    const parsedDepartment = parseSchemaDepartmentId(body.departmentId);
+    if (!parsedDepartment.ok) {
+      return NextResponse.json({ error: parsedDepartment.error }, { status: 400 });
+    }
+    if (parsedDepartment.departmentId) {
+      const departmentError = await assertActiveDepartment(parsedDepartment.departmentId);
+      if (departmentError) {
+        return NextResponse.json({ error: departmentError }, { status: 400 });
+      }
     }
 
     const schema = await prisma.approvalSchema.create({
@@ -65,21 +79,15 @@ export async function POST(request: Request) {
         name: body.name,
         type: body.type || 'BudgetPlan',
         period: body.period || 'Unlimited',
-        departmentId: body.departmentId,
+        departmentId: parsedDepartment.departmentId,
       },
     });
 
     const levels = body.levels || [];
-    for (let i = 0; i < levels.length; i++) {
-      await prisma.approvalLevel.create({
-        data: {
-          schemaId: schema.id,
-          stepOrder: i + 1,
-          levelType: levels[i].levelType || 'Reviewer',
-          roleId: levels[i].roleId,
-          parallelGroup: levels[i].parallelGroup ?? 0,
-        },
-      });
+    const levelsResult = await createApprovalLevelsForSchema(schema.id, levels);
+    if (!levelsResult.ok) {
+      await prisma.approvalSchema.delete({ where: { id: schema.id } });
+      return NextResponse.json({ error: levelsResult.error }, { status: 400 });
     }
 
     return NextResponse.json(schema);

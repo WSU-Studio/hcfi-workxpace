@@ -2,13 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import ButtonLink from '@/components/ui/ButtonLink';
+import ApprovalSchemaDepartmentSelect from '@/components/forms/ApprovalSchemaDepartmentSelect';
+import ApprovalSchemaLevelFields, {
+  emptyApprovalSchemaLevel,
+  type ApprovalSchemaLevelDraft,
+} from '@/components/forms/ApprovalSchemaLevelFields';
+import { parseSchemaDepartmentId, toSchemaDepartmentFormValue } from '@/lib/approval-schema';
 
 interface Department {
   id: string;
@@ -18,11 +24,6 @@ interface Department {
 interface Role {
   id: string;
   roleName: string;
-}
-
-interface Level {
-  levelType: string;
-  roleId: string;
 }
 
 export default function EditApprovalSchemaPage() {
@@ -40,7 +41,7 @@ export default function EditApprovalSchemaPage() {
     period: 'Unlimited',
     departmentId: '',
   });
-  const [levels, setLevels] = useState<Level[]>([{ levelType: 'Reviewer', roleId: '' }]);
+  const [levels, setLevels] = useState<ApprovalSchemaLevelDraft[]>([emptyApprovalSchemaLevel()]);
   const [errors, setErrors] = useState<{ code?: string; name?: string; type?: string; period?: string; departmentId?: string; levels?: string; general?: string }>({});
 
   useEffect(() => {
@@ -55,27 +56,35 @@ export default function EditApprovalSchemaPage() {
             name: s.name,
             type: s.type,
             period: s.period || 'Unlimited',
-            departmentId: s.departmentId,
+            departmentId: toSchemaDepartmentFormValue(s.departmentId),
           });
           setLevels(
-            (s.approvalLevels || []).map((l: { levelType: string; roleId: string }) => ({
-              levelType: l.levelType,
-              roleId: l.roleId,
-            }))
+            (s.approvalLevels || []).map(
+              (l: {
+                levelType: string;
+                roleId: string;
+                pics?: Array<{ user?: { id: string; name: string; employeeId?: string } | null }>;
+              }) => ({
+                levelType: l.levelType,
+                roleId: l.roleId,
+                picUserIds: (l.pics ?? [])
+                  .map((pic) => pic.user?.id)
+                  .filter((id): id is string => Boolean(id)),
+                picUsers: (l.pics ?? [])
+                  .map((pic) => pic.user)
+                  .filter((user): user is { id: string; name: string; employeeId?: string } =>
+                    Boolean(user?.id && user?.name),
+                  ),
+              }),
+            ),
           );
-          if (!s.approvalLevels?.length) setLevels([{ levelType: 'Reviewer', roleId: '' }]);
+          if (!s.approvalLevels?.length) setLevels([emptyApprovalSchemaLevel()]);
         }
         setDepartments(data.departments || []);
         setRoles(data.roles || []);
       })
       .finally(() => setIsLoading(false));
   }, [id]);
-
-  const addLevel = () => setLevels((p) => [...p, { levelType: 'Reviewer', roleId: '' }]);
-  const removeLevel = (i: number) => setLevels((p) => p.filter((_, idx) => idx !== i));
-  const updateLevel = (i: number, field: keyof Level, value: string) => {
-    setLevels((p) => p.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,8 +93,13 @@ export default function EditApprovalSchemaPage() {
       setErrors((p) => ({ ...p, code: 'Code is required' }));
       return;
     }
-    if (!formData.departmentId || levels.some((l) => !l.roleId)) {
-      setErrors((p) => ({ ...p, departmentId: 'Select department', levels: 'Select job position for each level' }));
+    const parsedDepartment = parseSchemaDepartmentId(formData.departmentId);
+    if (!parsedDepartment.ok) {
+      setErrors((p) => ({ ...p, departmentId: parsedDepartment.error }));
+      return;
+    }
+    if (levels.some((l) => !l.roleId)) {
+      setErrors((p) => ({ ...p, levels: 'Select job position for each level' }));
       return;
     }
     setIsSubmitting(true);
@@ -93,7 +107,15 @@ export default function EditApprovalSchemaPage() {
       const res = await fetch(`/api/workspace-management/approval-schema/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, levels }),
+        body: JSON.stringify({
+          ...formData,
+          departmentId: parsedDepartment.departmentId,
+          levels: levels.map((level) => ({
+            levelType: level.levelType,
+            roleId: level.roleId,
+            picUserIds: level.picUserIds,
+          })),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -171,60 +193,19 @@ export default function EditApprovalSchemaPage() {
             </Select>
             {errors.period && <p className="mt-1 text-sm text-red-600">{errors.period}</p>}
           </div>
-          <div>
-            <label className="block mb-1.5 font-medium">Department <span className="text-red-500">*</span></label>
-            <Select
-              name="departmentId"
-              value={formData.departmentId}
-              onChange={(e) => setFormData((p) => ({ ...p, departmentId: e.target.value }))}
-              required
-            >
-              <option value="">-</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </Select>
-            {errors.departmentId && <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>}
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="font-medium">Schema</label>
-              <button type="button" onClick={addLevel} className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Plus className="w-4 h-4" />
-                Add Level
-              </button>
-            </div>
-            <div>
-              {levels.map((l, i) => (
-                <div key={i} className="flex gap-3 items-center py-3 border-t border-gray-200">
-                  <span className="text-sm text-gray-500 w-16">Level {i + 1}</span>
-                  <Select
-                    name="levelType"
-                    value={l.levelType}
-                    onChange={(e) => updateLevel(i, 'levelType', e.target.value)}
-                  >
-                    <option value="Reviewer">Reviewer</option>
-                    <option value="Approver">Approver</option>
-                  </Select>
-                  <Select
-                    name="roleId"
-                    value={l.roleId}
-                    onChange={(e) => updateLevel(i, 'roleId', e.target.value)}
-                    required
-                  >
-                    <option value="">-</option>
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>{r.roleName}</option>
-                    ))}
-                  </Select>
-                  <button type="button" onClick={() => removeLevel(i)} disabled={levels.length <= 1} className="p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              {errors.levels && <p className="mt-1 text-sm text-red-600">{errors.levels}</p>}
-            </div>
-          </div>
+          <ApprovalSchemaDepartmentSelect
+            value={formData.departmentId}
+            departments={departments}
+            onChange={(departmentId) => setFormData((p) => ({ ...p, departmentId }))}
+            error={errors.departmentId}
+          />
+          <ApprovalSchemaLevelFields
+            levels={levels}
+            roles={roles}
+            onChange={setLevels}
+            error={errors.levels}
+            allowRemoveLast={false}
+          />
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <ButtonLink href="/workspace-management/approval-schema" variant="outline">
               <X className="w-4 h-4" />

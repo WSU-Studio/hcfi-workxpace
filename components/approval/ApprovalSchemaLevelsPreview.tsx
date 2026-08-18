@@ -7,7 +7,7 @@ import {
   TableHead,
   TableHeaderRow,
 } from '@/components/ui/Table';
-import type { ApprovalLevelOption } from '@/lib/approval-schema';
+import { schemaLevelPicDisplayName, type ApprovalLevelOption } from '@/lib/approval-schema';
 
 export interface ApprovalSchemaLevelsPreviewProps {
   levels: ApprovalLevelOption[];
@@ -29,6 +29,7 @@ export default function ApprovalSchemaLevelsPreview({
               <TableHead className="w-12">#</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Specific PIC</TableHead>
             </TableHeaderRow>
           </thead>
           <tbody>
@@ -37,6 +38,7 @@ export default function ApprovalSchemaLevelsPreview({
                 <TableCell>{level.stepOrder}</TableCell>
                 <TableCell>{level.role?.roleName ?? '-'}</TableCell>
                 <TableCell>{level.levelType}</TableCell>
+                <TableCell>{schemaLevelPicDisplayName(level.pics)}</TableCell>
               </TableBodyRow>
             ))}
           </tbody>

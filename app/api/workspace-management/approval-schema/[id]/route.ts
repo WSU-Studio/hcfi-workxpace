@@ -5,6 +5,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { validateApprovalSchemaCode } from '@/lib/forms/approval-schema-validation';
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
+import { parseSchemaDepartmentId } from '@/lib/approval-schema';
+import {
+  approvalLevelPicsWithUserInclude,
+  createApprovalLevelsForSchema,
+  validateApprovalLevelDrafts,
+} from '@/lib/approval-level-pics';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +33,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       include: {
         department: true,
         approvalLevels: {
-          include: { role: true },
+          include: {
+            role: true,
+            ...approvalLevelPicsWithUserInclude,
+          },
           orderBy: { stepOrder: 'asc' },
         },
       },
@@ -62,38 +71,43 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     });
     if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const departmentError = await assertActiveDepartment(
-      String(body.departmentId ?? ''),
-      current.departmentId
-    );
-    if (departmentError) {
-      return NextResponse.json({ error: departmentError }, { status: 400 });
+    const parsedDepartment = parseSchemaDepartmentId(body.departmentId);
+    if (!parsedDepartment.ok) {
+      return NextResponse.json({ error: parsedDepartment.error }, { status: 400 });
+    }
+    if (parsedDepartment.departmentId) {
+      const departmentError = await assertActiveDepartment(
+        parsedDepartment.departmentId,
+        current.departmentId
+      );
+      if (departmentError) {
+        return NextResponse.json({ error: departmentError }, { status: 400 });
+      }
     }
 
-    await prisma.approvalSchema.update({
-      where: { id },
-      data: {
-        code: codeResult.code,
-        name: body.name,
-        type: body.type,
-        period: body.period || 'Unlimited',
-        departmentId: body.departmentId,
-      },
-    });
-
-    await prisma.approvalLevel.deleteMany({ where: { schemaId: id } });
     const levels = body.levels || [];
-    for (let i = 0; i < levels.length; i++) {
-      await prisma.approvalLevel.create({
+    const levelsValid = await validateApprovalLevelDrafts(levels);
+    if (!levelsValid.ok) {
+      return NextResponse.json({ error: levelsValid.error }, { status: 400 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.approvalSchema.update({
+        where: { id },
         data: {
-          schemaId: id,
-          stepOrder: i + 1,
-          levelType: levels[i].levelType || 'Reviewer',
-          roleId: levels[i].roleId,
-          parallelGroup: levels[i].parallelGroup ?? 0,
+          code: codeResult.code,
+          name: body.name,
+          type: body.type,
+          period: body.period || 'Unlimited',
+          departmentId: parsedDepartment.departmentId,
         },
       });
-    }
+      await tx.approvalLevel.deleteMany({ where: { schemaId: id } });
+      const levelsResult = await createApprovalLevelsForSchema(id, levels, tx);
+      if (!levelsResult.ok) {
+        throw new Error(levelsResult.error);
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (e) {
