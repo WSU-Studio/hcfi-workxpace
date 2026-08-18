@@ -11,6 +11,7 @@ import Modal from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
+import ApprovalEscalationRoleLabel from '@/components/approval/ApprovalEscalationRoleLabel';
 import RichTextContent from '@/components/ui/RichTextContent';
 import Input from '@/components/ui/Input';
 import RequestClassificationFields from '@/components/classification/RequestClassificationFields';
@@ -71,7 +72,12 @@ export default function ReviewPaymentRequestPage() {
     } | null;
     department: { name: string };
     approvalSchema?: {
-      approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+      approvalLevels: {
+        stepOrder: number;
+        levelType: string;
+        role: { roleName: string } | null;
+        pics?: Array<{ user?: { name: string } | null }>;
+      }[];
     } | null;
     histories?: {
       id: string;
@@ -417,7 +423,9 @@ export default function ReviewPaymentRequestPage() {
                   return (
                     <TableBodyRow key={level.stepOrder}>
                       <TableCell>{level.stepOrder}</TableCell>
-                      <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                      <TableCell>
+                        <ApprovalEscalationRoleLabel roleName={level.role?.roleName} pics={level.pics} />
+                      </TableCell>
                       <TableCell>{level.levelType}</TableCell>
                       <TableCell>
                         <span

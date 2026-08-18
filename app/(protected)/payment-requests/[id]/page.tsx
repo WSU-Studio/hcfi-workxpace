@@ -15,6 +15,7 @@ import RichTextContent from '@/components/ui/RichTextContent';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import ApprovalStepNotesList from '@/components/approval/ApprovalStepNotesList';
 import ApprovalEscalationPrintGrid from '@/components/approval/ApprovalEscalationPrintGrid';
+import ApprovalEscalationRoleLabel from '@/components/approval/ApprovalEscalationRoleLabel';
 import EntityCommentPanel from '@/components/comments/EntityCommentPanel';
 import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import { useEnableDocumentDownload } from '@/hooks/useEnableDocumentDownload';
@@ -102,7 +103,12 @@ export default function PaymentRequestDetailPage() {
     } | null;
     department: { name: string };
     approvalSchema?: {
-      approvalLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
+      approvalLevels: {
+        stepOrder: number;
+        levelType: string;
+        role: { roleName: string } | null;
+        pics?: Array<{ user?: { name: string } | null }>;
+      }[];
     } | null;
     histories?: HistoryEntry[];
     canReview?: boolean;
@@ -607,7 +613,9 @@ export default function PaymentRequestDetailPage() {
                       return (
                         <TableBodyRow key={level.stepOrder}>
                           <TableCell>{level.stepOrder}</TableCell>
-                          <TableCell>{level.role?.roleName ?? '-'}</TableCell>
+                          <TableCell>
+                            <ApprovalEscalationRoleLabel roleName={level.role?.roleName} pics={level.pics} />
+                          </TableCell>
                           <TableCell>{level.levelType}</TableCell>
                           <TableCell>
                             <span
