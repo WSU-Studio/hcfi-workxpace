@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -36,4 +37,24 @@ export function resolveClassificationLabel(
 ): string | null {
   if (!value) return value ?? null;
   return map.get(value) ?? value;
+}
+
+/** Match staging rows stored as either master ID or display name. */
+export function classificationMatchFilter(
+  map: Map<string, string>,
+  value: string,
+): Prisma.StringFilter {
+  const trimmed = value.trim();
+  const aliases = new Set<string>([trimmed]);
+  const asName = map.get(trimmed);
+  if (asName) aliases.add(asName);
+  const lowered = trimmed.toLowerCase();
+  for (const [id, name] of map) {
+    if (name.toLowerCase() === lowered) aliases.add(id);
+  }
+  const list = [...aliases];
+  if (list.length === 1) {
+    return { equals: list[0], mode: 'insensitive' };
+  }
+  return { in: list, mode: 'insensitive' };
 }
