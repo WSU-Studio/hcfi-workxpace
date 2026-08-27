@@ -10,11 +10,13 @@ import Button from '@/components/ui/Button';
 import ButtonLink from '@/components/ui/ButtonLink';
 import { defaultActivityAccess, defaultMenuAccess } from '@/lib/default-access';
 import { UserAccessPayload } from '@/types/user-management';
+import { parseDashboardView, type DashboardView } from '@/types/access-control';
 import AccessControlSection, {
   activityAccessItems,
   menuAccessItems,
   workspaceManagementAccessItems,
 } from '../../components/AccessControlSection';
+import DashboardAccessSection from '../../components/DashboardAccessSection';
 
 const initialAccess: UserAccessPayload = {
   menuAccess: defaultMenuAccess,
@@ -52,7 +54,17 @@ export default function UserAccessControlPage() {
         setUsername(data.user?.name ?? '');
         setAccess({
           menuAccess: { ...defaultMenuAccess, ...(data.menuAccess ?? {}) },
-          activityAccess: { ...defaultActivityAccess, ...(data.activityAccess ?? {}) },
+          activityAccess: {
+            ...defaultActivityAccess,
+            ...(data.activityAccess ?? {}),
+            dashboardView: parseDashboardView(
+              data.activityAccess?.dashboardView ?? defaultActivityAccess.dashboardView,
+            ),
+            viewAllDashboardDepartments: Boolean(
+              data.activityAccess?.viewAllDashboardDepartments ??
+                defaultActivityAccess.viewAllDashboardDepartments,
+            ),
+          },
         });
       })
       .catch(() => setError('Failed to load access control'))
@@ -66,7 +78,7 @@ export default function UserAccessControlPage() {
     }));
   };
 
-  const updateActivityAccess = (key: string, value: boolean) => {
+  const updateActivityAccess = (key: string, value: boolean | DashboardView) => {
     setAccess((prev) => ({
       ...prev,
       activityAccess: { ...prev.activityAccess, [key]: value },
@@ -128,6 +140,13 @@ export default function UserAccessControlPage() {
           items={menuAccessItems}
           access={access.menuAccess}
           onChange={updateMenuAccess}
+        />
+
+        <DashboardAccessSection
+          dashboardView={access.activityAccess.dashboardView}
+          viewAllDepartments={access.activityAccess.viewAllDashboardDepartments}
+          onViewChange={(view: DashboardView) => updateActivityAccess('dashboardView', view)}
+          onViewAllChange={(value) => updateActivityAccess('viewAllDashboardDepartments', value)}
         />
 
         <AccessControlSection
