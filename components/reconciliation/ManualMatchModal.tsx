@@ -1,8 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import Modal from '@/components/ui/Modal';
 import { formatSignedCurrency } from '@/lib/utils';
 import { ReconciliationRequestOption, ReconciliationRow } from '@/types/reconciliation';
@@ -26,6 +27,19 @@ export default function ManualMatchModal({
   onClose,
   onSave,
 }: ManualMatchModalProps) {
+  const budgetRequestOptions = useMemo(
+    () =>
+      requestOptions.map((request) => {
+        const label = `${request.code} | ${request.subject} | plan: ${request.budgetPlanCode ?? '-'} | exp: ${formatSignedCurrency(request.expectedAmount)}`;
+        return {
+          value: request.id,
+          label,
+          searchText: `${request.code} ${request.subject} ${request.budgetPlanCode ?? ''} ${request.departmentName ?? ''}`,
+        };
+      }),
+    [requestOptions],
+  );
+
   if (!open || !row) return null;
 
   return (
@@ -55,17 +69,19 @@ export default function ManualMatchModal({
             <span className="font-medium text-gray-700">Amount</span>
             <Input value={formatSignedCurrency(row.paidAmount)} disabled />
           </label>
-          <label className="space-y-1 text-sm md:col-span-2">
+          <div className="space-y-1 text-sm md:col-span-2">
             <span className="font-medium text-gray-700">Pilih Budget Request</span>
-            <Select value={selectedRequestId} onChange={(e) => onChangeRequest(e.target.value)}>
-              <option value="">Pilih budget request...</option>
-              {requestOptions.map((request) => (
-                <option key={request.id} value={request.id}>
-                  {`${request.code} | ${request.subject} | plan: ${request.budgetPlanCode ?? '-'} | exp: ${formatSignedCurrency(request.expectedAmount)}`}
-                </option>
-              ))}
-            </Select>
-          </label>
+            <SearchableSelect
+              value={selectedRequestId}
+              options={budgetRequestOptions}
+              onChange={onChangeRequest}
+              placeholder="Pilih budget request..."
+              searchPlaceholder="Cari kode, subject, atau plan..."
+              emptyMessage="Tidak ada budget request"
+              noResultsMessage="Tidak ada yang cocok"
+              required
+            />
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
