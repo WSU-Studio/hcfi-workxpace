@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "prisma generate && next dev -p 3090",
+    "prebuild": "rm -rf .next",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start -p 3090",
