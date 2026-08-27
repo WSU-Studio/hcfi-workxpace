@@ -67,7 +67,7 @@ export default function DashboardFilters({
 
   return (
     <div className="space-y-3 border-b border-gray-200 pb-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-gray-500">Year</span>
           <Select value={value.fiscalYear} onChange={(event) => set('fiscalYear', event.target.value)}>
