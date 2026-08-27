@@ -17,7 +17,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          node -v
+          npm -v
+          test -f package-lock.json || { echo "package-lock.json missing"; exit 1; }
+          rm -rf node_modules
+          npm ci
 
       # Write secrets via env + node so bash does not expand `$`, backticks, etc.
       # (e.g. SMTP_PASS=M$6720... would become "M" with echo "...${{ secrets.SMTP_PASS }}...")
