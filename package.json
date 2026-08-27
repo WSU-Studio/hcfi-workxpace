@@ -33,13 +33,12 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.4.2",
     "dotenv": "^17.3.1",
-    "excel": "^1.0.1",
     "html2canvas-pro": "^2.0.2",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.577.0",
-    "next": "15.5.14",
+    "next": "^15.5.24",
     "next-auth": "^4.24.13",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^9.0.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.71.2",
@@ -59,10 +58,14 @@
     "@types/react-dom": "^19",
     "@types/xlsx": "^0.0.35",
     "eslint": "^9",
-    "eslint-config-next": "15.5.14",
+    "eslint-config-next": "^15.5.24",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0",
+    "nodemailer": "^9.0.5"
   }
 }
