@@ -21,8 +21,8 @@ export default function DashboardAlerts({ title = 'Budget alerts', alerts }: Das
         <p className="text-sm text-gray-500">No exceptions for the selected period.</p>
       ) : (
         <ul className="space-y-2">
-          {alerts.map((alert) => (
-            <li key={alert.id} className={cn('rounded-lg border px-3 py-2', tone[alert.severity])}>
+          {alerts.map((alert, index) => (
+            <li key={`${alert.id}-${index}`} className={cn('rounded-lg border px-3 py-2', tone[alert.severity])}>
               <p className="text-sm font-medium">{alert.title}</p>
               <p className="text-xs opacity-80">{alert.detail}</p>
             </li>

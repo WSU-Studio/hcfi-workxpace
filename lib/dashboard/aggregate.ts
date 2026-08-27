@@ -613,10 +613,10 @@ function buildAlerts(
     }
   }
 
-  for (const row of byDepartment) {
+  for (const [index, row] of byDepartment.entries()) {
     if ((row.utilizationPercent ?? 0) > 100) {
       alerts.push({
-        id: `dept-over-budget-${row.departmentId}`,
+        id: `dept-over-budget-${row.departmentId || 'none'}-${normalizeLabel(row.departmentName)}-${index}`,
         severity: 'critical',
         title: `${row.departmentName} over budget`,
         detail: `Actual YTD is above approved budget for this department.`,

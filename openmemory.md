@@ -24,5 +24,5 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 ## Patterns
 - New activity flags go on `ActivityAccess` + `defaultActivityAccess` + `fullActivityAccess` + `mergeWithDefaultActivityAccess`. JSON column; no Prisma migration for new keys.
 - Dashboard widget lists are **not** per-user checkboxes. Persona is a single enum; layout is hardcoded per persona.
-- Dashboard department charts merge staging rows that share the same display name (legacy null `departmentId` vs master id) so utilization is one bar per department. List widgets use index-suffixed React keys.
+- Dashboard department charts merge staging rows that share the same display name (legacy null `departmentId` vs master id) so utilization is one bar per department. List widgets use index-suffixed React keys. Budget-alert ids also include department name + index because the same `departmentId` can appear under more than one staging name.
 - Staging `expenseCategory` (and other BR classification fields) often store CategoryMaster IDs, not names. Dashboard charts, alerts, and category filters resolve ID → name via `lib/data-mart/resolve-classification-labels.ts` (same read-time map as reports). Filter queries match both ID and name.
