@@ -1,4 +1,4 @@
-import type { MenuAccess, ActivityAccess } from '@/types/access-control';
+import { parseDashboardView, type MenuAccess, type ActivityAccess } from '@/types/access-control';
 import { prisma } from '@/lib/prisma';
 import {
   defaultActivityAccess,
@@ -84,6 +84,7 @@ function buildSessionUser(user: UserWithRelations): SessionUser {
     ...baseActivityAccess,
     ...parseAccessJson<ActivityAccess>(user.access?.activityAccess),
   };
+  activityAccess.dashboardView = parseDashboardView(activityAccess.dashboardView);
 
   return {
     id: user.id,

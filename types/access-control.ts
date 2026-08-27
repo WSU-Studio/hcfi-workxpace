@@ -1,3 +1,36 @@
+export const DASHBOARD_VIEWS = ['department', 'director', 'fpa'] as const;
+
+export type DashboardView = (typeof DASHBOARD_VIEWS)[number];
+
+export function parseDashboardView(value: unknown): DashboardView {
+  if (value === 'director' || value === 'fpa' || value === 'department') return value;
+  return 'department';
+}
+
+export const DASHBOARD_VIEW_OPTIONS: Array<{
+  value: DashboardView;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'department',
+    label: 'Department',
+    description:
+      'Operational KPIs, category/vendor mix, transaction detail, and budget alerts for the assigned department.',
+  },
+  {
+    value: 'director',
+    label: 'Director',
+    description: 'Cross-department comparison, utilization heatmap, and largest transactions.',
+  },
+  {
+    value: 'fpa',
+    label: 'FP&A',
+    description:
+      'Enterprise outlook: forecast vs budget, waterfall, vendor concentration, and variance analysis.',
+  },
+];
+
 export interface MenuAccess {
   dashboard: boolean;
   budgetPlans: boolean;
@@ -109,4 +142,16 @@ export interface ActivityAccess {
    * Outstanding setelah approval.
    */
   viewBudgetPlanSnapshotOnBudgetRequestReview: boolean;
+  /**
+   * Persona dashboard yang dikunci per user. Bukan hak menu (itu `menuAccess.dashboard`)
+   * dan bukan scope data (itu `viewAllDashboardDepartments`). Layout KPI/chart
+   * mengikuti nilai ini; user tidak bisa ganti view sendiri.
+   */
+  dashboardView: DashboardView;
+  /**
+   * Dashboard data mart tanpa filter department user. Default `false`: angka
+   * dashboard dikunci ke `users.departmentId`. Terpisah dari
+   * `viewOtherDepartmentDocuments` (yang mengatur list BP/BR/PR).
+   */
+  viewAllDashboardDepartments: boolean;
 }

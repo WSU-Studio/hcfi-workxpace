@@ -1,4 +1,4 @@
-import { MenuAccess, ActivityAccess } from '@/types/access-control';
+import { MenuAccess, ActivityAccess, parseDashboardView } from '@/types/access-control';
 
 export const defaultMenuAccess: MenuAccess = {
   dashboard: true,
@@ -119,6 +119,8 @@ export const defaultActivityAccess: ActivityAccess = {
   viewBudgetPlanSnapshotOnBudgetRequestReview: false,
   // Sensitive financial column — opt-in. Admin & users explicitly granted only.
   viewBudgetPlanRealization: false,
+  dashboardView: 'department',
+  viewAllDashboardDepartments: false,
 };
 
 /** Full access for admin role - used when user has ADMIN roleCode */
@@ -196,6 +198,8 @@ export const fullActivityAccess: ActivityAccess = {
   editClassificationSection: true,
   viewBudgetPlanRealization: true,
   viewBudgetPlanSnapshotOnBudgetRequestReview: true,
+  dashboardView: 'fpa',
+  viewAllDashboardDepartments: true,
 };
 
 /** Mengisi field akses baru untuk JSON lama yang disimpan di DB. */
@@ -228,6 +232,7 @@ export function mergeWithDefaultActivityAccess(
   return {
     ...defaultActivityAccess,
     ...partial,
+    dashboardView: parseDashboardView(partial.dashboardView ?? defaultActivityAccess.dashboardView),
     ...(migratedFromLegacy === undefined
       ? {}
       : { viewBudgetPlanRealization: migratedFromLegacy }),
