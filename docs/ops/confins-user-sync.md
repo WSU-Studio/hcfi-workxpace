@@ -87,7 +87,7 @@ Use the **same value** in GitHub Secrets (`CRON_SECRET`) and production server `
 
 - Runs on the **self-hosted runner** (same server as PM2)
 - Calls `http://127.0.0.1:{PORT}/api/cron/sync-confins-employees` — no public DNS needed
-- Runs daily at **09:00 WIB** (02:00 UTC) — within Confins operating hours (~08:00–17:00 WIB)
+- Runs **Monday & Thursday at 09:00 WIB** (02:00 UTC) — within Confins operating hours (~08:00–17:00 WIB); 2x/week for current dev/demo cadence
 - Can be triggered manually: **Actions → Sync Confins Employees → Run workflow**
 
 ### Setup checklist

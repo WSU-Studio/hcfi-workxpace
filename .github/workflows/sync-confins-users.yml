@@ -15,8 +15,9 @@ name: Sync Confins Employees
 
 on:
   schedule:
-    # 09:00 WIB = 02:00 UTC — Confins is typically only up ~08:00–17:00 WIB
-    - cron: '0 2 * * *'
+    # Senin & Kamis 09:00 WIB = 02:00 UTC (dev/demo: 2x/minggu, bukan harian)
+    # Confins typically only up ~08:00–17:00 WIB
+    - cron: '0 2 * * 1,4'
   workflow_dispatch:
 
 jobs:
