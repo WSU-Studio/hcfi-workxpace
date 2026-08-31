@@ -14,6 +14,7 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 - [Leave blank - user populates]
 
 ## Components
+- `lib/budget-plans/code.ts` — Budget Plan document-code allocator (`allocateNextBudgetPlanCode` / `createBudgetPlanCodeAllocator`)
 - `app/(protected)/dashboard/page.tsx` — server wrapper via `renderClientPage` (Next 15 params Promise must not reach the client)
 - `app/(protected)/dashboard/PageClient.tsx` — locked persona shell + filters
 - `components/dashboard/*` — reusable KPI/chart/table widgets (SOLID: one visual per file)
@@ -22,6 +23,7 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 - `app/api/dashboard/summary/route.ts` — gated by `menuAccess.dashboard`
 
 ## Patterns
+- **BP document codes:** `{DEPT}{YYYY}{MM}{seq}` e.g. `IT202608001`. Shared helper `lib/budget-plans/code.ts` — form create (`POST /api/budget-plans`) and bulk import (`/api/budget-plans/bulk-import`) must use the same allocator. Do **not** mint `BP-00001` from trailing digits of the latest row (that collides with existing `{DEPT}{YYYY}{MM}{seq}` codes via unique constraint on `budget_plans.code`). Bulk-imported rows are flagged with `importedViaBulk`, not a separate code prefix.
 - **Production build:** `prebuild` clears `.next` before `next build`. Stale Next 15 cache can leave incomplete `app-paths-manifest.json` and surface as `PageNotFoundError` / ENOENT for routes that exist (seen on `/budget-requests/[id]` and `/budget-requests/[id]/review/detail`).
 - New activity flags go on `ActivityAccess` + `defaultActivityAccess` + `fullActivityAccess` + `mergeWithDefaultActivityAccess`. JSON column; no Prisma migration for new keys.
 - Dashboard widget lists are **not** per-user checkboxes. Persona is a single enum; layout is hardcoded per persona.

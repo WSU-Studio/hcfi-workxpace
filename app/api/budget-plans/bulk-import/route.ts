@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { prisma } from '@/lib/prisma';
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
+import { createBudgetPlanCodeAllocator } from '@/lib/budget-plans/code';
 
 /** Bulk import can run longer than default serverless limits on large XLSX. */
 export const maxDuration = 120;
@@ -21,22 +22,6 @@ const MONTH_FIELDS = [
   'nov',
   'dec',
 ] as const;
-
-const getInitialBudgetPlanCodeSequence = async (
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
-) => {
-  const lastPlan = await tx.budgetPlan.findFirst({
-    orderBy: {
-      createdAt: 'desc',
-    },
-    select: {
-      code: true,
-    },
-  });
-
-  const lastNumber = lastPlan?.code?.match(/\d+$/)?.[0];
-  return lastNumber ? Number(lastNumber) : 0;
-};
 
 const toNumber = (value: unknown) => {
   if (value === null || value === undefined || value === '') return 0;
@@ -172,7 +157,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.$transaction(
       async (tx) => {
-        let codeSequence = await getInitialBudgetPlanCodeSequence(tx);
+        const allocateCode = createBudgetPlanCodeAllocator(tx);
 
         for (const row of rows) {
           const fiscalYear = toNumber(row.fiscalYear);
@@ -225,8 +210,7 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          codeSequence += 1;
-          const code = `BP-${String(codeSequence).padStart(5, '0')}`;
+          const code = await allocateCode.next(department.code);
 
           const budgetPlan = await tx.budgetPlan.create({
             data: {

@@ -11,6 +11,7 @@ import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display'
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
+import { allocateNextBudgetPlanCode } from '@/lib/budget-plans/code';
 
 export const dynamic = 'force-dynamic';
 
@@ -157,18 +158,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
-    const year = String(now.getFullYear());
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const departmentCode = (dept?.code ?? 'BP').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const codePrefix = `${departmentCode}${year}${month}`;
-    const count = await prisma.budgetPlan.count({
-      where: {
-        code: {
-          startsWith: codePrefix,
-        },
-      },
-    });
-    const code = body.code || `${codePrefix}${String(count + 1).padStart(3, '0')}`;
+    const code = body.code || (await allocateNextBudgetPlanCode(prisma, dept.code, now));
 
     const plan = await prisma.budgetPlan.create({
       data: {
