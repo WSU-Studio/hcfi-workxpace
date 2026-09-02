@@ -12,9 +12,13 @@ import {
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
-import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
+import { ALL_FISCAL_YEARS, assertFiscalYearWritable, parseFiscalYearParam } from '@/lib/fiscal-year';
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import {
+  approvalLevelsOf,
+  captureApprovalSchemaSnapshot,
+} from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +84,9 @@ export async function GET(request: Request) {
       historiesByEntity.set(h.entityId, bucket);
     }
 
-    const requests = rows.map(({ approvalSchema, ...r }) => ({
+    const requests = rows.map((row) => {
+      const { approvalSchema: _liveSchema, approvalSchemaSnapshot: _snapshot, ...r } = row;
+      return {
       ...r,
       grandTotal: Number(r.grandTotal ?? 0),
       totalAmount: Number(r.totalAmount ?? 0),
@@ -95,13 +101,14 @@ export async function GET(request: Request) {
         !!session?.user?.id &&
         canUserActOnCurrentStep({
           status: r.status,
-          approvalLevels: approvalSchema?.approvalLevels ?? [],
+          approvalLevels: approvalLevelsOf(row),
           histories: historiesByEntity.get(r.id) ?? [],
           userRoleIds,
           requestorId: r.requestorId ?? null,
           actorUserId: session.user.id,
         }),
-    }));
+    };
+    });
     const plans = await prisma.budgetPlan.findMany({
       // Same cross-department view rule applies to the BP dropdown so users
       // without permission don't see other departments' BPs as picker options.
@@ -205,6 +212,7 @@ export async function POST(req: Request) {
             select: {
               id: true,
               status: true,
+              fiscalYear: true,
               categoryId: true,
               coaId: true,
               opexType: true,
@@ -247,6 +255,17 @@ export async function POST(req: Request) {
     if (selectedPlan && selectedPlan.status !== 'Approved') {
       return NextResponse.json({ error: 'Budget plan must be approved' }, { status: 400 });
     }
+
+    const fiscalYearVerdict = assertFiscalYearWritable(year, [selectedPlan?.fiscalYear]);
+    if (!fiscalYearVerdict.ok) {
+      return NextResponse.json({ error: fiscalYearVerdict.error }, { status: 400 });
+    }
+
+    const snapshotResult = await captureApprovalSchemaSnapshot(approvalSchemaId);
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ error: snapshotResult.error }, { status: 400 });
+    }
+
     const now = new Date();
     const codeYear = String(now.getFullYear());
     const codeMonth = String(now.getMonth() + 1).padStart(2, '0');
@@ -270,7 +289,7 @@ export async function POST(req: Request) {
         budgetPlanId: normalizedBudgetPlanId,
         subject,
         description: description ?? null,
-        fiscalYear: year,
+        fiscalYear: fiscalYearVerdict.year,
         originOffice: normalizedOriginOffice,
         departmentId,
         projectId: normalizedProjectId,
@@ -285,6 +304,7 @@ export async function POST(req: Request) {
         grandTotal: normalizedGrandTotal,
         notes: notes ?? null,
         approvalSchemaId: approvalSchemaId || null,
+        approvalSchemaSnapshot: snapshotResult.snapshot,
         category: (category as string) || selectedPlan?.categoryId || null,
         categoryKeyIndex: (categoryKeyIndex as string) || null,
         costCenter: (costCenter as string) || null,

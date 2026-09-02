@@ -18,8 +18,14 @@ import {
   parseClassificationBody,
   type StoredRequestClassification,
 } from '@/lib/request-classification';
-import { parseDateInputToDate } from '@/lib/payment-requests/form';
+import { parseDateInputToDate, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
+import { assertFiscalYearWritable } from '@/lib/fiscal-year';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import {
+  approvalLevelsOf,
+  snapshotForDocumentWrite,
+  withFrozenApprovalSchema,
+} from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,14 +102,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       !!session?.user?.id &&
       canUserActOnCurrentStep({
         status: row.status,
-        approvalLevels: row.approvalSchema?.approvalLevels ?? [],
+        approvalLevels: approvalLevelsOf(row),
         histories: histories as unknown as BudgetPlanHistoryEntry[],
         userRoleIds,
         requestorId: row.requestorId ?? null,
         actorUserId: session.user.id,
       });
 
-    const serialized = serializePaymentRequest(row as Record<string, unknown> & { lineItems?: Array<Record<string, unknown>> });
+    const serialized = serializePaymentRequest(
+      withFrozenApprovalSchema(row) as unknown as Record<string, unknown> & {
+        lineItems?: Array<Record<string, unknown>>;
+      },
+    );
     const classificationOptions = await loadClassificationOptions();
 
     return NextResponse.json({
@@ -139,6 +149,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         code: true,
         requestorId: true,
         status: true,
+        fiscalYear: true,
+        approvalSchemaId: true,
+        approvalSchemaSnapshot: true,
         category: true,
         categoryKeyIndex: true,
         costCenter: true,
@@ -177,6 +190,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    const vendorFieldsError = validateRequiredVendorInvoiceFields({
+      vendorInvoiceNo,
+      dateNeeded,
+    });
+    if (vendorFieldsError) {
+      return NextResponse.json({ error: vendorFieldsError }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
@@ -284,6 +305,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           : null;
     }
 
+    const fiscalYearVerdict = assertFiscalYearWritable(resolvedFiscalYear, [
+      existing.fiscalYear,
+      resolvedBudgetRequestId ? resolvedFiscalYear : null,
+    ]);
+    if (!fiscalYearVerdict.ok) {
+      return NextResponse.json({ error: fiscalYearVerdict.error }, { status: 400 });
+    }
+    resolvedFiscalYear = fiscalYearVerdict.year;
+
     const dept = await prisma.department.findUnique({ where: { id: resolvedDepartmentId } });
     if (!dept) {
       return NextResponse.json({ error: 'Department not found' }, { status: 400 });
@@ -305,6 +335,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     );
 
+    const snapshotResult = await snapshotForDocumentWrite({
+      schemaId: approvalSchemaId,
+      previousSchemaId: existing.approvalSchemaId,
+      previousSnapshot: existing.approvalSchemaSnapshot,
+    });
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ error: snapshotResult.error }, { status: 400 });
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       await tx.paymentRequestLineItem.deleteMany({ where: { paymentRequestId: id } });
       return (tx.paymentRequest as unknown as {
@@ -316,6 +355,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           description: typeof description === 'string' ? description : null,
           notes: typeof notes === 'string' ? notes : null,
           approvalSchemaId: approvalSchemaId || null,
+          approvalSchemaSnapshot: snapshotResult.snapshot,
           fiscalYear: resolvedFiscalYear,
           originOffice: resolvedOriginOffice,
           departmentId: resolvedDepartmentId,
@@ -402,7 +442,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     });
 
     return NextResponse.json({
-      ...serializePaymentRequest(updated as Record<string, unknown> & { lineItems?: Array<Record<string, unknown>> }),
+      ...serializePaymentRequest(
+        withFrozenApprovalSchema(
+          updated as unknown as Parameters<typeof withFrozenApprovalSchema>[0] &
+            Record<string, unknown> & { lineItems?: Array<Record<string, unknown>> },
+        ) as Record<string, unknown> & { lineItems?: Array<Record<string, unknown>> },
+      ),
       histories,
     });
   } catch {

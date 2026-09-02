@@ -10,8 +10,13 @@ import {
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetPlanNotifications } from '@/lib/budget-plan-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
-import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
+import { ALL_FISCAL_YEARS, assertFiscalYearWritable, parseFiscalYearParam } from '@/lib/fiscal-year';
 import { allocateNextBudgetPlanCode } from '@/lib/budget-plans/code';
+import { isPrismaUniqueViolation } from '@/lib/prisma-errors';
+import {
+  approvalLevelsOf,
+  captureApprovalSchemaSnapshot,
+} from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +85,9 @@ export async function GET(request: Request) {
       historiesByEntity.set(h.entityId, bucket);
     }
 
-    const enrichedPlans = plans.map(({ approvalSchema, _count, ...plan }) => {
+    const enrichedPlans = plans.map((planRow) => {
+      const { approvalSchema: _liveSchema, approvalSchemaSnapshot: _snapshot, _count, ...plan } =
+        planRow;
       const budgetRequestCount = _count?.budgetRequests ?? 0;
       const isRequestor =
         !!session?.user?.id && plan.requestorId === session.user.id;
@@ -97,7 +104,7 @@ export async function GET(request: Request) {
           !!session?.user?.id &&
           canUserActOnCurrentStep({
             status: plan.status,
-            approvalLevels: approvalSchema?.approvalLevels ?? [],
+            approvalLevels: approvalLevelsOf(planRow),
             histories: historiesByEntity.get(plan.id) ?? [],
             userRoleIds,
             requestorId: plan.requestorId ?? null,
@@ -121,6 +128,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    const snapshotResult = await captureApprovalSchemaSnapshot(body.approvalSchemaId);
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ error: snapshotResult.error }, { status: 400 });
     }
 
     // Defense in depth: even if the UI is bypassed, users without the
@@ -157,32 +169,59 @@ export async function POST(request: Request) {
       );
     }
 
-    const now = new Date();
-    const code = body.code || (await allocateNextBudgetPlanCode(prisma, dept.code, now));
+    const fiscalYearVerdict = assertFiscalYearWritable(body.fiscalYear);
+    if (!fiscalYearVerdict.ok) {
+      return NextResponse.json({ error: fiscalYearVerdict.error }, { status: 400 });
+    }
 
-    const plan = await prisma.budgetPlan.create({
-      data: {
-        code,
-        subject: body.subject,
-        description: body.description || null,
-        fiscalYear: body.fiscalYear,
-        originOffice: body.originOffice || null,
-        departmentId: body.departmentId,
-        projectId: body.projectId || null,
-        requestorId: session.user.id,
-        requestDate: new Date(),
-        status: 'Draft',
-        approvalSchemaId: body.approvalSchemaId || null,
-        supportingDocs: body.supportingDocs || null,
-        coaId: body.coaId || null,
-        categoryId: body.categoryId || null,
-        categoryKeyIndexId: body.categoryKeyIndexId || null,
-        costCenterId: body.costCenterId || null,
-        opexId: null,
-        opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
-        opexType: body.opexType || null,
-      },
-    });
+    const now = new Date();
+    const createPlan = async (code: string) =>
+      prisma.budgetPlan.create({
+        data: {
+          code,
+          subject: body.subject,
+          description: body.description || null,
+          fiscalYear: fiscalYearVerdict.year,
+          originOffice: body.originOffice || null,
+          departmentId: body.departmentId,
+          projectId: body.projectId || null,
+          requestorId: session.user.id,
+          requestDate: new Date(),
+          status: 'Draft',
+          approvalSchemaId: body.approvalSchemaId || null,
+          approvalSchemaSnapshot: snapshotResult.snapshot,
+          supportingDocs: body.supportingDocs || null,
+          coaId: body.coaId || null,
+          categoryId: body.categoryId || null,
+          categoryKeyIndexId: body.categoryKeyIndexId || null,
+          costCenterId: body.costCenterId || null,
+          opexId: null,
+          opexAllocationId: body.opexType === 'OPEX' ? body.opexAllocationId || null : null,
+          opexType: body.opexType || null,
+        },
+      });
+
+    let plan;
+    if (typeof body.code === 'string' && body.code.trim()) {
+      plan = await createPlan(body.code.trim());
+    } else {
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          plan = await createPlan(await allocateNextBudgetPlanCode(prisma, dept.code, now));
+          lastError = undefined;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (!isPrismaUniqueViolation(error, 'code')) throw error;
+        }
+      }
+      if (!plan) {
+        throw lastError instanceof Error
+          ? lastError
+          : new Error('Failed to allocate a unique budget plan code');
+      }
+    }
 
     const selectedMonths = allocations
       .filter((a: { month: number; allocation: number }) => Number(a?.allocation ?? 0) > 0)

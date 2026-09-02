@@ -19,6 +19,12 @@ import {
   pickClassificationFields,
 } from '@/lib/access/classification';
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
+import { assertFiscalYearWritable, fiscalYearSelectOptions } from '@/lib/fiscal-year';
+import {
+  approvalLevelsOf,
+  snapshotForDocumentWrite,
+  withFrozenApprovalSchema,
+} from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +82,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         })
       : null;
 
-    const fiscalYears = await prisma.fiscalYear.findMany({ orderBy: { year: 'desc' } });
+    const fiscalYears = fiscalYearSelectOptions([plan.fiscalYear]);
     const departments = await prisma.department.findMany({
       where: selectableDepartmentWhere([plan.departmentId]),
       orderBy: { code: 'asc' },
@@ -114,11 +120,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     let canReview = false;
     let nextStepOrder: number | null = null;
-    if (session?.user?.id && plan.approvalSchema?.approvalLevels?.length) {
+    const approvalLevels = approvalLevelsOf(plan);
+    if (session?.user?.id && approvalLevels.length) {
       const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
       const next = getNextApprovalStep(
         plan.status,
-        plan.approvalSchema.approvalLevels,
+        approvalLevels,
         histories as unknown as BudgetPlanHistoryEntry[],
       );
       nextStepOrder = next?.stepOrder ?? null;
@@ -127,7 +134,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         !!session?.user?.id &&
         canUserActOnCurrentStep({
           status: plan.status,
-          approvalLevels: plan.approvalSchema.approvalLevels,
+          approvalLevels,
           histories: histories as unknown as BudgetPlanHistoryEntry[],
           userRoleIds,
           requestorId: plan.requestorId ?? null,
@@ -173,7 +180,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({
       plan: {
-        ...plan,
+        ...withFrozenApprovalSchema(plan),
         allocations: enrichedAllocations,
         requestorName: requestor?.name ?? null,
         budgetRequestCount,
@@ -212,6 +219,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         code: true,
         requestorId: true,
         status: true,
+        fiscalYear: true,
+        approvalSchemaId: true,
+        approvalSchemaSnapshot: true,
         _count: { select: { budgetRequests: true } },
       },
     });
@@ -232,6 +242,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
 
+    const snapshotResult = await snapshotForDocumentWrite({
+      schemaId: body.approvalSchemaId,
+      previousSchemaId: existing.approvalSchemaId,
+      previousSnapshot: existing.approvalSchemaSnapshot,
+    });
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ error: snapshotResult.error }, { status: 400 });
+    }
+
     const allocations = body.allocations || [];
     const totalAllocation = allocations.reduce(
       (sum: number, a: { allocation: number }) => sum + Number(a?.allocation ?? 0),
@@ -244,16 +263,22 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       );
     }
 
+    const fiscalYearVerdict = assertFiscalYearWritable(body.fiscalYear, [existing.fiscalYear]);
+    if (!fiscalYearVerdict.ok) {
+      return NextResponse.json({ error: fiscalYearVerdict.error }, { status: 400 });
+    }
+
     await prisma.budgetPlan.update({
       where: { id },
       data: {
         subject: body.subject,
         description: body.description ?? null,
-        fiscalYear: body.fiscalYear,
+        fiscalYear: fiscalYearVerdict.year,
         originOffice: body.originOffice ?? null,
         departmentId: body.departmentId,
         projectId: body.projectId || null,
         approvalSchemaId: body.approvalSchemaId || null,
+        approvalSchemaSnapshot: snapshotResult.snapshot,
         supportingDocs: body.supportingDocs || null,
         coaId: body.coaId || null,
         categoryId: body.categoryId || null,
@@ -293,7 +318,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         previousStatus: existing.status,
         note: 'Plan updated by requestor. Approval restarted from step 1.',
         subject: body.subject ?? null,
-        fiscalYear: body.fiscalYear ?? null,
+        fiscalYear: fiscalYearVerdict.year ?? null,
         originOffice: body.originOffice ?? null,
         departmentId: body.departmentId ?? null,
         projectId: body.projectId ?? null,
@@ -360,7 +385,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (before.requestorId === session.user.id) {
           return NextResponse.json({ error: 'Requestor cannot review own plan' }, { status: 403 });
         }
-        const levels = before.approvalSchema?.approvalLevels ?? [];
+        const levels = approvalLevelsOf(before);
         const reviewHistories = (await prisma.activityHistory.findMany({
           where: { entityType: 'BudgetPlan', entityId: id },
           select: { action: true, details: true, timestamp: true },

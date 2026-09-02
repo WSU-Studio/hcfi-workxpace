@@ -16,6 +16,12 @@ import { sumPlanRealization } from '@/lib/budget-plan-realization';
 import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
+import { assertFiscalYearWritable } from '@/lib/fiscal-year';
+import {
+  approvalLevelsOf,
+  snapshotForDocumentWrite,
+  withFrozenApprovalSchema,
+} from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,7 +125,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       !!session?.user?.id &&
       canUserActOnCurrentStep({
         status: br.status,
-        approvalLevels: br.approvalSchema?.approvalLevels ?? [],
+        approvalLevels: approvalLevelsOf(br),
         histories: histories as unknown as BudgetPlanHistoryEntry[],
         userRoleIds,
         requestorId: br.requestorId ?? null,
@@ -141,7 +147,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     ]);
 
     return NextResponse.json({
-      ...br,
+      ...withFrozenApprovalSchema(br),
       // Override `budgetPlan` (which `...br` already spread in) with the
       // enriched version carrying allocationTotal / realization / outstanding.
       // These are the *plan's* totals excluding the current BR, so the
@@ -187,6 +193,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         fiscalYear: true,
         budgetPlanId: true,
         departmentId: true,
+        approvalSchemaId: true,
+        approvalSchemaSnapshot: true,
       },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -226,6 +234,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       id: string;
       departmentId: string;
       status: string;
+      fiscalYear: number;
       categoryId: string | null;
       categoryKeyIndexId: string | null;
       costCenterId: string | null;
@@ -241,6 +250,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           id: true,
           departmentId: true,
           status: true,
+          fiscalYear: true,
           categoryId: true,
           categoryKeyIndexId: true,
           costCenterId: true,
@@ -284,6 +294,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       );
     }
 
+    const snapshotResult = await snapshotForDocumentWrite({
+      schemaId: approvalSchemaId,
+      previousSchemaId: existing.approvalSchemaId,
+      previousSnapshot: existing.approvalSchemaSnapshot,
+    });
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ error: snapshotResult.error }, { status: 400 });
+    }
+
     const normalizedPayload = normalizeBudgetRequestBody(body, existing.fiscalYear);
     if ('error' in normalizedPayload) {
       return NextResponse.json({ error: normalizedPayload.error }, { status: 400 });
@@ -300,6 +319,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       normalizedGrandTotal,
       monthlyAllocations,
     } = normalizedPayload;
+
+    const fiscalYearVerdict = assertFiscalYearWritable(year, [existing.fiscalYear, plan?.fiscalYear]);
+    if (!fiscalYearVerdict.ok) {
+      return NextResponse.json({ error: fiscalYearVerdict.error }, { status: 400 });
+    }
 
     if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !Number.isFinite(normalizedGrandTotal) || normalizedGrandTotal <= 0) {
       return NextResponse.json(
@@ -320,7 +344,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           budgetPlanId: nextBudgetPlanId,
           subject,
           description: description ?? null,
-          fiscalYear: year,
+          fiscalYear: fiscalYearVerdict.year,
           originOffice: normalizedOriginOffice,
           departmentId: nextDepartmentId,
           projectId: normalizedProjectId,
@@ -334,6 +358,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           grandTotal: normalizedGrandTotal,
           notes: notes ?? null,
           approvalSchemaId: approvalSchemaId || null,
+          approvalSchemaSnapshot: snapshotResult.snapshot,
           category: (category as string) || plan?.categoryId || null,
           categoryKeyIndex: (categoryKeyIndex as string) || plan?.categoryKeyIndexId || null,
           costCenter: (costCenter as string) || plan?.costCenterId || null,
@@ -433,7 +458,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       orderBy: { timestamp: 'desc' },
     });
 
-    return NextResponse.json({ ...br, histories });
+    return NextResponse.json({ ...withFrozenApprovalSchema(br), histories });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }

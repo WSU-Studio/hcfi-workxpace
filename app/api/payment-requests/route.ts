@@ -14,15 +14,19 @@ import { normalizePaymentRequestBody } from '@/lib/payment-request-normalize';
 import { toNumber } from '@/lib/budget-request-normalize';
 import { notifyPaymentRequestAwaitingReview } from '@/lib/payment-request-notifications';
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
-import { ALL_FISCAL_YEARS, parseFiscalYearParam } from '@/lib/fiscal-year';
+import { ALL_FISCAL_YEARS, assertFiscalYearWritable, parseFiscalYearParam } from '@/lib/fiscal-year';
 import {
   classificationToStored,
   mergeStoredClassification,
   parseClassificationBody,
   type StoredRequestClassification,
 } from '@/lib/request-classification';
-import { parseDateInputToDate } from '@/lib/payment-requests/form';
+import { parseDateInputToDate, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import {
+  approvalLevelsOf,
+  captureApprovalSchemaSnapshot,
+} from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,7 +177,9 @@ async function serializePaymentRequestList(
     historiesByEntity.set(h.entityId, bucket);
   }
 
-  return rows.map(({ approvalSchema, lineItems, ...r }) => ({
+  return rows.map((row) => {
+    const { approvalSchema: _liveSchema, approvalSchemaSnapshot: _snapshot, lineItems, ...r } = row;
+    return {
     ...r,
     amount: Number(r.amount),
     totalAmount: Number(r.totalAmount),
@@ -187,13 +193,14 @@ async function serializePaymentRequestList(
       !!session?.user?.id &&
       canUserActOnCurrentStep({
         status: r.status,
-        approvalLevels: approvalSchema?.approvalLevels ?? [],
+        approvalLevels: approvalLevelsOf(row),
         histories: historiesByEntity.get(r.id) ?? [],
         userRoleIds,
         requestorId: r.requestorId ?? null,
         actorUserId: session.user.id,
       }),
-  }));
+  };
+  });
 }
 
 export async function POST(req: Request) {
@@ -226,6 +233,14 @@ export async function POST(req: Request) {
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
+    }
+
+    const vendorFieldsError = validateRequiredVendorInvoiceFields({
+      vendorInvoiceNo,
+      dateNeeded,
+    });
+    if (vendorFieldsError) {
+      return NextResponse.json({ error: vendorFieldsError }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
@@ -333,6 +348,15 @@ export async function POST(req: Request) {
           : null;
     }
 
+    const fiscalYearVerdict = assertFiscalYearWritable(
+      resolvedFiscalYear,
+      resolvedBudgetRequestId ? [resolvedFiscalYear] : [],
+    );
+    if (!fiscalYearVerdict.ok) {
+      return NextResponse.json({ error: fiscalYearVerdict.error }, { status: 400 });
+    }
+    resolvedFiscalYear = fiscalYearVerdict.year;
+
     // Defense in depth: enforce the cross-department permission server-side.
     // Ran here because `resolvedDepartmentId` may have been overridden by the
     // linked Budget Request (BR.departmentId is the source of truth when a BR
@@ -352,6 +376,11 @@ export async function POST(req: Request) {
         { error: `Department ${dept.code} is inactive and cannot be selected` },
         { status: 400 },
       );
+    }
+
+    const snapshotResult = await captureApprovalSchemaSnapshot(approvalSchemaId);
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ error: snapshotResult.error }, { status: 400 });
     }
 
     const now = new Date();
@@ -398,6 +427,7 @@ export async function POST(req: Request) {
         paymentPurpose: typeof paymentPurpose === 'string' ? paymentPurpose : null,
         notes: typeof notes === 'string' ? notes : null,
         approvalSchemaId: approvalSchemaId || null,
+        approvalSchemaSnapshot: snapshotResult.snapshot,
         supportingDocs: supportingDocsForPersistence((body as { supportingDocs?: unknown }).supportingDocs),
         category: classification.category,
         categoryKeyIndex: classification.categoryKeyIndex,
