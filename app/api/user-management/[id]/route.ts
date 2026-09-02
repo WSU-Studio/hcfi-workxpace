@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +52,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!name || !email || !employeeId || !roleId || !departmentId) {
       return NextResponse.json({ error: 'Please complete all required fields' }, { status: 400 });
     }
-    if (password && password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    if (password && password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({ where: { id } });

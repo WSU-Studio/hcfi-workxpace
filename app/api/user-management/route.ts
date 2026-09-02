@@ -11,6 +11,7 @@ import {
   fullMenuAccess,
 } from '@/lib/default-access';
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
 
 const ADMIN_ROLE_CODE = 'ADMIN';
 
@@ -69,8 +70,8 @@ export async function POST(request: Request) {
     if (!name || !email || !employeeId || !password || !roleId || !departmentId) {
       return NextResponse.json({ error: 'Please complete all required fields' }, { status: 400 });
     }
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 });
     }
 
     const [existingEmail, existingEmployee, role, department] = await Promise.all([
