@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendNotificationEmails } from '@/lib/email';
 import { resolveSchemaNotificationUserIds } from '@/lib/approval-level-pics';
+import { approvalLevelsOf } from '@/lib/approval-schema-snapshot';
 
 /** Users to notify (requestor + anyone with an approval-schema role), excluding the actor. */
 export async function resolvePaymentRequestNotificationRecipientIds(
@@ -18,7 +19,7 @@ export async function resolvePaymentRequestNotificationRecipientIds(
   if (!request) return [];
 
   return resolveSchemaNotificationUserIds({
-    levels: request.approvalSchema?.approvalLevels ?? [],
+    levels: approvalLevelsOf(request),
     requestorId: request.requestorId,
     actorUserId,
   });

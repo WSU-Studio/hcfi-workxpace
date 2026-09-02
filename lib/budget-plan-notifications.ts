@@ -15,6 +15,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendNotificationEmails } from '@/lib/email';
 import { resolveSchemaNotificationUserIds } from '@/lib/approval-level-pics';
+import { approvalLevelsOf } from '@/lib/approval-schema-snapshot';
 
 export type BudgetPlanNotificationVariant = 'submit' | 'resubmit';
 
@@ -54,7 +55,7 @@ export async function resolveBudgetPlanNotificationUserIds(
   if (!plan) return [];
 
   return resolveSchemaNotificationUserIds({
-    levels: plan.approvalSchema?.approvalLevels ?? [],
+    levels: approvalLevelsOf(plan),
     requestorId: plan.requestorId,
     actorUserId,
   });

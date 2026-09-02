@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { createBudgetRequestCommentNotifications } from '@/lib/budget-request-comment-notifications';
 import { formatCommentBodyForDisplay, parseMentionUserIds } from '@/lib/budget-plan-comments';
 import { getBudgetPlanUserRoleIds } from '@/lib/budget-plan-review-eligibility';
+import { approvalLevelsOf } from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ async function loadApprovalRoleIds(requestId: string): Promise<Set<string>> {
   const request = await prisma.budgetRequest.findUnique({
     where: { id: requestId },
     select: {
+      approvalSchemaSnapshot: true,
       approvalSchema: {
         select: {
           approvalLevels: { select: { roleId: true } },
@@ -37,7 +39,7 @@ async function loadApprovalRoleIds(requestId: string): Promise<Set<string>> {
       },
     },
   });
-  return new Set((request?.approvalSchema?.approvalLevels ?? []).map((level) => level.roleId));
+  return new Set(approvalLevelsOf(request ?? {}).map((level) => level.roleId));
 }
 
 async function isApprovalStakeholder(userId: string, approvalRoleIds: Set<string>): Promise<boolean> {

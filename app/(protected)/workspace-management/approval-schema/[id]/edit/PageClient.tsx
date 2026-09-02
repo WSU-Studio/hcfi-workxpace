@@ -135,6 +135,10 @@ export default function EditApprovalSchemaPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold">Edit Approval Schema</h1>
+      <p className="text-sm text-gray-600">
+        Changes apply to new documents only. Existing Budget Plans, Budget Requests, and Payment
+        Requests keep the schema snapshot captured when they were saved.
+      </p>
       {errors.general && <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{errors.general}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">

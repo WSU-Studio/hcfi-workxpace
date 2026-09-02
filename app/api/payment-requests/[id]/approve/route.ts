@@ -11,6 +11,7 @@ import {
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createPaymentRequestApprovalNotifications } from '@/lib/payment-request-notifications';
 import { canEditClassificationFields } from '@/lib/access/classification';
+import { approvalLevelsOf } from '@/lib/approval-schema-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Already approved' }, { status: 400 });
     }
 
-    const levels = before.approvalSchema?.approvalLevels ?? [];
+    const levels = approvalLevelsOf(before);
     const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
     // Used by the multi-step eligibility checks below — see BR approve route
     // for the rationale.
