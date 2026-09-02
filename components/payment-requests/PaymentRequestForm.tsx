@@ -9,6 +9,7 @@ import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import SupportingDocumentsField from '@/components/forms/SupportingDocumentsField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
@@ -80,7 +81,6 @@ export default function PaymentRequestForm({
 }: PaymentRequestFormProps) {
   const {
     approvedBudgetRequests,
-    fiscalYears,
     departments,
     projects,
     originOffices,
@@ -96,7 +96,7 @@ export default function PaymentRequestForm({
 
   const budgetRequestOptions = useMemo(
     () => [
-      { value: '', label: '—' },
+      { value: '', label: 'None (optional)', searchText: 'none optional blank' },
       ...approvedBudgetRequests.map((budgetRequest) => ({
         value: budgetRequest.id,
         label: `${budgetRequest.code} - ${budgetRequest.subject}`,
@@ -133,9 +133,6 @@ export default function PaymentRequestForm({
     return sortApprovalLevels(selectedSchema?.approvalLevels ?? []);
   }, [approvalSchemas, formData.approvalSchemaId]);
 
-  const fiscalYearOptions =
-    fiscalYears.length > 0 ? fiscalYears : [{ year: new Date().getFullYear() }];
-
   const resolvedSubmitLabel =
     submitLabel ??
     (isUploadingAttachments
@@ -151,42 +148,37 @@ export default function PaymentRequestForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div>
-        <label className="mb-1.5 block font-medium">Budget Request (Approved, optional)</label>
+        <label className="mb-1.5 block font-medium">Budget Request (optional)</label>
         <SearchableSelect
           value={formData.budgetRequestId}
           options={budgetRequestOptions}
           onChange={onBudgetRequestChange}
-          placeholder="Select budget request..."
-          searchPlaceholder="Search budget request..."
+          placeholder="None (optional)"
+          searchPlaceholder="Search approved budget request..."
+          required={false}
         />
-        {mode === 'create' ? (
-          <p className="mt-1 text-sm text-gray-500">
-            Link to an approved budget request, or leave blank. When linked, fiscal year, origin office,
-            department, and project follow that budget request.
-          </p>
-        ) : null}
+        <p className="mt-1 text-sm text-gray-500">
+          Not required. Link an approved budget request if this payment belongs to one; otherwise
+          leave as None. When linked, fiscal year, origin office, department, and project follow that
+          budget request.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="mb-1.5 block font-medium">Fiscal Year *</label>
-          <Select
+          <FiscalYearSelect
             value={formData.fiscalYear}
-            onChange={(event) =>
+            onChange={(fiscalYear) =>
               onFormDataChange((previous) => ({
                 ...previous,
-                fiscalYear: Number(event.target.value),
+                fiscalYear,
               }))
             }
+            includeYears={[formData.fiscalYear]}
             required
             readonly={isBudgetRequestSelected}
-          >
-            {fiscalYearOptions.map((fiscalYear) => (
-              <option key={fiscalYear.year} value={fiscalYear.year}>
-                {fiscalYear.year}
-              </option>
-            ))}
-          </Select>
+          />
         </div>
 
         <div>
@@ -266,7 +258,7 @@ export default function PaymentRequestForm({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1.5 block font-medium">Vendor Invoice No</label>
+          <label className="mb-1.5 block font-medium">Vendor Invoice No *</label>
           <Input
             type="text"
             value={formData.vendorInvoiceNo}
@@ -277,11 +269,12 @@ export default function PaymentRequestForm({
               }))
             }
             placeholder="Vendor invoice number"
+            required
           />
         </div>
 
         <div>
-          <label className="mb-1.5 block font-medium">Date Needed</label>
+          <label className="mb-1.5 block font-medium">Date Needed *</label>
           <Input
             type="date"
             value={formData.dateNeeded}
@@ -291,6 +284,7 @@ export default function PaymentRequestForm({
                 dateNeeded: event.target.value,
               }))
             }
+            required
           />
         </div>
       </div>

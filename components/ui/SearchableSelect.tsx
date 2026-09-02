@@ -332,6 +332,7 @@ export default function SearchableSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
+        aria-required={required}
         aria-invalid={required && !value ? true : undefined}
         disabled={disabled}
         onClick={() => (open ? close() : openDropdown())}

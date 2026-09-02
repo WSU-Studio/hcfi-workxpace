@@ -1,4 +1,5 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
+import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -92,7 +93,7 @@ export function createDefaultFormValues(): PaymentRequestFormValues {
     notes: '',
     approvalSchemaId: '',
     budgetRequestId: '',
-    fiscalYear: new Date().getFullYear(),
+    fiscalYear: getCurrentFiscalYear(),
     originOffice: '',
     departmentId: '',
     projectId: '',
@@ -128,6 +129,17 @@ export function parseDateInputToDate(value: unknown): Date | null {
   const normalized = parseDateInputValue(value);
   if (!normalized) return null;
   return new Date(`${normalized}T00:00:00.000Z`);
+}
+
+export function validateRequiredVendorInvoiceFields(input: {
+  vendorInvoiceNo: unknown;
+  dateNeeded: unknown;
+}): string | null {
+  const invoice =
+    typeof input.vendorInvoiceNo === 'string' ? input.vendorInvoiceNo.trim() : '';
+  if (!invoice) return 'Vendor invoice number is required.';
+  if (!parseDateInputToDate(input.dateNeeded)) return 'Date needed is required.';
+  return null;
 }
 
 export function mapBrLineItemsToEditor(
@@ -195,7 +207,7 @@ export function clearBudgetRequestSelection(
     dateNeeded: '',
     paymentPurpose: '',
     currency: 'IDR',
-    fiscalYear: context.fiscalYears[0]?.year ?? new Date().getFullYear(),
+    fiscalYear: context.fiscalYears[0]?.year ?? getCurrentFiscalYear(),
     departmentId: context.departments[0]?.id ?? '',
     projectId: context.projects[0]?.id ?? '',
     originOffice: getDefaultOriginOffice(context.originOffices),
@@ -241,6 +253,12 @@ export function validatePaymentRequestForm(input: {
   if (!formData.subject.trim() || !formData.payeeName.trim()) {
     return 'Enter subject and payee.';
   }
+
+  const vendorFieldsError = validateRequiredVendorInvoiceFields({
+    vendorInvoiceNo: formData.vendorInvoiceNo,
+    dateNeeded: formData.dateNeeded,
+  });
+  if (vendorFieldsError) return vendorFieldsError;
 
   if (!formData.departmentId) {
     return 'Select department.';
