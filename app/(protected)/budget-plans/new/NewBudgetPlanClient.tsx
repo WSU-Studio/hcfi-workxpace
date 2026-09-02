@@ -18,6 +18,7 @@ import {
 } from '@/lib/budget-plans/form';
 import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
 import { filterSchemasForDepartment } from '@/lib/approval-schema';
+import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 
 export default function NewBudgetPlanClient() {
   const router = useRouter();
@@ -72,9 +73,7 @@ export default function NewBudgetPlanClient() {
           originOffices: data.originOffices || [],
         });
 
-        if (data.fiscalYears?.[0]) {
-          setFormData((previous) => ({ ...previous, fiscalYear: data.fiscalYears[0].year }));
-        }
+        setFormData((previous) => ({ ...previous, fiscalYear: getCurrentFiscalYear() }));
         if (data.projects?.[0]) {
           setFormData((previous) => ({ ...previous, projectId: data.projects[0].id }));
         }

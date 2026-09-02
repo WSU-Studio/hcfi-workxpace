@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { loadClassificationOptions } from '@/lib/classification-options';
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
+import { fiscalYearSelectOptions } from '@/lib/fiscal-year';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,8 +33,7 @@ export async function GET(request: Request) {
     // Edit forms may keep the current (possibly inactive) department visible.
     const includeDepartmentId = searchParams.get('includeDepartmentId');
 
-    const [fiscalYears, departments, projects, approvalSchemas] = await Promise.all([
-      prisma.fiscalYear.findMany({ where: { isActive: true }, orderBy: { year: 'desc' } }),
+    const [departments, projects, approvalSchemas] = await Promise.all([
       prisma.department.findMany({
         where: selectableDepartmentWhere([includeDepartmentId]),
         orderBy: { code: 'asc' },
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
         include: { department: true, approvalLevels: { include: { role: true, pics: { include: { user: { select: { id: true, name: true, employeeId: true } } } } } } },
       }),
     ]);
+    const fiscalYears = fiscalYearSelectOptions();
 
     const originOfficeMaster = (prisma as unknown as {
       originOfficeMaster: OriginOfficeMasterDelegate;

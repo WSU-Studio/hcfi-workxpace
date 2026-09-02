@@ -10,6 +10,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import SupportingDocumentsField from '@/components/forms/SupportingDocumentsField';
 import BudgetRequestItemsEditor, {
   type BudgetRequestLineItemInput,
@@ -81,7 +82,7 @@ export default function BudgetRequestForm({
   onRemoveExistingSupportingDoc,
   isUploadingAttachments = false,
 }: BudgetRequestFormProps) {
-  const { plans, fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
+  const { plans, departments, projects, originOffices, approvalSchemas } = options;
   const selectedPlan = plans.find((plan) => plan.id === formData.budgetPlanId);
 
   const schemasForDept = useMemo(
@@ -178,23 +179,18 @@ export default function BudgetRequestForm({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="block mb-1.5 font-medium">Fiscal Year *</label>
-          <Select
+          <FiscalYearSelect
             value={formData.fiscalYear}
-            onChange={(event) =>
+            onChange={(fiscalYear) =>
               onFormDataChange((previous) => ({
                 ...previous,
-                fiscalYear: Number(event.target.value),
+                fiscalYear,
               }))
             }
+            includeYears={[formData.fiscalYear]}
             required
             readonly={isBudgetPlanSelected}
-          >
-            {fiscalYears.map((fiscalYear) => (
-              <option key={fiscalYear.year} value={fiscalYear.year}>
-                {fiscalYear.year}
-              </option>
-            ))}
-          </Select>
+          />
         </div>
 
         <div>

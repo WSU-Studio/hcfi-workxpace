@@ -5,6 +5,10 @@
  * that ever changes (e.g. April-March), update only this file — every list
  * page reads `getCurrentFiscalYear()` and will pick up the new boundary
  * without further changes (single source of truth).
+ *
+ * Selectable years on create/filter dropdowns are N (current) and N+1 only.
+ * Older years stay on existing documents and remain reachable via "All years"
+ * on list filters; they are not offered as individual picker options.
  */
 
 /** Sentinel value used by filter dropdowns to mean "no fiscal year filter". */
@@ -22,6 +26,77 @@ export function getCurrentFiscalYear(now: Date = new Date()): number {
 
   // If/when HCFI moves to an Apr-Mar fiscal year, swap the body for:
   //   return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
+/**
+ * Years that may appear in create / filter / report dropdowns: current (N)
+ * then next (N+1). Computed — does not depend on the FiscalYear master table,
+ * so N+1 is available even before it is seeded.
+ */
+export function getSelectableFiscalYears(now: Date = new Date()): number[] {
+  const current = getCurrentFiscalYear(now);
+  return [current, current + 1];
+}
+
+export function isSelectableFiscalYear(year: number, now: Date = new Date()): boolean {
+  return getSelectableFiscalYears(now).includes(year);
+}
+
+/**
+ * Create/import must use N or N+1. Updates may keep a document's existing year
+ * (or a linked parent document's year) so old drafts remain saveable.
+ */
+export function isAllowedFiscalYearForWrite(
+  year: number,
+  extraAllowedYears: Array<number | null | undefined> = [],
+  now: Date = new Date(),
+): boolean {
+  if (isSelectableFiscalYear(year, now)) return true;
+  return extraAllowedYears.some((candidate) => candidate != null && candidate === year);
+}
+
+export function selectableFiscalYearMessage(now: Date = new Date()): string {
+  const [current, next] = getSelectableFiscalYears(now);
+  return `Fiscal year must be ${current} or ${next}`;
+}
+
+export function assertFiscalYearWritable(
+  year: unknown,
+  extraAllowedYears: Array<number | null | undefined> = [],
+  now: Date = new Date(),
+): { ok: true; year: number } | { ok: false; error: string } {
+  const parsed = typeof year === 'number' ? year : Number(year);
+  if (!Number.isFinite(parsed)) {
+    return { ok: false, error: 'Valid fiscal year is required' };
+  }
+  const truncated = Math.trunc(parsed);
+  if (isAllowedFiscalYearForWrite(truncated, extraAllowedYears, now)) {
+    return { ok: true, year: truncated };
+  }
+  return { ok: false, error: selectableFiscalYearMessage(now) };
+}
+
+/**
+ * Dropdown options: N and N+1 first, then any extra years (edit of a document
+ * already booked on an older FY) so the current value stays valid.
+ */
+export function fiscalYearSelectOptions(
+  includeYears: Array<number | null | undefined> = [],
+  now: Date = new Date(),
+): { year: number }[] {
+  const selectable = getSelectableFiscalYears(now);
+  const extras = new Set<number>();
+  for (const raw of includeYears) {
+    if (raw == null || !Number.isFinite(raw)) continue;
+    const year = Math.trunc(raw);
+    if (!selectable.includes(year)) extras.add(year);
+  }
+  const extraList = [...extras].sort((a, b) => b - a);
+  return [...selectable, ...extraList].map((year) => ({ year }));
+}
+
+export function fiscalYearSelectLabel(year: number, now: Date = new Date()): string {
+  return year === getCurrentFiscalYear(now) ? `FY ${year} (Current)` : `FY ${year}`;
 }
 
 /**

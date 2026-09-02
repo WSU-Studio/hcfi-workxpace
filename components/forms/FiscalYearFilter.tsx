@@ -3,7 +3,8 @@
 import {
   ALL_FISCAL_YEARS,
   type FiscalYearFilterValue,
-  getCurrentFiscalYear,
+  fiscalYearSelectLabel,
+  getSelectableFiscalYears,
 } from '@/lib/fiscal-year';
 
 export interface FiscalYearFilterProps {
@@ -11,13 +12,6 @@ export interface FiscalYearFilterProps {
   value: FiscalYearFilterValue;
   /** Notifies the parent when the user picks a different fiscal year. */
   onChange: (next: FiscalYearFilterValue) => void;
-  /**
-   * Active fiscal years available in the database (e.g. fetched from
-   * `/api/fiscal-years`). The current year is always included even if the
-   * server hasn't seeded it yet, so users can never "lose" the default
-   * dropdown option.
-   */
-  availableYears: number[];
   /** Optional className passthrough for layout. */
   className?: string;
 }
@@ -29,23 +23,16 @@ const SELECT_BASE_CLASSNAME =
  * Dropdown filter that scopes a list page to one fiscal year (default) or
  * lets the user explicitly opt into "All years".
  *
- * Single responsibility: render the FY filter and surface change events.
- * It does NOT fetch the year list itself — pass `availableYears` from the
- * parent so each consumer controls its own data source / caching.
+ * Options are current (N) and next (N+1) only — older years are not listed.
+ * "All years" remains so historical documents stay findable without putting
+ * those years back into the picker.
  */
 export default function FiscalYearFilter({
   value,
   onChange,
-  availableYears,
   className,
 }: FiscalYearFilterProps) {
-  const currentYear = getCurrentFiscalYear();
-
-  // Always surface the current year + any years we have data for, sorted desc.
-  // Using a Set guarantees uniqueness if the server already returned it.
-  const yearOptions = Array.from(new Set([currentYear, ...availableYears])).sort(
-    (a, b) => b - a,
-  );
+  const yearOptions = getSelectableFiscalYears();
 
   const selectValue =
     value === ALL_FISCAL_YEARS ? ALL_FISCAL_YEARS : String(value);
@@ -62,7 +49,7 @@ export default function FiscalYearFilter({
     >
       {yearOptions.map((year) => (
         <option key={year} value={String(year)}>
-          {year === currentYear ? `FY ${year} (Current)` : `FY ${year}`}
+          {fiscalYearSelectLabel(year)}
         </option>
       ))}
       <option disabled>──────────</option>

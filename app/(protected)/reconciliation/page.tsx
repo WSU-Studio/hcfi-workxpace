@@ -5,6 +5,7 @@ import ReconciliationTable from '@/components/reconciliation/ReconciliationTable
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Select from '@/components/ui/Select';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import type {
   ConfinsCashDisbursement,
   ConfinsMockListMeta,
@@ -476,13 +477,11 @@ export default function ReconciliationPage() {
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Fiscal Year</span>
-            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} disabled={syncing}>
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((year) => (
-                <option key={year} value={String(year)}>
-                  {year}
-                </option>
-              ))}
-            </Select>
+            <FiscalYearSelect
+              value={fiscalYear}
+              onChange={(year) => setFiscalYear(String(year))}
+              disabled={syncing}
+            />
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Month</span>

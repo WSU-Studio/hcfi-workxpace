@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import LoadingSpin from '@/components/ui/LoadingSpin';
@@ -35,11 +35,6 @@ export default function DashboardPageClient() {
   const [data, setData] = useState<DashboardSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const years = useMemo(() => {
-    const current = getCurrentFiscalYear();
-    return [current, current - 1, current - 2];
-  }, []);
 
   const load = useCallback(async (applied: DashboardFilterState = filters) => {
     if (!canView) return;
@@ -100,7 +95,6 @@ export default function DashboardPageClient() {
 
       <DashboardFilters
         value={filters}
-        years={years}
         options={
           data?.filterOptions ?? {
             departments: [],

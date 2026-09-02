@@ -3,6 +3,7 @@
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Select from '@/components/ui/Select';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import Input, { inputFieldClassName } from '@/components/ui/Input';
 import BudgetPivotTable, {
   type BudgetPivotViewMode,
@@ -300,13 +301,10 @@ export default function BudgetPivotReportPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <label className="space-y-1 text-sm">
               <span className="font-medium text-gray-700">Fiscal year</span>
-              <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}>
-                {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
-                  <option key={y} value={String(y)}>
-                    {y}
-                  </option>
-                ))}
-              </Select>
+              <FiscalYearSelect
+                value={fiscalYear}
+                onChange={(year) => setFiscalYear(String(year))}
+              />
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium text-gray-700">Month</span>

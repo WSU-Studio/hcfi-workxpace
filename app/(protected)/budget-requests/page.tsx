@@ -70,21 +70,11 @@ export default function BudgetRequestsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
   const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
-  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [requestToConfirmEdit, setRequestToConfirmEdit] = useState<BudgetRequest | null>(null);
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentRequests = filtered.slice(startIndex, startIndex + itemsPerPage);
-
-  useEffect(() => {
-    fetch('/api/fiscal-years', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
-      .then((data: { fiscalYears?: { year: number }[] }) => {
-        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
-      })
-      .catch(() => setAvailableFiscalYears([]));
-  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -162,7 +152,6 @@ export default function BudgetRequestsPage() {
           <FiscalYearFilter
             value={fiscalYearFilter}
             onChange={setFiscalYearFilter}
-            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}

@@ -18,6 +18,7 @@ import {
   validateBudgetRequestForm,
 } from '@/lib/budget-requests/form';
 import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
+import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 import { filterSchemasForDepartment } from '@/lib/approval-schema';
 
 export default function NewBudgetRequestClient() {
@@ -92,7 +93,7 @@ export default function NewBudgetRequestClient() {
 
         setFormData((previous) => ({
           ...previous,
-          fiscalYear: nextFiscalYears?.[0]?.year ?? previous.fiscalYear,
+          fiscalYear: getCurrentFiscalYear(),
           projectId: nextProjects?.[0]?.id ?? previous.projectId,
           originOffice:
             nextOriginOffices.length > 0

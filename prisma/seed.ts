@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { fullMenuAccess, fullActivityAccess } from '../lib/default-access';
+import { getSelectableFiscalYears } from '../lib/fiscal-year';
 
 // `UserAccess.menuAccess`/`.activityAccess` are Prisma JSON columns. We feed
 // plain object literals; cast through `unknown` keeps strict TS happy without
@@ -338,17 +339,19 @@ async function main() {
   );
 
   // ── Fiscal year & project ────────────────────────────────────────────────
-  await prisma.fiscalYear.upsert({
-    where: { year: 2026 },
-    update: {},
-    create: { year: 2026, isActive: true },
-  });
+  for (const year of getSelectableFiscalYears()) {
+    await prisma.fiscalYear.upsert({
+      where: { year },
+      update: { isActive: true },
+      create: { year, isActive: true },
+    });
+  }
 
-  // const project = await prisma.project.upsert({
-  //   where: { code: 'B1' },
-  //   update: {},
-  //   create: { code: 'B1', name: 'B1 - Non Project' },
-  // });
+  await prisma.project.upsert({
+    where: { code: 'B1' },
+    update: { name: 'B1 - Non Project' },
+    create: { code: 'B1', name: 'B1 - Non Project' },
+  });
 
   // ── Approval schemas ─────────────────────────────────────────────────────
   // For every entity type (BudgetPlan / BudgetRequest / PaymentRequest) we

@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import type { DashboardFilterOptions } from '@/types/dashboard';
 import { BookMarkedIcon, RefreshCcwIcon } from 'lucide-react';
 
@@ -21,7 +22,6 @@ export type DashboardFilterState = {
 
 type DashboardFiltersProps = {
   value: DashboardFilterState;
-  years: number[];
   options: DashboardFilterOptions;
   viewAllDepartments: boolean;
   showDimensionFilters: boolean;
@@ -55,7 +55,6 @@ const QUARTER_OPTIONS = [
 
 export default function DashboardFilters({
   value,
-  years,
   options,
   viewAllDepartments,
   showDimensionFilters,
@@ -70,13 +69,10 @@ export default function DashboardFilters({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-gray-500">Year</span>
-          <Select value={value.fiscalYear} onChange={(event) => set('fiscalYear', event.target.value)}>
-            {years.map((year) => (
-              <option key={year} value={String(year)}>
-                FY {year}
-              </option>
-            ))}
-          </Select>
+          <FiscalYearSelect
+            value={value.fiscalYear}
+            onChange={(year) => set('fiscalYear', String(year))}
+          />
         </label>
         <div className="space-y-1 text-sm">
           <span className="text-xs font-medium text-gray-500">Quarter</span>

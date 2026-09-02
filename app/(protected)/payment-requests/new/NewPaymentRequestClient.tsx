@@ -17,6 +17,7 @@ import {
   validatePaymentRequestForm,
 } from '@/lib/payment-requests/form';
 import { resolvePreferredDepartmentId } from '@/lib/access/cross-department';
+import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 import { filterSchemasForDepartment } from '@/lib/approval-schema';
 
 export default function NewPaymentRequestClient() {
@@ -106,7 +107,7 @@ export default function NewPaymentRequestClient() {
 
         setFormData((previous) => ({
           ...previous,
-          fiscalYear: nextFiscalYears?.[0]?.year ?? previous.fiscalYear,
+          fiscalYear: getCurrentFiscalYear(),
           projectId: nextProjects?.[0]?.id ?? previous.projectId,
           originOffice: getDefaultOriginOffice(nextOriginOffices),
         }));

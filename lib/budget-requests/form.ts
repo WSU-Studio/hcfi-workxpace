@@ -1,4 +1,5 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
+import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -80,7 +81,7 @@ export interface BudgetRequestTaxSummary {
 export function createDefaultFormValues(): BudgetRequestFormValues {
   return {
     budgetPlanId: '',
-    fiscalYear: new Date().getFullYear(),
+    fiscalYear: getCurrentFiscalYear(),
     originOffice: '',
     departmentId: '',
     projectId: '',

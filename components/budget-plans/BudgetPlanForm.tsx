@@ -17,6 +17,7 @@ import {
   TableHeaderRow,
 } from '@/components/ui/Table';
 import DepartmentSelectField from '@/components/forms/DepartmentSelectField';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import SupportingDocumentsField from '@/components/forms/SupportingDocumentsField';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import {
@@ -87,7 +88,7 @@ export default function BudgetPlanForm({
   isUploadingAttachments = false,
   submitLabel,
 }: BudgetPlanFormProps) {
-  const { fiscalYears, departments, projects, originOffices, approvalSchemas } = options;
+  const { departments, projects, originOffices, approvalSchemas } = options;
   const schemasForDept = filterSchemasForDepartment(approvalSchemas, formData.departmentId);
 
   const originOfficeOptions = useMemo(
@@ -129,22 +130,17 @@ export default function BudgetPlanForm({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block mb-1.5 font-medium">Fiscal Year *</label>
-          <Select
+          <FiscalYearSelect
             value={formData.fiscalYear}
-            onChange={(event) =>
+            onChange={(fiscalYear) =>
               onFormDataChange((previous) => ({
                 ...previous,
-                fiscalYear: Number(event.target.value),
+                fiscalYear,
               }))
             }
+            includeYears={mode === 'edit' ? [formData.fiscalYear] : []}
             required
-          >
-            {fiscalYears.map((fiscalYear) => (
-              <option key={fiscalYear.year} value={fiscalYear.year}>
-                {fiscalYear.year}
-              </option>
-            ))}
-          </Select>
+          />
         </div>
 
         <div>

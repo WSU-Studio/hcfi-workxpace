@@ -1,4 +1,5 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
+import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 
 export const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -36,7 +37,7 @@ export function createEmptyAllocations(): Record<number, number> {
 
 export function createDefaultFormValues(): BudgetPlanFormValues {
   return {
-    fiscalYear: new Date().getFullYear(),
+    fiscalYear: getCurrentFiscalYear(),
     originOffice: '',
     departmentId: '',
     projectId: '',

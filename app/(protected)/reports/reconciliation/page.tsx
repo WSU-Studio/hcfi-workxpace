@@ -3,6 +3,7 @@
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
+import FiscalYearSelect from '@/components/forms/FiscalYearSelect';
 import {
   Table,
   TableBodyRow,
@@ -164,13 +165,10 @@ export default function ReconciliationReportPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-5">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Fiscal Year</span>
-            <Select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}>
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
-                <option key={y} value={String(y)}>
-                  {y}
-                </option>
-              ))}
-            </Select>
+            <FiscalYearSelect
+              value={fiscalYear}
+              onChange={(year) => setFiscalYear(String(year))}
+            />
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium text-gray-700">Month</span>
