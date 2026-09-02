@@ -299,6 +299,9 @@ model BudgetPlan {
   status           String               @default("Draft") // Draft | Pending | Reviewed | Approved
   importedViaBulk  Boolean              @default(false)
   approvalSchemaId String?
+  // Frozen copy of the chosen schema (levels, roles, PICs) at save time.
+  // Master schema edits must not change in-flight or historical documents.
+  approvalSchemaSnapshot Json?
   supportingDocs   Json?                // Array of file URLs
   coaId            String?              // account id from static JSON list
   categoryId       String?
@@ -483,6 +486,7 @@ model BudgetRequest {
   invoiceAmount    Decimal                @default(0) @db.Decimal(18, 2)
   grandTotal       Decimal                @default(0) @db.Decimal(18, 2)
   approvalSchemaId String?
+  approvalSchemaSnapshot Json?
   notes            String?                @db.Text
   supportingDocs   Json?
   category         String?
@@ -580,6 +584,7 @@ model PaymentRequest {
   opexAllocation   String?
   opexType         String?
   approvalSchemaId String?
+  approvalSchemaSnapshot Json?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   department       Department       @relation(fields: [departmentId], references: [id])
