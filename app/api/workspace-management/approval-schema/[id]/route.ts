@@ -11,6 +11,10 @@ import {
   createApprovalLevelsForSchema,
   validateApprovalLevelDrafts,
 } from '@/lib/approval-level-pics';
+import {
+  approvalSchemaDeleteBlockReason,
+  loadApprovalSchemaDocumentUsage,
+} from '@/lib/approval-schema-usage';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,10 +132,30 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    await prisma.approvalLevel.deleteMany({ where: { schemaId: id } });
+    const schema = await prisma.approvalSchema.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!schema) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const usage = await loadApprovalSchemaDocumentUsage(id);
+    const blockReason = approvalSchemaDeleteBlockReason(usage);
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 409 });
+    }
+
+    // Levels, PICs, and alternating rules cascade from the schema. Do not
+    // delete levels first — a later FK failure would leave the schema empty.
     await prisma.approvalSchema.delete({ where: { id } });
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Cannot delete this approval schema because existing documents still reference it.' },
+        { status: 409 },
+      );
+    }
+    console.error('Failed to delete approval schema:', e);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }

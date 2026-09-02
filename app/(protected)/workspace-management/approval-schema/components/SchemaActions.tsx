@@ -18,11 +18,16 @@ export default function SchemaActions({ schemaId, onDelete, canEdit, canDelete }
 
   const handleDelete = async () => {
     if (!confirm('Delete this approval schema?')) return false;
-    const res = await fetch(`/api/workspace-management/approval-schema/${schemaId}`, { method: 'DELETE' });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/workspace-management/approval-schema/${schemaId}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof data.error === 'string' ? data.error : 'Failed to delete');
+        return false;
+      }
       onDelete();
       return true;
-    } else {
+    } catch {
       alert('Failed to delete');
       return false;
     }
