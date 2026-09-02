@@ -30,6 +30,7 @@ import {
   serializeFiscalYearParam,
 } from '@/lib/fiscal-year';
 import { validateXlsxFile } from '@/lib/xlsx-validation';
+import { BUDGET_PLAN_IMPORT_HEADERS } from '@/lib/budget-plans/bulk-import-columns';
 import Modal from '@/components/ui/Modal';
 import EditWarningModal from '@/components/ui/EditWarningModal';
 import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
@@ -100,7 +101,6 @@ export default function BudgetPlansPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]['value']>('createdAt-desc');
   const [fiscalYearFilter, setFiscalYearFilter] = useState<FiscalYearFilterValue>(() => getCurrentFiscalYear());
-  const [availableFiscalYears, setAvailableFiscalYears] = useState<number[]>([]);
   const [planToConfirmEdit, setPlanToConfirmEdit] = useState<Plan | null>(null);
 
   const itemsPerPage = 10;
@@ -131,15 +131,6 @@ export default function BudgetPlansPage() {
     setFiltered(list);
     setDepartments(data.departments || []);
   };
-
-  useEffect(() => {
-    fetch('/api/fiscal-years', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { fiscalYears: [] }))
-      .then((data: { fiscalYears?: { year: number }[] }) => {
-        setAvailableFiscalYears((data.fiscalYears ?? []).map((row) => row.year));
-      })
-      .catch(() => setAvailableFiscalYears([]));
-  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -224,7 +215,9 @@ const handlePreviewImportFile = async (file: File) => {
     const XLSX = await import('xlsx');
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
+    const sheetName =
+      workbook.SheetNames.find((name) => name.toLowerCase() === 'budget plans') ??
+      workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
@@ -337,7 +330,6 @@ const handleImportRows = async () => {
           <FiscalYearFilter
             value={fiscalYearFilter}
             onChange={setFiscalYearFilter}
-            availableYears={availableFiscalYears}
           />
           <select
             value={statusFilter}
@@ -517,6 +509,8 @@ const handleImportRows = async () => {
                 <h2 className="text-lg font-semibold">Import Bulk Budget Plan</h2>
                 <p className="text-sm text-gray-500">
                   Download template, upload Excel file, preview data, then import.
+                  Sample codes match Origin Office, Department, Project, and Approval Schema
+                  masters. Document numbers are generated automatically.
                 </p>
               </div>
 
@@ -538,7 +532,7 @@ const handleImportRows = async () => {
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <a
-                  href="/templates/Template_Bulk_Import_Budget_Plan.xlsx"
+                  href="/api/budget-plans/bulk-import/template"
                   download
                   className="inline-flex w-fit items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
@@ -571,25 +565,20 @@ const handleImportRows = async () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 py-2 text-left border-b">#</th>
-                      <th className="px-3 py-2 text-left border-b">Fiscal Year</th>
-                      <th className="px-3 py-2 text-left border-b">Origin Office</th>
-                      <th className="px-3 py-2 text-left border-b">Department Code</th>
-                      <th className="px-3 py-2 text-left border-b">Project Code</th>
-                      <th className="px-3 py-2 text-left border-b">Subject</th>
-                      <th className="px-3 py-2 text-left border-b">Description</th>
-                      <th className="px-3 py-2 text-right border-b">Jan</th>
-                      <th className="px-3 py-2 text-right border-b">Feb</th>
-                      <th className="px-3 py-2 text-right border-b">Mar</th>
-                      <th className="px-3 py-2 text-right border-b">Apr</th>
-                      <th className="px-3 py-2 text-right border-b">May</th>
-                      <th className="px-3 py-2 text-right border-b">Jun</th>
-                      <th className="px-3 py-2 text-right border-b">Jul</th>
-                      <th className="px-3 py-2 text-right border-b">Aug</th>
-                      <th className="px-3 py-2 text-right border-b">Sep</th>
-                      <th className="px-3 py-2 text-right border-b">Oct</th>
-                      <th className="px-3 py-2 text-right border-b">Nov</th>
-                      <th className="px-3 py-2 text-right border-b">Dec</th>
-                      <th className="px-3 py-2 text-left border-b">Approval Schema Code</th>
+                      {BUDGET_PLAN_IMPORT_HEADERS.map((header) => (
+                        <th
+                          key={header}
+                          className={`px-3 py-2 border-b ${
+                            ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].includes(
+                              header,
+                            )
+                              ? 'text-right'
+                              : 'text-left'
+                          }`}
+                        >
+                          {header}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
 

@@ -4,6 +4,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { prisma } from '@/lib/prisma';
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 import { createBudgetPlanCodeAllocator } from '@/lib/budget-plans/code';
+import { assertFiscalYearWritable } from '@/lib/fiscal-year';
+import { isPrismaUniqueViolation, publicErrorMessage } from '@/lib/prisma-errors';
+import {
+  approvalSchemaSnapshotInclude,
+  snapshotFromLoadedSchema,
+} from '@/lib/approval-schema-snapshot';
 
 /** Bulk import can run longer than default serverless limits on large XLSX. */
 export const maxDuration = 120;
@@ -92,7 +98,7 @@ export async function POST(req: NextRequest) {
     const departmentCodes = [
       ...new Set(
         rows
-          .map((r: Record<string, unknown>) => toText(r.departmentCode))
+          .map((r: Record<string, unknown>) => toText(r.departmentCode).toUpperCase())
           .filter(Boolean)
       ),
     ];
@@ -137,13 +143,13 @@ export async function POST(req: NextRequest) {
                 { name: { in: approvalSchemaCodes } },
               ],
             },
-            select: { id: true, code: true, name: true, departmentId: true },
+            include: approvalSchemaSnapshotInclude,
           })
         : Promise.resolve([]),
     ]);
 
     const departmentByCode = new Map(
-      departments.map((d) => [d.code, d] as const)
+      departments.map((d) => [d.code.toUpperCase(), d] as const)
     );
     const projectByCode = new Map(projects.map((p) => [p.code, p] as const));
     // Two lookup maps so the per-row code resolution can prefer the code
@@ -162,7 +168,7 @@ export async function POST(req: NextRequest) {
         for (const row of rows) {
           const fiscalYear = toNumber(row.fiscalYear);
           const originOffice = toText(row.originOffice) || 'HQ';
-          const departmentCode = toText(row.departmentCode);
+          const departmentCode = toText(row.departmentCode).toUpperCase();
           const projectCode = toText(row.projectCode);
           const subject = toText(row.subject);
           const description = toText(row.description);
@@ -170,6 +176,11 @@ export async function POST(req: NextRequest) {
 
           if (!fiscalYear) {
             throw new Error(`Fiscal Year is required for subject: ${subject || '-'}`);
+          }
+
+          const fiscalYearVerdict = assertFiscalYearWritable(fiscalYear);
+          if (!fiscalYearVerdict.ok) {
+            throw new Error(`${fiscalYearVerdict.error} for subject: ${subject || '-'}`);
           }
 
           if (!departmentCode) {
@@ -210,28 +221,42 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          const code = await allocateCode.next(department.code);
-
-          const budgetPlan = await tx.budgetPlan.create({
-            data: {
-              code,
-              subject,
-              description,
-              fiscalYear,
-              originOffice,
-              departmentId: department.id,
-              projectId: project?.id || null,
-              approvalSchemaId: approvalSchema.id,
-              requestorId: session.user.id,
-              importedViaBulk: true,
-              status: 'Draft',
-              requestDate: new Date(),
-              supportingDocs: [],
-            },
-            select: {
-              id: true,
-            },
-          });
+          let code = await allocateCode.next(department.code);
+          let budgetPlan: { id: string } | null = null;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+              budgetPlan = await tx.budgetPlan.create({
+                data: {
+                  code,
+                  subject,
+                  description,
+                  fiscalYear: fiscalYearVerdict.year,
+                  originOffice,
+                  departmentId: department.id,
+                  projectId: project?.id || null,
+                  approvalSchemaId: approvalSchema.id,
+                  approvalSchemaSnapshot: snapshotFromLoadedSchema(approvalSchema),
+                  requestorId: session.user.id,
+                  importedViaBulk: true,
+                  status: 'Draft',
+                  requestDate: new Date(),
+                  supportingDocs: [],
+                },
+                select: {
+                  id: true,
+                },
+              });
+              break;
+            } catch (error) {
+              if (!isPrismaUniqueViolation(error, 'code') || attempt === 2) {
+                throw error;
+              }
+              code = await allocateCode.recover(department.code);
+            }
+          }
+          if (!budgetPlan) {
+            throw new Error(`Failed to create budget plan for subject: ${subject}`);
+          }
 
           await tx.budgetPlanAllocation.createMany({
             data: MONTH_FIELDS.map((field, index) => ({
@@ -256,12 +281,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to import budget plans',
+        error: publicErrorMessage(error, 'Failed to import budget plans'),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
