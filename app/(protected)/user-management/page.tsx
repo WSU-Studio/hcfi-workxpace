@@ -259,7 +259,7 @@ export default function UserManagementPage() {
                 <TableHead className={stickyListCol.index.head}>#</TableHead>
                 <TableHead className={stickyListCol.name.head}>Name</TableHead>
                 <TableHead>Employee ID</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Role Name</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
@@ -280,7 +280,10 @@ export default function UserManagementPage() {
                       </div>
                     </TableCell>
                     <TableCell>{user.employeeId}</TableCell>
-                    <TableCell>{user.role ? `${user.role.roleCode} - ${user.role.roleName}` : '-'}</TableCell>
+                    <TableCell>
+                      {/* {user.role ? `${user.role.roleCode} - ${user.role.roleName}` : '-'} */}
+                      {user.role ? `${user.role.roleName}` : '-'}
+                    </TableCell>
                     <TableCell>{user.department ? `${user.department.code} - ${user.department.name}` : '-'}</TableCell>
                     <TableCell>
                       <span className={`rounded-full px-2 py-1 text-xs font-medium ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
