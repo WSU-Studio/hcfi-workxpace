@@ -87,11 +87,13 @@ async function applyUserPatch(
  *   - `EmpName` → `users.name`
  *   - `EmpNo` → `users.employeeId`
  *   - `Roles[].BusinessUnitName` → `users.departmentId`
- *   - `Roles[].RoleName` → `users.roleId` (match/create `roles.roleCode`)
- *   - `Roles[].JobTitleName` → `roles.roleName` when role is auto-created
+ *   - `Roles[].JobTitleName` → `users.roleId` via auto role:
+ *       `roleName` = JobTitleName; `roleCode` = slug(JobTitleName)
+ *       Empty JobTitleName → keep existing Workxpace role
  *
  * NOT synced (by design):
- *   - access flags — admin-managed in Workxpace
+ *   - Confins `RoleName` — not used (shared across different titles)
+ *   - access flags — admin-managed in Workxpace (`UserAccess`)
  *   - `isActive` — not changed by this job (confirm with HCFI before enabling)
  *
  * Users without a Confins match are skipped silently.
@@ -204,7 +206,6 @@ async function buildUserPatchFromConfinsRow(
 ): Promise<UserPatchResult> {
   const activeRole = pickActiveConfinsRole(row.Roles);
   const businessUnitName = activeRole?.BusinessUnitName?.trim() ?? null;
-  const confinsRoleCode = activeRole?.RoleName?.trim() ?? null;
   const jobTitleName = activeRole?.JobTitleName?.trim() ?? null;
 
   const confinsName = String(row.EmpName ?? '').trim() || null;
@@ -212,9 +213,8 @@ async function buildUserPatchFromConfinsRow(
   const departmentId = businessUnitName
     ? await resolveDepartmentId(businessUnitName)
     : null;
-  const roleId = confinsRoleCode
-    ? await resolveRoleId(confinsRoleCode, jobTitleName)
-    : null;
+  // Rule: empty JobTitleName → do not change existing Workxpace role
+  const roleId = jobTitleName ? await resolveRoleId(jobTitleName) : null;
 
   const { employeeId, skipped: empSkipped } = await resolveEmployeeIdForUpdate(
     String(row.EmpNo ?? '').trim() || null,

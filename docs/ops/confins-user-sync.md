@@ -10,10 +10,11 @@ Daily job that updates Workxpace users whose email exists in the Confins Organiz
 | `EmpName` | `users.name` | Skipped when empty in Confins |
 | `EmpNo` | `users.employeeId` | Skipped if EmpNo already belongs to another user |
 | `Roles[].BusinessUnitName` | `users.departmentId` | Resolved by department name; auto-creates from BizUnit master if missing |
-| `Roles[].RoleName` | `users.roleId` | Match `roles.roleCode`; auto-create role if missing |
-| `Roles[].JobTitleName` | `roles.roleName` | Used as display name when role is auto-created |
+| `Roles[].JobTitleName` | `users.roleId` | Creates/matches role: `roleName` = JobTitleName; `roleCode` = slug (e.g. `IT_NETWORK_INFRASTRUCTURE_OFFICER`). Same title → same role. Empty title → keep existing role |
 
-**Not synced:** access flags, `isActive`.
+**Not synced:** Confins `RoleName` (intentionally ignored — shared across different titles), access flags, `isActive`.
+
+> **Note:** `users.roleId` is also used by Approval Schema to find approvers. After sync, users move onto job-title roles; update schema levels / Specific PIC if approval still needs those users.
 
 Employee master sync **always calls the live Confins API** (`liveOnly`) — it ignores the
 **Activate Mock API** toggle and mock fallback. Mock mode only affects other Confins

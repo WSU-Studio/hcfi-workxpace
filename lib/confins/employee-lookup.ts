@@ -50,13 +50,31 @@ export interface ConfinsEmployeeProfile {
 
 export type DepartmentIdResolver = (businessUnitName: string) => Promise<string | null>;
 
-export type RoleIdResolver = (
-  roleCode: string,
-  jobTitleName: string | null,
-) => Promise<string | null>;
+/**
+ * Resolve a Workxpace `roles.id` from Confins `JobTitleName`.
+ * Returns `null` when the title is empty (caller must keep the existing role).
+ */
+export type RoleIdResolver = (jobTitleName: string) => Promise<string | null>;
 
 export function normalizeConfinsEmail(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/**
+ * Generate Workxpace `roleCode` from Confins `JobTitleName`.
+ *
+ * Example: `IT NETWORK INFRASTRUCTURE OFFICER` → `IT_NETWORK_INFRASTRUCTURE_OFFICER`
+ */
+export function generateRoleCodeFromJobTitle(jobTitleName: string): string | null {
+  const code = jobTitleName
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+
+  if (!code) return null;
+  return code.slice(0, 120);
 }
 
 /** Pick the primary active Confins role row for an employee. */
@@ -200,44 +218,63 @@ export async function createDepartmentIdResolver(
 }
 
 /**
- * Resolve Confins `RoleName` → Workxpace `roles.id`.
+ * Resolve Confins `JobTitleName` → Workxpace `roles.id`.
  *
- * Match key: `roles.roleCode` ↔ Confins `RoleName`.
- * If missing, auto-create:
- *   - `roleCode` ← `RoleName`
- *   - `roleName` ← `JobTitleName` (falls back to `RoleName`)
+ * Agreed HCFI mapping (dev/demo):
+ *   - `roleName` ← `JobTitleName` (display, as-is)
+ *   - `roleCode` ← slug from job title (system-generated)
+ *   - same job title → same role
+ *   - empty job title → caller skips role update
+ *
+ * Confins `RoleName` is intentionally ignored — it is shared across different
+ * titles (e.g. ITS_ADM) and caused wrong display names when used as roleCode.
  */
 export async function createRoleIdResolver(): Promise<RoleIdResolver> {
   const dbRoles = await prisma.role.findMany({
-    select: { id: true, roleCode: true },
+    select: { id: true, roleCode: true, roleName: true },
   });
 
-  const byCode = new Map<string, string>();
+  const byCode = new Map<string, { id: string; roleName: string }>();
   for (const role of dbRoles) {
-    byCode.set(role.roleCode.trim().toLowerCase(), role.id);
+    byCode.set(role.roleCode.trim().toLowerCase(), {
+      id: role.id,
+      roleName: role.roleName,
+    });
   }
 
-  return async (roleCode: string, jobTitleName: string | null) => {
-    const code = roleCode.trim();
+  return async (jobTitleName: string) => {
+    const roleName = jobTitleName.trim();
+    const code = generateRoleCodeFromJobTitle(roleName);
     if (!code) return null;
 
     const key = code.toLowerCase();
     const cached = byCode.get(key);
-    if (cached) return cached;
+    if (cached) {
+      if (cached.roleName !== roleName) {
+        await prisma.role.update({
+          where: { id: cached.id },
+          data: { roleName },
+        });
+        cached.roleName = roleName;
+      }
+      return cached.id;
+    }
 
-    const roleName = jobTitleName?.trim() || code;
     const role = await prisma.role.upsert({
       where: { roleCode: code },
-      update: {},
+      update: { roleName },
       create: {
         roleCode: code,
         roleName,
         description: 'Synced from Confins (employee sync)',
       },
-      select: { id: true, roleCode: true },
+      select: { id: true, roleCode: true, roleName: true },
     });
 
-    byCode.set(role.roleCode.trim().toLowerCase(), role.id);
+    byCode.set(role.roleCode.trim().toLowerCase(), {
+      id: role.id,
+      roleName: role.roleName,
+    });
     return role.id;
   };
 }
