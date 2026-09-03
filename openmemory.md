@@ -22,7 +22,7 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 - `lib/auth/password.ts` — Shared credentials password rules (`MIN_PASSWORD_LENGTH`, `validateChangePasswordInput`) used by Profile Change Password and User Management
 - `app/(protected)/dashboard/page.tsx` — server wrapper via `renderClientPage` (Next 15 params Promise must not reach the client)
 - `app/(protected)/dashboard/PageClient.tsx` — locked persona shell + filters
-- `components/dashboard/*` — reusable KPI/chart/table widgets (SOLID: one visual per file)
+- `components/dashboard/*` — reusable KPI/chart/table widgets (SOLID: one visual per file). `DashboardProportionDonut` is Actual vs Remaining against Total Budget; Department monthly comparison uses `DashboardGroupedBar` with Budget / Realisasi / Sisa Anggaran. Grouped-bar columns must `h-full`/`items-stretch` so percentage bar heights resolve against the plot area.
 - `DepartmentDashboard` / `DirectorDashboard` / `FpaDashboard` — compose widgets from the spec
 - `components/ui/SegmentedControl.tsx` — reusable All/Q1… switcher; dashboard quarter filter uses All | Q1 | Q2 | Q3 | Q4 (calendar FY has no Q5)
 - `app/api/dashboard/summary/route.ts` — gated by `menuAccess.dashboard`
