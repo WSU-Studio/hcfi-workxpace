@@ -1,6 +1,7 @@
 'use client';
 
 import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -63,10 +64,35 @@ export default function DashboardFilters({
   onReset,
 }: DashboardFiltersProps) {
   const set = (key: keyof DashboardFilterState, next: string) => onChange({ ...value, [key]: next });
+  const selectedDepartment = options.departments.find((dept) => dept.id === value.departmentId);
+  const selectedProject = options.projects.find((project) => project.code === value.projectCode);
+  const summary = [
+    value.fiscalYear ? `FY ${value.fiscalYear}` : null,
+    value.quarter ? `Q${value.quarter}` : 'All quarters',
+    value.month ? MONTHS.find((month) => month.value === value.month)?.label : 'Through cut-off',
+    viewAllDepartments ? (selectedDepartment ? selectedDepartment.name : 'All departments') : null,
+    showDimensionFilters && value.expenseCategory ? value.expenseCategory : null,
+    showDimensionFilters && value.expenseType ? value.expenseType : null,
+    showDimensionFilters && value.vendorName ? value.vendorName : null,
+    showDimensionFilters && value.activity ? value.activity : null,
+    showDimensionFilters && selectedProject ? `${selectedProject.code} — ${selectedProject.name}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <div className="space-y-3 border-b border-gray-200 pb-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
+    <Card
+      collapsible
+      collapsed
+      header={
+        <div className="min-w-0 text-left">
+          <h3 className="font-medium text-gray-900">Filters</h3>
+          <p className="truncate text-xs text-gray-500">{summary}</p>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-gray-500">Year</span>
           <FiscalYearSelect
@@ -205,6 +231,7 @@ export default function DashboardFilters({
           Apply filters
         </Button>
       </div>
-    </div>
+      </div>
+    </Card>
   );
 }
