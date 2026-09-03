@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- commented department widgets kept for later */
 import {
   AlertTriangle,
   Gauge,
@@ -14,18 +15,17 @@ import DashboardDonut from '@/components/dashboard/DashboardDonut';
 import DashboardGauge from '@/components/dashboard/DashboardGauge';
 import DashboardGroupedBar from '@/components/dashboard/DashboardGroupedBar';
 import DashboardKpiCard from '@/components/dashboard/DashboardKpiCard';
+import DashboardProportionDonut from '@/components/dashboard/DashboardProportionDonut';
 import DashboardTransactionTable from '@/components/dashboard/DashboardTransactionTable';
 import { formatIdr, formatPercent, formatSignedPercent } from '@/lib/dashboard/format';
 import type { DashboardSummaryResponse } from '@/types/dashboard';
 
 type PersonaProps = { data: DashboardSummaryResponse };
 
+const MONTH_LABELS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
 export default function DepartmentDashboard({ data }: PersonaProps) {
   const { kpis } = data;
-  const expenseTypes = [
-    ...new Set((data.byExpenseTypeMonth ?? []).flatMap((row) => row.slices.map((slice) => slice.label))),
-  ];
-  const typeColors = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#64748b'];
 
   return (
     <div className="space-y-6">
@@ -33,7 +33,7 @@ export default function DepartmentDashboard({ data }: PersonaProps) {
         <DashboardKpiCard icon={Landmark} label="Total Budget" value={formatIdr(kpis.totalBudget)} hint="SUM GR approved amount" tone="slate" />
         <DashboardKpiCard icon={Target} label="Plan YTD" value={formatIdr(kpis.planYtd)} hint="Through selected period" tone="blue" />
         <DashboardKpiCard icon={Wallet} label="Actual YTD" value={formatIdr(kpis.actualYtd)} hint="Paid / origin amount" tone="emerald" />
-        <DashboardKpiCard
+        {/* <DashboardKpiCard
           icon={Waves}
           label="Remaining Budget"
           value={formatIdr(kpis.remainingBudget)}
@@ -80,10 +80,37 @@ export default function DepartmentDashboard({ data }: PersonaProps) {
           value={formatIdr(kpis.fyForecastRecommended)}
           hint={`Run-rate ${kpis.fyForecastRunRate == null ? '—' : formatIdr(kpis.fyForecastRunRate)}`}
           tone="violet"
+        /> */}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DashboardProportionDonut
+          title="Proporsi Realisasi terhadap Budget"
+          realized={kpis.actualYtd}
+          remaining={kpis.remainingBudget}
+          total={kpis.totalBudget}
+        />
+        <DashboardGroupedBar
+          title="Perbandingan Budget, Realisasi & Sisa Anggaran"
+          titleClassName="uppercase tracking-wide"
+          yAxisLabel="Rupiah"
+          showYAxis
+          legendPosition="bottom"
+          categories={data.monthly.map((row) => MONTH_LABELS_ID[row.month - 1] ?? row.label)}
+          series={[
+            { key: 'budget', label: 'Budget', color: '#2563eb', values: data.monthly.map((row) => row.budget) },
+            { key: 'actual', label: 'Realisasi', color: '#22c55e', values: data.monthly.map((row) => row.actual) },
+            {
+              key: 'remaining',
+              label: 'Sisa Anggaran',
+              color: '#94a3b8',
+              values: data.monthly.map((row) => Math.max(0, row.budget - row.actual)),
+            },
+          ]}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      {/* <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <DashboardGroupedBar
             title="Budget vs Plan vs Actual"
@@ -101,9 +128,14 @@ export default function DepartmentDashboard({ data }: PersonaProps) {
           subtitle={`Cut-off month ${data.cutOffMonth}`}
           percent={kpis.budgetUtilizationPercent}
         />
-      </div>
+      </div> */}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* const expenseTypes = [
+        ...new Set((data.byExpenseTypeMonth ?? []).flatMap((row) => row.slices.map((slice) => slice.label))),
+      ];
+      const typeColors = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#64748b']; */}
+
+      {/* <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DashboardDonut title="OPEX by Expense Category" items={data.byCategory} />
         <DashboardBarList title="Top Vendors by OPEX" items={data.byVendor} />
         <DashboardBarList title="OPEX by Activity" items={data.byActivity} />
@@ -127,7 +159,7 @@ export default function DepartmentDashboard({ data }: PersonaProps) {
         title="Transaction Detail"
         subtitle={`Plan variance ${formatSignedPercent(kpis.momVariancePercent)} MoM`}
         rows={data.transactions}
-      />
+      /> */}
     </div>
   );
 }
