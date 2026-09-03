@@ -14,3 +14,21 @@ export function formatSignedPercent(value: number | null, digits = 1): string {
   const prefix = value > 0 ? '+' : '';
   return `${prefix}${value.toFixed(digits)}%`;
 }
+
+/** Compact axis labels (15M, 2.5M, 800K). */
+export function formatCompactIdr(amount: number): string {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (abs >= 1_000_000_000) {
+    const value = abs / 1_000_000_000;
+    const digits = value >= 10 ? 0 : 1;
+    return `${sign}${value.toFixed(digits).replace(/\.0$/, '')}B`;
+  }
+  if (abs >= 1_000_000) {
+    const value = abs / 1_000_000;
+    const digits = value >= 10 ? 0 : 1;
+    return `${sign}${value.toFixed(digits).replace(/\.0$/, '')}M`;
+  }
+  if (abs >= 1_000) return `${sign}${Math.round(abs / 1_000)}K`;
+  return `${sign}${Math.round(abs)}`;
+}
