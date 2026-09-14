@@ -1,5 +1,6 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
+import { isRichTextEmpty } from '@/lib/utils';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -59,8 +60,11 @@ export interface BudgetRequestFormOptions {
 
 export type BudgetRequestValidationField =
   | 'budgetPlan'
+  | 'department'
+  | 'project'
   | 'subject'
   | 'description'
+  | 'notes'
   | 'months'
   | 'items'
   | 'approvalSchema';
@@ -201,6 +205,51 @@ export function applyPlanToFormValues(
   };
 }
 
+/**
+ * Required write fields highlighted on Budget Request create/edit:
+ * Department, Project, Description, Notes (Supporting Documents stay optional).
+ */
+export function validateRequiredBudgetRequestWriteFields(
+  formData: Pick<BudgetRequestFormValues, 'departmentId' | 'projectId' | 'description' | 'notes'>,
+): BudgetRequestValidationError | null {
+  if (!formData.departmentId) {
+    return { message: 'Department is required', field: 'department' };
+  }
+
+  if (!formData.projectId) {
+    return { message: 'Project is required', field: 'project' };
+  }
+
+  if (isRichTextEmpty(formData.description)) {
+    return { message: 'Description is required', field: 'description' };
+  }
+
+  const descriptionSize = new TextEncoder().encode(formData.description || '').length;
+  if (descriptionSize > DESCRIPTION_MAX_BYTES) {
+    return { message: 'Description is too large. Maximum 200KB.', field: 'description' };
+  }
+
+  if (!formData.notes.trim()) {
+    return { message: 'Notes is required', field: 'notes' };
+  }
+
+  return null;
+}
+
+export function requiredBudgetRequestWriteFieldsFromBody(body: {
+  departmentId?: unknown;
+  projectId?: unknown;
+  description?: unknown;
+  notes?: unknown;
+}): Pick<BudgetRequestFormValues, 'departmentId' | 'projectId' | 'description' | 'notes'> {
+  return {
+    departmentId: typeof body.departmentId === 'string' ? body.departmentId : '',
+    projectId: typeof body.projectId === 'string' ? body.projectId : '',
+    description: typeof body.description === 'string' ? body.description : '',
+    notes: typeof body.notes === 'string' ? body.notes : '',
+  };
+}
+
 interface ValidateBudgetRequestFormInput {
   formData: BudgetRequestFormValues;
   selectedMonths: number[];
@@ -225,13 +274,12 @@ export function validateBudgetRequestForm({
     return { message: 'Select a budget plan before submitting', field: 'budgetPlan' };
   }
 
-  if (!formData.subject) {
+  if (!formData.subject.trim()) {
     return { message: 'Subject is required', field: 'subject' };
   }
 
-  if (!formData.departmentId) {
-    return { message: 'Department is required', field: 'budgetPlan' };
-  }
+  const requiredFieldsError = validateRequiredBudgetRequestWriteFields(formData);
+  if (requiredFieldsError) return requiredFieldsError;
 
   if (!formData.approvalSchemaId) {
     return {
@@ -271,11 +319,6 @@ export function validateBudgetRequestForm({
       message: 'Grand total must be greater than 0',
       field: 'items',
     };
-  }
-
-  const descriptionSize = new TextEncoder().encode(formData.description || '').length;
-  if (descriptionSize > DESCRIPTION_MAX_BYTES) {
-    return { message: 'Description is too large. Maximum 200KB.', field: 'description' };
   }
 
   return null;

@@ -16,6 +16,10 @@ import { ALL_FISCAL_YEARS, assertFiscalYearWritable, parseFiscalYearParam } from
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
+  requiredBudgetRequestWriteFieldsFromBody,
+  validateRequiredBudgetRequestWriteFields,
+} from '@/lib/budget-requests/form';
+import {
   approvalLevelsOf,
   captureApprovalSchemaSnapshot,
 } from '@/lib/approval-schema-snapshot';
@@ -164,8 +168,14 @@ export async function POST(req: Request) {
       projectId,
     } = body;
 
-    if (!subject || !departmentId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!subject || typeof subject !== 'string' || !subject.trim()) {
+      return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
+    }
+    const writeFieldsError = validateRequiredBudgetRequestWriteFields(
+      requiredBudgetRequestWriteFieldsFromBody(body),
+    );
+    if (writeFieldsError) {
+      return NextResponse.json({ error: writeFieldsError.message }, { status: 400 });
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
@@ -281,18 +291,17 @@ export async function POST(req: Request) {
     const code = `${codePrefix}${String(count + 1).padStart(3, '0')}`;
 
     const normalizedOriginOffice = normalizeOptionalString(originOffice);
-    const normalizedProjectId = normalizeOptionalString(projectId);
 
     const br = await prisma.budgetRequest.create({
       data: {
         code,
         budgetPlanId: normalizedBudgetPlanId,
-        subject,
-        description: description ?? null,
+        subject: typeof subject === 'string' ? subject.trim() : subject,
+        description,
         fiscalYear: fiscalYearVerdict.year,
         originOffice: normalizedOriginOffice,
         departmentId,
-        projectId: normalizedProjectId,
+        projectId: typeof projectId === 'string' ? projectId.trim() : projectId,
         requestorId: session.user.id,
         requestDate: new Date(),
         totalAmount,
@@ -302,7 +311,7 @@ export async function POST(req: Request) {
         whtAmount: normalizedWhtAmount,
         invoiceAmount: normalizedInvoiceAmount,
         grandTotal: normalizedGrandTotal,
-        notes: notes ?? null,
+        notes: typeof notes === 'string' ? notes.trim() : notes,
         approvalSchemaId: approvalSchemaId || null,
         approvalSchemaSnapshot: snapshotResult.snapshot,
         category: (category as string) || selectedPlan?.categoryId || null,

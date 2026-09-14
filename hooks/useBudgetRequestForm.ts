@@ -15,8 +15,11 @@ import {
 
 export interface BudgetRequestFieldRefs {
   budgetPlan: React.RefObject<HTMLDivElement | null>;
+  department: React.RefObject<HTMLDivElement | null>;
+  project: React.RefObject<HTMLDivElement | null>;
   subject: React.RefObject<HTMLDivElement | null>;
   description: React.RefObject<HTMLDivElement | null>;
+  notes: React.RefObject<HTMLDivElement | null>;
   months: React.RefObject<HTMLDivElement | null>;
   items: React.RefObject<HTMLDivElement | null>;
   approvalSchema: React.RefObject<HTMLDivElement | null>;
@@ -32,16 +35,22 @@ export function useBudgetRequestForm(initialValues?: Partial<BudgetRequestFormVa
   const [taxConfig, setTaxConfig] = useState({ vatPercent: 0, whtPercent: 0 });
 
   const budgetPlanFieldRef = useRef<HTMLDivElement | null>(null);
+  const departmentFieldRef = useRef<HTMLDivElement | null>(null);
+  const projectFieldRef = useRef<HTMLDivElement | null>(null);
   const subjectFieldRef = useRef<HTMLDivElement | null>(null);
   const descriptionFieldRef = useRef<HTMLDivElement | null>(null);
+  const notesFieldRef = useRef<HTMLDivElement | null>(null);
   const monthsFieldRef = useRef<HTMLDivElement | null>(null);
   const itemsFieldRef = useRef<HTMLDivElement | null>(null);
   const approvalSchemaFieldRef = useRef<HTMLDivElement | null>(null);
 
   const fieldRefs: BudgetRequestFieldRefs = {
     budgetPlan: budgetPlanFieldRef,
+    department: departmentFieldRef,
+    project: projectFieldRef,
     subject: subjectFieldRef,
     description: descriptionFieldRef,
+    notes: notesFieldRef,
     months: monthsFieldRef,
     items: itemsFieldRef,
     approvalSchema: approvalSchemaFieldRef,

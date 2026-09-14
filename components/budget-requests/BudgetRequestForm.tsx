@@ -224,31 +224,35 @@ export default function BudgetRequestForm({
           )}
         </div>
 
-        <DepartmentSelectField
-          value={formData.departmentId}
-          departments={departments}
-          userDepartmentId={userDepartmentId}
-          canCrossDepartment={canCrossDepartment}
-          forcedReadonly={isBudgetPlanSelected}
-          onChange={(departmentId) =>
-            onFormDataChange((previous) => {
-              const schemaStillValid = approvalSchemas.some(
-                (schema) =>
-                  schema.id === previous.approvalSchemaId &&
-                  schemaAppliesToDepartment(schema.departmentId, departmentId),
-              );
-              return {
-                ...previous,
-                departmentId,
-                approvalSchemaId: schemaStillValid ? previous.approvalSchemaId : '',
-              };
-            })
-          }
-        />
+        <div ref={fieldRefs.department}>
+          <DepartmentSelectField
+            required
+            value={formData.departmentId}
+            departments={departments}
+            userDepartmentId={userDepartmentId}
+            canCrossDepartment={canCrossDepartment}
+            forcedReadonly={isBudgetPlanSelected}
+            onChange={(departmentId) =>
+              onFormDataChange((previous) => {
+                const schemaStillValid = approvalSchemas.some(
+                  (schema) =>
+                    schema.id === previous.approvalSchemaId &&
+                    schemaAppliesToDepartment(schema.departmentId, departmentId),
+                );
+                return {
+                  ...previous,
+                  departmentId,
+                  approvalSchemaId: schemaStillValid ? previous.approvalSchemaId : '',
+                };
+              })
+            }
+          />
+        </div>
 
-        <div>
-          <label className="block mb-1.5 font-medium">Project</label>
+        <div ref={fieldRefs.project}>
+          <label className="block mb-1.5 font-medium">Project *</label>
           <Select
+            required
             value={formData.projectId}
             onChange={(event) =>
               onFormDataChange((previous) => ({
@@ -256,9 +260,9 @@ export default function BudgetRequestForm({
                 projectId: event.target.value,
               }))
             }
-            readonly={isBudgetPlanSelected}
+            readonly={isBudgetPlanSelected && Boolean(formData.projectId)}
           >
-            <option value="">-</option>
+            <option value="">Select project...</option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.code} - {project.name}
@@ -284,7 +288,7 @@ export default function BudgetRequestForm({
       </div>
 
       <div ref={fieldRefs.description}>
-        <label className="block mb-1.5 font-medium">Description</label>
+        <label className="block mb-1.5 font-medium">Description *</label>
         <RichTextEditor
           value={formData.description}
           onChange={(description) =>
@@ -292,6 +296,7 @@ export default function BudgetRequestForm({
           }
           placeholder="Describe budget request details..."
           maxContentBytes={DESCRIPTION_MAX_BYTES}
+          required
         />
       </div>
 
@@ -366,8 +371,8 @@ export default function BudgetRequestForm({
         />
       </div>
 
-      <div>
-        <label className="block mb-1.5 font-medium">Notes</label>
+      <div ref={fieldRefs.notes}>
+        <label className="block mb-1.5 font-medium">Notes *</label>
         <Input
           type="text"
           value={formData.notes}
@@ -377,6 +382,7 @@ export default function BudgetRequestForm({
               notes: event.target.value,
             }))
           }
+          required
         />
       </div>
 

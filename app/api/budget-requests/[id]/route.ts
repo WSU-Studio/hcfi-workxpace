@@ -15,6 +15,9 @@ import { createBudgetRequestNotifications } from '@/lib/budget-request-notificat
 import { sumPlanRealization } from '@/lib/budget-plan-realization';
 import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import {
+  validateRequiredBudgetRequestWriteFields,
+} from '@/lib/budget-requests/form';
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
 import { assertFiscalYearWritable } from '@/lib/fiscal-year';
 import {
@@ -274,6 +277,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Department is required' }, { status: 400 });
     }
 
+    const writeFieldsError = validateRequiredBudgetRequestWriteFields({
+      departmentId: nextDepartmentId,
+      projectId: typeof projectId === 'string' ? projectId : '',
+      description: typeof description === 'string' ? description : '',
+      notes: typeof notes === 'string' ? notes : '',
+    });
+    if (writeFieldsError) {
+      return NextResponse.json({ error: writeFieldsError.message }, { status: 400 });
+    }
+
     const selectedSchema = await prisma.approvalSchema.findUnique({
       where: { id: approvalSchemaId },
       select: { id: true, departmentId: true, type: true },
@@ -333,7 +346,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const normalizedOriginOffice = normalizeOptionalString(originOffice);
-    const normalizedProjectId = normalizeOptionalString(projectId);
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.budgetRequestLineItem.deleteMany({ where: { budgetRequestId: id } });
@@ -342,12 +354,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         where: { id },
         data: {
           budgetPlanId: nextBudgetPlanId,
-          subject,
-          description: description ?? null,
+          subject: typeof subject === 'string' ? subject.trim() : subject,
+          description,
           fiscalYear: fiscalYearVerdict.year,
           originOffice: normalizedOriginOffice,
           departmentId: nextDepartmentId,
-          projectId: normalizedProjectId,
+          projectId: typeof projectId === 'string' ? projectId.trim() : projectId,
           status: 'Draft',
           totalAmount,
           vatPercent: normalizedVatPercent,
@@ -356,7 +368,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           whtAmount: normalizedWhtAmount,
           invoiceAmount: normalizedInvoiceAmount,
           grandTotal: normalizedGrandTotal,
-          notes: notes ?? null,
+          notes: typeof notes === 'string' ? notes.trim() : notes,
           approvalSchemaId: approvalSchemaId || null,
           approvalSchemaSnapshot: snapshotResult.snapshot,
           category: (category as string) || plan?.categoryId || null,
