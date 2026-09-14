@@ -1,7 +1,8 @@
 export type SupportingDocsScope =
   | 'budget-plans'
   | 'budget-requests'
-  | 'payment-requests';
+  | 'payment-requests'
+  | 'branding';
 
 export const LOCAL_SUPPORTING_DOCS_API_PREFIX = '/api/dev/supporting-docs/';
 export const SUPPORTING_DOCS_PROXY_PREFIX = '/api/supporting-documents/file/';
@@ -14,6 +15,8 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
   '.doc': 'application/msword',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.xls': 'application/vnd.ms-excel',
@@ -24,6 +27,7 @@ const ALLOWED_SCOPES = new Set<SupportingDocsScope>([
   'budget-plans',
   'budget-requests',
   'payment-requests',
+  'branding',
 ]);
 
 export function parseSupportingDocsScope(raw: unknown): SupportingDocsScope {
@@ -34,7 +38,17 @@ export function parseSupportingDocsScope(raw: unknown): SupportingDocsScope {
 }
 
 export function supportingDocsKeyPrefix(scope: SupportingDocsScope): string {
+  if (scope === 'branding') return 'branding/logos/';
   return `${scope}/supporting-docs/`;
+}
+
+export function isStoredBrandingLogoUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return true;
+  return (
+    trimmed.startsWith(SUPPORTING_DOCS_PROXY_PREFIX) ||
+    trimmed.startsWith(LOCAL_SUPPORTING_DOCS_API_PREFIX)
+  );
 }
 
 export function isSupportingDocsKey(key: string): boolean {

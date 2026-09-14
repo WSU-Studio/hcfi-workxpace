@@ -23,6 +23,14 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]);
 
+const BRANDING_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/svg+xml',
+]);
+const BRANDING_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9.\-_]/g, '-');
 }
@@ -58,6 +66,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
     }
 
+    if (scope === 'branding' && files.length > 1) {
+      return NextResponse.json({ error: 'Upload one logo at a time' }, { status: 400 });
+    }
+
     if (files.length > 10) {
       return NextResponse.json(
         { error: 'Maximum 10 files are allowed per upload' },
@@ -69,12 +81,17 @@ export async function POST(request: Request) {
 
     const uploaded = await Promise.all(
       files.map(async (file) => {
-        if (!ALLOWED_MIME_TYPES.has(file.type)) {
+        const allowedTypes = scope === 'branding' ? BRANDING_MIME_TYPES : ALLOWED_MIME_TYPES;
+        const maxBytes = scope === 'branding' ? BRANDING_MAX_FILE_SIZE_BYTES : MAX_FILE_SIZE_BYTES;
+
+        if (!allowedTypes.has(file.type)) {
           throw new Error(`File type is not allowed: ${file.name}`);
         }
 
-        if (file.size > MAX_FILE_SIZE_BYTES) {
-          throw new Error(`File is too large (max 10MB): ${file.name}`);
+        if (file.size > maxBytes) {
+          throw new Error(
+            `File is too large (max ${scope === 'branding' ? '2MB' : '10MB'}): ${file.name}`,
+          );
         }
 
         const fileBuffer = Buffer.from(await file.arrayBuffer());

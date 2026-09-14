@@ -4,7 +4,8 @@ import { toSupportingDocsProxyUrl } from '@/lib/supporting-docs-storage';
 export type SupportingDocsScope =
   | 'budget-plans'
   | 'budget-requests'
-  | 'payment-requests';
+  | 'payment-requests'
+  | 'branding';
 
 export function normalizeSupportingDocs(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
