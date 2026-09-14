@@ -373,7 +373,7 @@ export default function PaymentRequestForm({
         </div>
 
         <div>
-          <label className="mb-1.5 block font-medium">Bank Name</label>
+          <label className="mb-1.5 block font-medium">Bank Name *</label>
           <Input
             type="text"
             value={formData.bankName}
@@ -384,11 +384,12 @@ export default function PaymentRequestForm({
               }))
             }
             placeholder="Bank name"
+            required
           />
         </div>
 
         <div>
-          <label className="mb-1.5 block font-medium">Bank Account</label>
+          <label className="mb-1.5 block font-medium">Bank Account *</label>
           <Input
             type="text"
             value={formData.bankAccount}
@@ -399,11 +400,12 @@ export default function PaymentRequestForm({
               }))
             }
             placeholder="Bank account number"
+            required
           />
         </div>
 
         <div>
-          <label className="mb-1.5 block font-medium">Currency</label>
+          <label className="mb-1.5 block font-medium">Currency *</label>
           <Input
             type="text"
             value={formData.currency}
@@ -416,12 +418,13 @@ export default function PaymentRequestForm({
             maxLength={8}
             readOnly
             className="max-w-xs"
+            required
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1.5 block font-medium">Payment purpose</label>
+        <label className="mb-1.5 block font-medium">Payment purpose *</label>
         <Input
           type="text"
           value={formData.paymentPurpose}
@@ -432,6 +435,7 @@ export default function PaymentRequestForm({
             }))
           }
           placeholder="Invoice ref., period, etc."
+          required
         />
       </div>
 
