@@ -10,15 +10,15 @@ export default async function ProfilePage() {
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold">Profile</h1>
-      <Card className="space-y-4 p-6">
+      <Card className="flex flex-col gap-1 p-6">
         <div>
           <span className="text-gray-500">Name:</span> {session.user.name}
         </div>
         <div>
-          <span className="text-gray-500">Email:</span> {session.user.email}
+          <span className="text-gray-500 text-sm">Email:</span> {session.user.email}
         </div>
         <div>
-          <span className="text-gray-500">Role:</span> {session.user.role}
+          <span className="text-gray-500 text-sm">Role:</span> {session.user.role}
         </div>
       </Card>
       <Card className="space-y-4 p-6">
