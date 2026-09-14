@@ -21,7 +21,7 @@ import {
   parseClassificationBody,
   type StoredRequestClassification,
 } from '@/lib/request-classification';
-import { parseDateInputToDate, requiredPaymentRequestWriteFieldsFromBody, validateRequiredPaymentRequestWriteFields, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
+import { parseDateInputToDate, requiredPaymentRequestWriteFieldsFromBody, validateRequiredPaymentBankFields, validateRequiredPaymentRequestWriteFields, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   approvalLevelsOf,
@@ -252,6 +252,16 @@ export async function POST(req: Request) {
     });
     if (vendorFieldsError) {
       return NextResponse.json({ error: vendorFieldsError }, { status: 400 });
+    }
+
+    const bankFieldsError = validateRequiredPaymentBankFields({
+      bankName,
+      bankAccount,
+      currency,
+      paymentPurpose,
+    });
+    if (bankFieldsError) {
+      return NextResponse.json({ error: bankFieldsError }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
