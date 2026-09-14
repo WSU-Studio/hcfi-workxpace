@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import SettingToggleCard from '@/components/settings/SettingToggleCard';
 import MockJsonEditorCard from '@/components/settings/MockJsonEditorCard';
+import SidebarLogoSettingsCard from '@/components/settings/SidebarLogoSettingsCard';
 import { DEFAULT_APPLICATION_SETTINGS, type ApplicationSettings } from '@/types/app-settings';
 
 type MessageState = {
@@ -101,6 +102,18 @@ export default function SettingsPage() {
           {message.text}
         </div>
       )}
+
+      <SidebarLogoSettingsCard
+        expandedLogoUrl={settings.sidebarLogoUrl}
+        collapsedLogoUrl={settings.sidebarLogoCollapsedUrl}
+        onExpandedLogoChange={(sidebarLogoUrl) =>
+          setSettings((prev) => ({ ...prev, sidebarLogoUrl }))
+        }
+        onCollapsedLogoChange={(sidebarLogoCollapsedUrl) =>
+          setSettings((prev) => ({ ...prev, sidebarLogoCollapsedUrl }))
+        }
+        disabled={isSaving}
+      />
 
       <SettingToggleCard
         title="Enable Document Download"
