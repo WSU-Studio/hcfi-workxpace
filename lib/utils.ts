@@ -66,3 +66,15 @@ export const stripHtmlTags = (html: string | null | undefined) => {
   if (!html) return '-';
   return html.replace(/<[^>]*>/g, '').trim() || '-';
 };
+
+/** True when rich-text HTML has no meaningful text or visual content (images/tables). */
+export function isRichTextEmpty(html: string | null | undefined): boolean {
+  if (!html) return true;
+  const plainText = html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#160;/gi, ' ')
+    .trim();
+  const hasVisualContent = /<(img|table|hr|iframe|video|audio)\b/i.test(html);
+  return !plainText && !hasVisualContent;
+}

@@ -34,6 +34,7 @@ type RichTextEditorProps = {
   placeholder?: string;
   className?: string;
   maxContentBytes?: number;
+  required?: boolean;
 };
 
 type ToolbarButtonProps = {
@@ -68,6 +69,7 @@ export default function RichTextEditor({
   placeholder = 'Write description...',
   className,
   maxContentBytes,
+  required = false,
 }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const lastValidHtmlRef = useRef(value || '<p></p>');
@@ -104,6 +106,7 @@ export default function RichTextEditor({
       attributes: {
         class:
           'min-h-[180px] w-full rounded-b-lg border-x border-b border-gray-400 px-3 py-2 focus:outline-none',
+        ...(required ? { 'aria-required': 'true' } : {}),
       },
     },
     onUpdate({ editor: currentEditor }) {
