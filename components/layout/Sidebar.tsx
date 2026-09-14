@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSidebarStore } from '@/store/useSidebarStore';
 import { cn } from '@/lib/utils';
@@ -22,13 +23,24 @@ import Logo from '@/public/workxpace-logo.svg';
 import FullLogo from '@/public/workxpace-full-logo.svg';
 import { MenuAccess } from '@/types/access-control';
 import { restrictedMenuAccess } from '@/lib/default-access';
+import { useSidebarBranding } from '@/hooks/useSidebarBranding';
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { data: session, status } = useSession();
+  const { expandedLogoUrl, collapsedLogoUrl } = useSidebarBranding();
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [expandedLogoUrl, collapsedLogoUrl, isCollapsed]);
 
   const menuAccess = (session?.user as { access?: { menuAccess?: MenuAccess } })?.access?.menuAccess ?? restrictedMenuAccess;
+
+  const customSrc = isCollapsed ? collapsedLogoUrl : expandedLogoUrl;
+  const useCustomLogo = Boolean(customSrc) && !logoFailed;
+  const hideWordmark = isCollapsed || Boolean(expandedLogoUrl && !logoFailed);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboardFilled, show: menuAccess.dashboard },
@@ -39,7 +51,7 @@ const Sidebar = () => {
     { name: 'Reports', href: '/reports', icon: IconChartBar, show: menuAccess.reports },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
-    // { name: 'Application Settings', href: '/settings', icon: IconSettings, show: menuAccess.settings ?? menuAccess.workspaceManagement },
+    { name: 'Application Settings', href: '/settings', icon: IconSettings, show: menuAccess.settings ?? menuAccess.workspaceManagement },
   ].filter((i) => i.show);
 
   if (status === 'loading') {
@@ -63,13 +75,30 @@ const Sidebar = () => {
     >
       <div className="h-16 flex items-center shrink-0">
         <button onClick={toggleSidebar} className="w-full h-full flex items-center px-2 cursor-pointer">
-          <div className="w-full h-auto flex-shrink-0 flex items-center justify-center">
-            <Image src={isCollapsed ? Logo : FullLogo} alt="Workxpace Logo" width={180} height={40} />
+          <div className="flex h-auto w-full flex-shrink-0 items-center justify-center">
+            {useCustomLogo ? (
+              <Image
+                src={customSrc}
+                alt="Workspace logo"
+                width={isCollapsed ? 32 : 180}
+                height={40}
+                className="h-auto max-h-10 w-auto max-w-[180px] object-contain"
+                unoptimized
+                onError={() => setLogoFailed(true)}
+              />
+            ) : (
+              <Image
+                src={isCollapsed ? Logo : FullLogo}
+                alt="Workxpace Logo"
+                width={isCollapsed ? 32 : 180}
+                height={40}
+              />
+            )}
           </div>
           <span
             className={cn(
-              'ml-3 font-semibold text-xl transition-all duration-300 flex-shrink-0 text-blue-600',
-              isCollapsed ? 'opacity-0 -translate-x-10 overflow-hidden w-0' : 'opacity-100'
+              'ml-3 flex-shrink-0 text-xl font-semibold text-blue-600 transition-all duration-300',
+              hideWordmark ? 'w-0 -translate-x-10 overflow-hidden opacity-0' : 'opacity-100',
             )}
           >
             Workxpace

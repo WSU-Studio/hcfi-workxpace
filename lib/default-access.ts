@@ -133,6 +133,7 @@ export const fullMenuAccess: MenuAccess = {
   reports: true,
   userManagement: true,
   workspaceManagement: true,
+  settings: true,
   viewDivision: true,
   viewDepartment: true,
   viewOriginOffice: true,
