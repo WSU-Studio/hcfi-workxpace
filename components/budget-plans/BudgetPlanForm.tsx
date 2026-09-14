@@ -25,6 +25,7 @@ import {
   BudgetPlanFormValues,
   DESCRIPTION_MAX_BYTES,
   MONTH_NAMES,
+  sanitizeBaseAmountInput,
 } from '@/lib/budget-plans/form';
 import { filterSchemasForDepartment, schemaAppliesToDepartment, sortApprovalLevels } from '@/lib/approval-schema';
 import type { BudgetPlanFieldRefs } from '@/hooks/useBudgetPlanForm';
@@ -234,6 +235,7 @@ export default function BudgetPlanForm({
       </div>
 
       <SupportingDocumentsField
+        label="Supporting Documents (optional)"
         attachmentFiles={attachmentFiles}
         onAttachmentFilesChange={onAttachmentFilesChange}
         existingSupportingDocs={existingSupportingDocs}
@@ -256,8 +258,12 @@ export default function BudgetPlanForm({
           <label className="text-sm font-medium shrink-0">Base Amount</label>
           <Input
             type="text"
-            value={baseAmount}
-            onChange={(event) => onBaseAmountChange(event.target.value)}
+            inputMode="decimal"
+            autoComplete="off"
+            value={sanitizeBaseAmountInput(baseAmount)}
+            onChange={(event) =>
+              onBaseAmountChange(sanitizeBaseAmountInput(event.target.value))
+            }
             placeholder="18.000.000"
             className="max-w-[200px]"
           />

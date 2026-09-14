@@ -138,7 +138,6 @@ export default function EditBudgetPlanPage() {
       selectedMonths: selectedMonthsSorted,
       schemasForDepartment: schemasForDept,
       totalAllocation,
-      requireDepartmentAndSubject: false,
     });
     if (validationError) {
       reportError(validationError.message, validationError.field);

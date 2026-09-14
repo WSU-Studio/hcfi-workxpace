@@ -11,9 +11,12 @@ import {
 } from '@/lib/budget-plans/form';
 
 export interface BudgetPlanFieldRefs {
+  fiscalYear: React.RefObject<HTMLDivElement | null>;
+  originOffice: React.RefObject<HTMLDivElement | null>;
+  department: React.RefObject<HTMLDivElement | null>;
+  project: React.RefObject<HTMLDivElement | null>;
   subject: React.RefObject<HTMLDivElement | null>;
   description: React.RefObject<HTMLDivElement | null>;
-  department: React.RefObject<HTMLDivElement | null>;
   approvalSchema: React.RefObject<HTMLDivElement | null>;
   months: React.RefObject<HTMLDivElement | null>;
   allocations: React.RefObject<HTMLDivElement | null>;
@@ -30,17 +33,23 @@ export function useBudgetPlanForm(initialValues?: Partial<BudgetPlanFormValues>)
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [existingSupportingDocs, setExistingSupportingDocs] = useState<string[]>([]);
 
+  const fiscalYearFieldRef = useRef<HTMLDivElement | null>(null);
+  const originOfficeFieldRef = useRef<HTMLDivElement | null>(null);
+  const departmentFieldRef = useRef<HTMLDivElement | null>(null);
+  const projectFieldRef = useRef<HTMLDivElement | null>(null);
   const subjectFieldRef = useRef<HTMLDivElement | null>(null);
   const descriptionFieldRef = useRef<HTMLDivElement | null>(null);
-  const departmentFieldRef = useRef<HTMLDivElement | null>(null);
   const approvalSchemaFieldRef = useRef<HTMLDivElement | null>(null);
   const monthsFieldRef = useRef<HTMLDivElement | null>(null);
   const allocationsFieldRef = useRef<HTMLDivElement | null>(null);
 
   const fieldRefs: BudgetPlanFieldRefs = {
+    fiscalYear: fiscalYearFieldRef,
+    originOffice: originOfficeFieldRef,
+    department: departmentFieldRef,
+    project: projectFieldRef,
     subject: subjectFieldRef,
     description: descriptionFieldRef,
-    department: departmentFieldRef,
     approvalSchema: approvalSchemaFieldRef,
     months: monthsFieldRef,
     allocations: allocationsFieldRef,

@@ -14,6 +14,10 @@ import { ALL_FISCAL_YEARS, assertFiscalYearWritable, parseFiscalYearParam } from
 import { allocateNextBudgetPlanCode } from '@/lib/budget-plans/code';
 import { isPrismaUniqueViolation } from '@/lib/prisma-errors';
 import {
+  budgetPlanFormValuesFromBody,
+  validateRequiredBudgetPlanWriteFields,
+} from '@/lib/budget-plans/form';
+import {
   approvalLevelsOf,
   captureApprovalSchemaSnapshot,
 } from '@/lib/approval-schema-snapshot';
@@ -126,6 +130,12 @@ export async function POST(request: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
+    const writeFieldsError = validateRequiredBudgetPlanWriteFields(
+      budgetPlanFormValuesFromBody(body),
+    );
+    if (writeFieldsError) {
+      return NextResponse.json({ error: writeFieldsError.message }, { status: 400 });
+    }
     if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
@@ -179,12 +189,12 @@ export async function POST(request: Request) {
       prisma.budgetPlan.create({
         data: {
           code,
-          subject: body.subject,
-          description: body.description || null,
+          subject: body.subject.trim(),
+          description: body.description,
           fiscalYear: fiscalYearVerdict.year,
-          originOffice: body.originOffice || null,
+          originOffice: body.originOffice.trim(),
           departmentId: body.departmentId,
-          projectId: body.projectId || null,
+          projectId: body.projectId,
           requestorId: session.user.id,
           requestDate: new Date(),
           status: 'Draft',

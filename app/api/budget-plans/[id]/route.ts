@@ -21,6 +21,10 @@ import {
 import { selectableDepartmentWhere } from '@/lib/department/selectable';
 import { assertFiscalYearWritable, fiscalYearSelectOptions } from '@/lib/fiscal-year';
 import {
+  budgetPlanFormValuesFromBody,
+  validateRequiredBudgetPlanWriteFields,
+} from '@/lib/budget-plans/form';
+import {
   approvalLevelsOf,
   snapshotForDocumentWrite,
   withFrozenApprovalSchema,
@@ -238,6 +242,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         { status: 409 }
       );
     }
+    const writeFieldsError = validateRequiredBudgetPlanWriteFields(
+      budgetPlanFormValuesFromBody(body),
+    );
+    if (writeFieldsError) {
+      return NextResponse.json({ error: writeFieldsError.message }, { status: 400 });
+    }
     if (!body.approvalSchemaId || typeof body.approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
@@ -271,12 +281,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     await prisma.budgetPlan.update({
       where: { id },
       data: {
-        subject: body.subject,
-        description: body.description ?? null,
+        subject: body.subject.trim(),
+        description: body.description,
         fiscalYear: fiscalYearVerdict.year,
-        originOffice: body.originOffice ?? null,
+        originOffice: body.originOffice.trim(),
         departmentId: body.departmentId,
-        projectId: body.projectId || null,
+        projectId: body.projectId,
         approvalSchemaId: body.approvalSchemaId || null,
         approvalSchemaSnapshot: snapshotResult.snapshot,
         supportingDocs: body.supportingDocs || null,

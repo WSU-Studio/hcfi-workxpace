@@ -1,5 +1,6 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
+import { isRichTextEmpty } from '@/lib/utils';
 
 export const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -47,8 +48,16 @@ export function createDefaultFormValues(): BudgetPlanFormValues {
   };
 }
 
+/** Digits plus Indonesian separators (`.` thousands, `,` decimal). Letters and other symbols are stripped. */
+export function sanitizeBaseAmountInput(value: string): string {
+  const withoutInvalid = value.replace(/[^\d.,]/g, '');
+  const firstComma = withoutInvalid.indexOf(',');
+  if (firstComma === -1) return withoutInvalid;
+  return `${withoutInvalid.slice(0, firstComma + 1)}${withoutInvalid.slice(firstComma + 1).replace(/,/g, '')}`;
+}
+
 export function parseBaseAmount(value: string): number {
-  const cleaned = value.replace(/\./g, '').replace(',', '.');
+  const cleaned = sanitizeBaseAmountInput(value).replace(/\./g, '').replace(',', '.');
   return parseFloat(cleaned) || 0;
 }
 
@@ -99,9 +108,12 @@ export function toAllocationPayload(
 }
 
 export type BudgetPlanValidationField =
+  | 'fiscalYear'
+  | 'originOffice'
+  | 'department'
+  | 'project'
   | 'subject'
   | 'description'
-  | 'department'
   | 'approvalSchema'
   | 'months'
   | 'allocations';
@@ -111,13 +123,71 @@ export type BudgetPlanValidationError = {
   field: BudgetPlanValidationField;
 };
 
+/**
+ * Required write fields for Budget Plan create/edit, excluding Supporting Documents.
+ * Shared by the form validator and POST/PUT APIs.
+ */
+export function validateRequiredBudgetPlanWriteFields(
+  formData: BudgetPlanFormValues,
+): BudgetPlanValidationError | null {
+  if (!Number.isFinite(formData.fiscalYear) || formData.fiscalYear <= 0) {
+    return { message: 'Fiscal year is required', field: 'fiscalYear' };
+  }
+
+  if (!formData.originOffice.trim()) {
+    return { message: 'Origin office is required', field: 'originOffice' };
+  }
+
+  if (!formData.departmentId) {
+    return { message: 'Department is required', field: 'department' };
+  }
+
+  if (!formData.projectId) {
+    return { message: 'Project is required', field: 'project' };
+  }
+
+  if (!formData.subject.trim()) {
+    return { message: 'Subject is required', field: 'subject' };
+  }
+
+  if (isRichTextEmpty(formData.description)) {
+    return { message: 'Description is required', field: 'description' };
+  }
+
+  const descriptionSize = new TextEncoder().encode(formData.description || '').length;
+  if (descriptionSize > DESCRIPTION_MAX_BYTES) {
+    return { message: 'Description is too large. Maximum 200KB.', field: 'description' };
+  }
+
+  return null;
+}
+
+export function budgetPlanFormValuesFromBody(body: {
+  fiscalYear?: unknown;
+  originOffice?: unknown;
+  departmentId?: unknown;
+  projectId?: unknown;
+  subject?: unknown;
+  description?: unknown;
+  approvalSchemaId?: unknown;
+}): BudgetPlanFormValues {
+  return {
+    fiscalYear: typeof body.fiscalYear === 'number' ? body.fiscalYear : Number(body.fiscalYear) || 0,
+    originOffice: typeof body.originOffice === 'string' ? body.originOffice : '',
+    departmentId: typeof body.departmentId === 'string' ? body.departmentId : '',
+    projectId: typeof body.projectId === 'string' ? body.projectId : '',
+    subject: typeof body.subject === 'string' ? body.subject : '',
+    description: typeof body.description === 'string' ? body.description : '',
+    approvalSchemaId: typeof body.approvalSchemaId === 'string' ? body.approvalSchemaId : '',
+  };
+}
+
 interface ValidateBudgetPlanFormInput {
   formData: BudgetPlanFormValues;
   selectedMonths: number[];
   schemasForDepartment: { id: string }[];
   /** Sum of monthly allocations — must be > 0 to create/save. */
   totalAllocation: number;
-  requireDepartmentAndSubject?: boolean;
 }
 
 export function validateBudgetPlanForm({
@@ -125,15 +195,9 @@ export function validateBudgetPlanForm({
   selectedMonths,
   schemasForDepartment,
   totalAllocation,
-  requireDepartmentAndSubject = true,
 }: ValidateBudgetPlanFormInput): BudgetPlanValidationError | null {
-  if (requireDepartmentAndSubject && !formData.departmentId) {
-    return { message: 'Department is required', field: 'department' };
-  }
-
-  if (requireDepartmentAndSubject && !formData.subject) {
-    return { message: 'Subject is required', field: 'subject' };
-  }
+  const requiredFieldsError = validateRequiredBudgetPlanWriteFields(formData);
+  if (requiredFieldsError) return requiredFieldsError;
 
   if (!formData.approvalSchemaId) {
     return {
@@ -154,11 +218,6 @@ export function validateBudgetPlanForm({
       message: 'Total budget allocation must be greater than 0',
       field: 'allocations',
     };
-  }
-
-  const descriptionSize = new TextEncoder().encode(formData.description || '').length;
-  if (descriptionSize > DESCRIPTION_MAX_BYTES) {
-    return { message: 'Description is too large. Maximum 200KB.', field: 'description' };
   }
 
   return null;
