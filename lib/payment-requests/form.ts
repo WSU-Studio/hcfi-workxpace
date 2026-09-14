@@ -1,5 +1,6 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
+import { isRichTextEmpty } from '@/lib/utils';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -142,6 +143,38 @@ export function validateRequiredVendorInvoiceFields(input: {
   return null;
 }
 
+/**
+ * Required write fields on Payment Request create/edit: Budget Request, Project,
+ * Description, Notes. Shared by the form validator and POST/PUT APIs.
+ */
+export function validateRequiredPaymentRequestWriteFields(
+  formData: Pick<PaymentRequestFormValues, 'budgetRequestId' | 'projectId' | 'description' | 'notes'>,
+): string | null {
+  if (!formData.budgetRequestId.trim()) return 'Budget request is required.';
+  if (!formData.projectId) return 'Project is required.';
+  if (isRichTextEmpty(formData.description)) return 'Description is required.';
+  const descriptionSize = new TextEncoder().encode(formData.description || '').length;
+  if (descriptionSize > DESCRIPTION_MAX_BYTES) {
+    return 'Description is too large. Maximum 200KB.';
+  }
+  if (!formData.notes.trim()) return 'Notes is required.';
+  return null;
+}
+
+export function requiredPaymentRequestWriteFieldsFromBody(body: {
+  budgetRequestId?: unknown;
+  projectId?: unknown;
+  description?: unknown;
+  notes?: unknown;
+}): Pick<PaymentRequestFormValues, 'budgetRequestId' | 'projectId' | 'description' | 'notes'> {
+  return {
+    budgetRequestId: typeof body.budgetRequestId === 'string' ? body.budgetRequestId : '',
+    projectId: typeof body.projectId === 'string' ? body.projectId : '',
+    description: typeof body.description === 'string' ? body.description : '',
+    notes: typeof body.notes === 'string' ? body.notes : '',
+  };
+}
+
 export function mapBrLineItemsToEditor(
   rows: ApprovedBudgetRequestOption['lineItems'] | undefined,
 ): BudgetRequestLineItemInput[] {
@@ -254,6 +287,9 @@ export function validatePaymentRequestForm(input: {
     return 'Enter subject and payee.';
   }
 
+  const requiredWriteError = validateRequiredPaymentRequestWriteFields(formData);
+  if (requiredWriteError) return requiredWriteError;
+
   const vendorFieldsError = validateRequiredVendorInvoiceFields({
     vendorInvoiceNo: formData.vendorInvoiceNo,
     dateNeeded: formData.dateNeeded,
@@ -284,11 +320,6 @@ export function validatePaymentRequestForm(input: {
     return 'Grand total must be greater than 0.';
   }
 
-  const descriptionSize = new TextEncoder().encode(formData.description || '').length;
-  if (descriptionSize > DESCRIPTION_MAX_BYTES) {
-    return 'Description is too large. Maximum 200KB.';
-  }
-
   return null;
 }
 
@@ -303,14 +334,14 @@ export function buildPaymentRequestSubmitPayload(
 
   return {
     subject: formData.subject.trim(),
-    description: formData.description || null,
-    notes: formData.notes || null,
+    description: formData.description,
+    notes: formData.notes.trim(),
     approvalSchemaId: formData.approvalSchemaId || null,
-    budgetRequestId: formData.budgetRequestId || null,
+    budgetRequestId: formData.budgetRequestId,
     departmentId: formData.departmentId,
     fiscalYear: formData.fiscalYear,
     originOffice: formData.originOffice || null,
-    projectId: formData.projectId || null,
+    projectId: formData.projectId,
     vatPercent: taxConfig.vatPercent,
     vatAmount: taxSummary.vatAmount,
     whtPercent: taxConfig.whtPercent,

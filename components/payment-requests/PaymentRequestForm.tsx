@@ -95,14 +95,12 @@ export default function PaymentRequestForm({
   const schemasForDept = filterSchemasForDepartment(approvalSchemas, formData.departmentId);
 
   const budgetRequestOptions = useMemo(
-    () => [
-      { value: '', label: 'None (optional)', searchText: 'none optional blank' },
-      ...approvedBudgetRequests.map((budgetRequest) => ({
+    () =>
+      approvedBudgetRequests.map((budgetRequest) => ({
         value: budgetRequest.id,
         label: `${budgetRequest.code} - ${budgetRequest.subject}`,
         searchText: `${budgetRequest.code} ${budgetRequest.subject}`,
       })),
-    ],
     [approvedBudgetRequests],
   );
 
@@ -148,19 +146,18 @@ export default function PaymentRequestForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div>
-        <label className="mb-1.5 block font-medium">Budget Request (optional)</label>
+        <label className="mb-1.5 block font-medium">Budget Request *</label>
         <SearchableSelect
           value={formData.budgetRequestId}
           options={budgetRequestOptions}
           onChange={onBudgetRequestChange}
-          placeholder="None (optional)"
+          placeholder="Select budget request..."
           searchPlaceholder="Search approved budget request..."
-          required={false}
+          required
         />
         <p className="mt-1 text-sm text-gray-500">
-          Not required. Link an approved budget request if this payment belongs to one; otherwise
-          leave as None. When linked, fiscal year, origin office, department, and project follow that
-          budget request.
+          Choose an approved budget request. Fiscal year, origin office, department, and project
+          follow that budget request.
         </p>
       </div>
 
@@ -235,18 +232,19 @@ export default function PaymentRequestForm({
         />
 
         <div>
-          <label className="mb-1.5 block font-medium">Project</label>
+          <label className="mb-1.5 block font-medium">Project *</label>
           <Select
             value={formData.projectId}
+            required
             onChange={(event) =>
               onFormDataChange((previous) => ({
                 ...previous,
                 projectId: event.target.value,
               }))
             }
-            readonly={isBudgetRequestSelected}
+            readonly={isBudgetRequestSelected && Boolean(formData.projectId)}
           >
-            <option value="">-</option>
+            <option value="">Select project...</option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.code} - {project.name}
@@ -305,7 +303,7 @@ export default function PaymentRequestForm({
       </div>
 
       <div>
-        <label className="mb-1.5 block font-medium">Description</label>
+        <label className="mb-1.5 block font-medium">Description *</label>
         <RichTextEditor
           value={formData.description}
           onChange={(description) =>
@@ -313,6 +311,7 @@ export default function PaymentRequestForm({
           }
           placeholder="Describe the payment request..."
           maxContentBytes={DESCRIPTION_MAX_BYTES}
+          required
         />
       </div>
 
@@ -459,7 +458,7 @@ export default function PaymentRequestForm({
       </div>
 
       <div>
-        <label className="mb-1.5 block font-medium">Notes</label>
+        <label className="mb-1.5 block font-medium">Notes *</label>
         <Input
           type="text"
           value={formData.notes}
@@ -469,6 +468,7 @@ export default function PaymentRequestForm({
               notes: event.target.value,
             }))
           }
+          required
         />
       </div>
 

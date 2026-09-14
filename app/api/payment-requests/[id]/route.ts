@@ -18,7 +18,7 @@ import {
   parseClassificationBody,
   type StoredRequestClassification,
 } from '@/lib/request-classification';
-import { parseDateInputToDate, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
+import { parseDateInputToDate, requiredPaymentRequestWriteFieldsFromBody, validateRequiredPaymentRequestWriteFields, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
 import { assertFiscalYearWritable } from '@/lib/fiscal-year';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
@@ -188,6 +188,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!subject || typeof subject !== 'string' || !payeeName || typeof payeeName !== 'string') {
       return NextResponse.json({ error: 'Subject and payee are required' }, { status: 400 });
     }
+    const writeFieldsError = validateRequiredPaymentRequestWriteFields(
+      requiredPaymentRequestWriteFieldsFromBody({
+        budgetRequestId,
+        projectId: bodyProjectId,
+        description,
+        notes,
+      }),
+    );
+    if (writeFieldsError) {
+      return NextResponse.json({ error: writeFieldsError }, { status: 400 });
+    }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });
     }
@@ -274,7 +285,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       resolvedFiscalYear = br.fiscalYear;
       resolvedOriginOffice =
         br.originOffice?.trim() || br.budgetPlan?.originOffice?.trim() || null;
-      resolvedProjectId = br.projectId ?? br.budgetPlan?.projectId ?? null;
+      resolvedProjectId =
+        br.projectId ??
+        br.budgetPlan?.projectId ??
+        (typeof bodyProjectId === 'string' && bodyProjectId.trim() !== ''
+          ? bodyProjectId.trim()
+          : null);
       linkedBudgetRequestClassification = {
         category: br.category,
         categoryKeyIndex: br.categoryKeyIndex,
@@ -303,6 +319,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         typeof bodyProjectId === 'string' && bodyProjectId.trim() !== ''
           ? bodyProjectId.trim()
           : null;
+    }
+
+    if (!resolvedProjectId) {
+      return NextResponse.json({ error: 'Project is required' }, { status: 400 });
     }
 
     const fiscalYearVerdict = assertFiscalYearWritable(resolvedFiscalYear, [
@@ -352,8 +372,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         where: { id },
         data: {
           subject: subject.trim(),
-          description: typeof description === 'string' ? description : null,
-          notes: typeof notes === 'string' ? notes : null,
+          description: typeof description === 'string' ? description : '',
+          notes: typeof notes === 'string' ? notes.trim() : notes,
           approvalSchemaId: approvalSchemaId || null,
           approvalSchemaSnapshot: snapshotResult.snapshot,
           fiscalYear: resolvedFiscalYear,
