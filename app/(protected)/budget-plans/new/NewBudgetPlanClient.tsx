@@ -74,9 +74,6 @@ export default function NewBudgetPlanClient() {
         });
 
         setFormData((previous) => ({ ...previous, fiscalYear: getCurrentFiscalYear() }));
-        if (data.projects?.[0]) {
-          setFormData((previous) => ({ ...previous, projectId: data.projects[0].id }));
-        }
         if (data.originOffices?.length) {
           const activeFirst =
             data.originOffices.find((office: { isActive: boolean }) => office.isActive) ||

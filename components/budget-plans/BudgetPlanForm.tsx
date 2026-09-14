@@ -103,14 +103,12 @@ export default function BudgetPlanForm({
   );
 
   const projectOptions = useMemo(
-    () => [
-      { value: '', label: '—' },
-      ...projects.map((project) => ({
+    () =>
+      projects.map((project) => ({
         value: project.id,
         label: `${project.code} - ${project.name}`,
         searchText: `${project.code} ${project.name}`,
       })),
-    ],
     [projects],
   );
 
@@ -192,8 +190,8 @@ export default function BudgetPlanForm({
           />
         </div>
 
-        <div>
-          <label className="block mb-1.5 font-medium">Project</label>
+        <div ref={fieldRefs.project}>
+          <label className="block mb-1.5 font-medium">Project *</label>
           <SearchableSelect
             value={formData.projectId}
             options={projectOptions}
@@ -202,6 +200,7 @@ export default function BudgetPlanForm({
             }
             placeholder="Select project..."
             searchPlaceholder="Search project..."
+            required
           />
         </div>
       </div>
@@ -223,7 +222,7 @@ export default function BudgetPlanForm({
       </div>
 
       <div ref={fieldRefs.description}>
-        <label className="block mb-1.5 font-medium">Description</label>
+        <label className="block mb-1.5 font-medium">Description *</label>
         <RichTextEditor
           value={formData.description}
           onChange={(description) =>
@@ -231,6 +230,7 @@ export default function BudgetPlanForm({
           }
           placeholder="Describe budget plan details..."
           maxContentBytes={DESCRIPTION_MAX_BYTES}
+          required
         />
       </div>
 
