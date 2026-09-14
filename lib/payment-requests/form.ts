@@ -143,6 +143,26 @@ export function validateRequiredVendorInvoiceFields(input: {
   return null;
 }
 
+const asRequiredTrimmed = (value: unknown): string =>
+  typeof value === 'string' ? value.trim() : '';
+
+/**
+ * Required payment-detail fields: Bank Name, Bank Account, Currency, Payment purpose.
+ * Shared by the form validator and POST/PUT APIs.
+ */
+export function validateRequiredPaymentBankFields(input: {
+  bankName: unknown;
+  bankAccount: unknown;
+  currency: unknown;
+  paymentPurpose: unknown;
+}): string | null {
+  if (!asRequiredTrimmed(input.bankName)) return 'Bank name is required.';
+  if (!asRequiredTrimmed(input.bankAccount)) return 'Bank account is required.';
+  if (!asRequiredTrimmed(input.currency)) return 'Currency is required.';
+  if (!asRequiredTrimmed(input.paymentPurpose)) return 'Payment purpose is required.';
+  return null;
+}
+
 /**
  * Required write fields on Payment Request create/edit: Budget Request, Project,
  * Description, Notes. Shared by the form validator and POST/PUT APIs.
@@ -296,6 +316,14 @@ export function validatePaymentRequestForm(input: {
   });
   if (vendorFieldsError) return vendorFieldsError;
 
+  const bankFieldsError = validateRequiredPaymentBankFields({
+    bankName: formData.bankName,
+    bankAccount: formData.bankAccount,
+    currency: formData.currency,
+    paymentPurpose: formData.paymentPurpose,
+  });
+  if (bankFieldsError) return bankFieldsError;
+
   if (!formData.departmentId) {
     return 'Select department.';
   }
@@ -349,13 +377,13 @@ export function buildPaymentRequestSubmitPayload(
     invoiceAmount: taxSummary.invoiceAmount,
     grandTotal: taxSummary.grandTotal,
     lineItems: buildLineItemsPayload(lineItems),
-    currency: formData.currency,
+    currency: formData.currency.trim(),
     payeeName: formData.payeeName.trim(),
-    bankName: formData.bankName.trim() || null,
-    bankAccount: formData.bankAccount.trim() || null,
+    bankName: formData.bankName.trim(),
+    bankAccount: formData.bankAccount.trim(),
     vendorInvoiceNo: formData.vendorInvoiceNo.trim() || null,
     dateNeeded: parseDateInputValue(formData.dateNeeded),
-    paymentPurpose: formData.paymentPurpose || null,
+    paymentPurpose: formData.paymentPurpose.trim(),
     costCenterId: stored.costCenter,
     categoryId: stored.category,
     categoryKeyIndexId: stored.categoryKeyIndex,
