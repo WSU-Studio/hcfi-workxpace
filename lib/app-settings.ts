@@ -70,6 +70,14 @@ export const getApplicationSettings = async (): Promise<ApplicationSettings> => 
         map.get(APP_SETTING_KEYS.enableDocumentDownload),
         DEFAULT_APPLICATION_SETTINGS.enableDocumentDownload
       ),
+      sidebarLogoUrl: parseStringValue(
+        map.get(APP_SETTING_KEYS.sidebarLogoUrl),
+        DEFAULT_APPLICATION_SETTINGS.sidebarLogoUrl
+      ),
+      sidebarLogoCollapsedUrl: parseStringValue(
+        map.get(APP_SETTING_KEYS.sidebarLogoCollapsedUrl),
+        DEFAULT_APPLICATION_SETTINGS.sidebarLogoCollapsedUrl
+      ),
     };
   } catch {
     return DEFAULT_APPLICATION_SETTINGS;
@@ -115,6 +123,29 @@ export const updateApplicationSettings = async (
         create: {
           key: APP_SETTING_KEYS.enableDocumentDownload,
           value: input.enableDocumentDownload,
+        },
+      })
+    );
+  }
+
+  if (typeof input.sidebarLogoUrl === 'string') {
+    writes.push(
+      delegate.upsert({
+        where: { key: APP_SETTING_KEYS.sidebarLogoUrl },
+        update: { value: input.sidebarLogoUrl },
+        create: { key: APP_SETTING_KEYS.sidebarLogoUrl, value: input.sidebarLogoUrl },
+      })
+    );
+  }
+
+  if (typeof input.sidebarLogoCollapsedUrl === 'string') {
+    writes.push(
+      delegate.upsert({
+        where: { key: APP_SETTING_KEYS.sidebarLogoCollapsedUrl },
+        update: { value: input.sidebarLogoCollapsedUrl },
+        create: {
+          key: APP_SETTING_KEYS.sidebarLogoCollapsedUrl,
+          value: input.sidebarLogoCollapsedUrl,
         },
       })
     );

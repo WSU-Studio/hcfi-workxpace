@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { getApplicationSettings, updateApplicationSettings } from '@/lib/app-settings';
 import { MOCK_JSON_MAX_BYTES } from '@/types/app-settings';
+import { isStoredBrandingLogoUrl } from '@/lib/supporting-docs-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,8 @@ export async function PUT(request: Request) {
       confinsUseMock?: unknown;
       confinsMockBudgetRealJson?: unknown;
       enableDocumentDownload?: unknown;
+      sidebarLogoUrl?: unknown;
+      sidebarLogoCollapsedUrl?: unknown;
     };
 
     let confinsMockBudgetRealJson: string | undefined;
@@ -70,11 +73,34 @@ export async function PUT(request: Request) {
       confinsMockBudgetRealJson = body.confinsMockBudgetRealJson;
     }
 
+    const parseLogoUrl = (value: unknown): string | undefined => {
+      if (typeof value !== 'string') return undefined;
+      const trimmed = value.trim();
+      if (!isStoredBrandingLogoUrl(trimmed)) {
+        throw new Error('Logo URL is not valid');
+      }
+      return trimmed;
+    };
+
+    let sidebarLogoUrl: string | undefined;
+    let sidebarLogoCollapsedUrl: string | undefined;
+    try {
+      sidebarLogoUrl = parseLogoUrl(body.sidebarLogoUrl);
+      sidebarLogoCollapsedUrl = parseLogoUrl(body.sidebarLogoCollapsedUrl);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Logo URL is not valid' },
+        { status: 400 },
+      );
+    }
+
     const updated = await updateApplicationSettings({
       confinsUseMock: typeof body.confinsUseMock === 'boolean' ? body.confinsUseMock : undefined,
       confinsMockBudgetRealJson,
       enableDocumentDownload:
         typeof body.enableDocumentDownload === 'boolean' ? body.enableDocumentDownload : undefined,
+      sidebarLogoUrl,
+      sidebarLogoCollapsedUrl,
     });
 
     return NextResponse.json({ settings: updated });

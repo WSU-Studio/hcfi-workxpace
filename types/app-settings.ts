@@ -12,6 +12,10 @@ export const APP_SETTING_KEYS = {
   confinsMockBudgetRealJson: 'confinsMockBudgetRealJson',
   /** Show PDF download on Budget Plan, Budget Request, and Payment Request detail pages. */
   enableDocumentDownload: 'enableDocumentDownload',
+  /** Sidebar expanded logo URL. Empty = Workxpace full logo. */
+  sidebarLogoUrl: 'sidebarLogoUrl',
+  /** Sidebar collapsed logo URL. Empty = Workxpace mark. */
+  sidebarLogoCollapsedUrl: 'sidebarLogoCollapsedUrl',
 } as const;
 
 export type AppSettingKey = (typeof APP_SETTING_KEYS)[keyof typeof APP_SETTING_KEYS];
@@ -21,12 +25,16 @@ export type ApplicationSettings = {
   /** String JSON (pretty-printed). Kosong = pakai fixture bundled. */
   confinsMockBudgetRealJson: string;
   enableDocumentDownload: boolean;
+  sidebarLogoUrl: string;
+  sidebarLogoCollapsedUrl: string;
 };
 
 export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {
   confinsUseMock: false,
   confinsMockBudgetRealJson: '',
   enableDocumentDownload: false,
+  sidebarLogoUrl: '',
+  sidebarLogoCollapsedUrl: '',
 };
 
 /** Batas ukuran JSON mock yang boleh disimpan ke settings (cegah abuse storage). */
