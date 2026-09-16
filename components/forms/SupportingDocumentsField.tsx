@@ -12,6 +12,7 @@ export type SupportingDocumentsFieldProps = {
   accept?: string;
   multiple?: boolean;
   disabled?: boolean;
+  required?: boolean;
 };
 
 function fileIdentity(file: File) {
@@ -31,10 +32,13 @@ export default function SupportingDocumentsField({
   accept,
   multiple = true,
   disabled = false,
+  required = false,
 }: SupportingDocumentsFieldProps) {
+  const displayLabel = required && !label.trim().endsWith('*') ? `${label} *` : label;
+
   return (
     <div>
-      <label className="mb-1.5 block font-medium">{label}</label>
+      <label className="mb-1.5 block font-medium">{displayLabel}</label>
 
       {existingSupportingDocs.length > 0 ? (
         <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -79,6 +83,7 @@ export default function SupportingDocumentsField({
             multiple={multiple}
             accept={accept}
             disabled={disabled}
+            aria-required={required || undefined}
             onChange={(event) => {
               const picked = Array.from(event.target.files || []);
               // Append to the current selection (skip files already picked)
