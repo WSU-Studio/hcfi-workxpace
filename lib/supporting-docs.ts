@@ -30,6 +30,22 @@ export function supportingDocsForPersistence(
 }
 
 /**
+ * At least one supporting document: existing stored URLs plus files not yet uploaded.
+ * Shared by Budget Request and Payment Request form validation and POST/PUT APIs.
+ */
+export function validateRequiredSupportingDocs(input: {
+  existingUrls?: unknown;
+  pendingFiles?: ArrayLike<unknown>;
+}): string | null {
+  const existingCount = normalizeSupportingDocs(input.existingUrls).length;
+  const pendingCount = input.pendingFiles?.length ?? 0;
+  if (existingCount + pendingCount < 1) {
+    return 'At least one supporting document is required.';
+  }
+  return null;
+}
+
+/**
  * Human-readable file name from a stored supporting-doc URL.
  * Upload keys look like `<scope>/supporting-docs/<timestamp>-<uuid>-<fileName>`;
  * the timestamp/uuid prefix is stripped so users see the original name.
