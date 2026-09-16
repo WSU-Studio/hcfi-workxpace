@@ -20,6 +20,7 @@ export interface BudgetRequestFieldRefs {
   subject: React.RefObject<HTMLDivElement | null>;
   description: React.RefObject<HTMLDivElement | null>;
   notes: React.RefObject<HTMLDivElement | null>;
+  supportingDocs: React.RefObject<HTMLDivElement | null>;
   months: React.RefObject<HTMLDivElement | null>;
   items: React.RefObject<HTMLDivElement | null>;
   approvalSchema: React.RefObject<HTMLDivElement | null>;
@@ -40,6 +41,7 @@ export function useBudgetRequestForm(initialValues?: Partial<BudgetRequestFormVa
   const subjectFieldRef = useRef<HTMLDivElement | null>(null);
   const descriptionFieldRef = useRef<HTMLDivElement | null>(null);
   const notesFieldRef = useRef<HTMLDivElement | null>(null);
+  const supportingDocsFieldRef = useRef<HTMLDivElement | null>(null);
   const monthsFieldRef = useRef<HTMLDivElement | null>(null);
   const itemsFieldRef = useRef<HTMLDivElement | null>(null);
   const approvalSchemaFieldRef = useRef<HTMLDivElement | null>(null);
@@ -51,6 +53,7 @@ export function useBudgetRequestForm(initialValues?: Partial<BudgetRequestFormVa
     subject: subjectFieldRef,
     description: descriptionFieldRef,
     notes: notesFieldRef,
+    supportingDocs: supportingDocsFieldRef,
     months: monthsFieldRef,
     items: itemsFieldRef,
     approvalSchema: approvalSchemaFieldRef,

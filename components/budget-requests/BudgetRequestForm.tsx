@@ -301,13 +301,16 @@ export default function BudgetRequestForm({
       </div>
 
       {onAttachmentFilesChange ? (
-        <SupportingDocumentsField
-          attachmentFiles={attachmentFiles}
-          onAttachmentFilesChange={onAttachmentFilesChange}
-          existingSupportingDocs={existingSupportingDocs}
-          onRemoveExistingSupportingDoc={onRemoveExistingSupportingDoc}
-          disabled={isSubmitting || isUploadingAttachments}
-        />
+        <div ref={fieldRefs.supportingDocs}>
+          <SupportingDocumentsField
+            attachmentFiles={attachmentFiles}
+            onAttachmentFilesChange={onAttachmentFilesChange}
+            existingSupportingDocs={existingSupportingDocs}
+            onRemoveExistingSupportingDoc={onRemoveExistingSupportingDoc}
+            disabled={isSubmitting || isUploadingAttachments}
+            required
+          />
+        </div>
       ) : null}
 
       <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 hidden">
