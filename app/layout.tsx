@@ -10,7 +10,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: 'Workxpace - eBudgeting',
+  title: 'E-Budgeting',
   description: 'eBudgeting System',
   icons: {
     icon: '/favicon.ico?v=2',
