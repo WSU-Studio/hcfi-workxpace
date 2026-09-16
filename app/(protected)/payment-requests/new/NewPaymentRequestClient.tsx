@@ -163,6 +163,8 @@ export default function NewPaymentRequestClient() {
       grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
       isBudgetRequestSelected,
+      existingSupportingDocs,
+      pendingSupportingFiles: attachmentFiles,
     });
     if (validationError) {
       setError(validationError);

@@ -1,6 +1,7 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 import { isRichTextEmpty } from '@/lib/utils';
+import { validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -293,6 +294,8 @@ export function validatePaymentRequestForm(input: {
   grandTotal?: number;
   schemasForDepartment: { id: string }[];
   isBudgetRequestSelected: boolean;
+  existingSupportingDocs?: unknown;
+  pendingSupportingFiles?: ArrayLike<unknown>;
 }): string | null {
   const {
     formData,
@@ -301,6 +304,8 @@ export function validatePaymentRequestForm(input: {
     grandTotal,
     schemasForDepartment,
     isBudgetRequestSelected,
+    existingSupportingDocs,
+    pendingSupportingFiles,
   } = input;
 
   if (!formData.subject.trim() || !formData.payeeName.trim()) {
@@ -323,6 +328,12 @@ export function validatePaymentRequestForm(input: {
     paymentPurpose: formData.paymentPurpose,
   });
   if (bankFieldsError) return bankFieldsError;
+
+  const supportingDocsError = validateRequiredSupportingDocs({
+    existingUrls: existingSupportingDocs,
+    pendingFiles: pendingSupportingFiles,
+  });
+  if (supportingDocsError) return supportingDocsError;
 
   if (!formData.departmentId) {
     return 'Select department.';

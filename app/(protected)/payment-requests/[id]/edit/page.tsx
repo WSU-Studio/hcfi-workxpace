@@ -225,6 +225,8 @@ export default function EditPaymentRequestPage() {
       grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
       isBudgetRequestSelected,
+      existingSupportingDocs,
+      pendingSupportingFiles: attachmentFiles,
     });
     if (validationError) {
       setError(validationError);
