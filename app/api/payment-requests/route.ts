@@ -22,7 +22,7 @@ import {
   type StoredRequestClassification,
 } from '@/lib/request-classification';
 import { parseDateInputToDate, requiredPaymentRequestWriteFieldsFromBody, validateRequiredPaymentBankFields, validateRequiredPaymentRequestWriteFields, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
-import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import { supportingDocsForPersistence, validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
   approvalLevelsOf,
   captureApprovalSchemaSnapshot,
@@ -262,6 +262,13 @@ export async function POST(req: Request) {
     });
     if (bankFieldsError) {
       return NextResponse.json({ error: bankFieldsError }, { status: 400 });
+    }
+
+    const supportingDocsError = validateRequiredSupportingDocs({
+      existingUrls: (body as { supportingDocs?: unknown }).supportingDocs,
+    });
+    if (supportingDocsError) {
+      return NextResponse.json({ error: supportingDocsError }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);

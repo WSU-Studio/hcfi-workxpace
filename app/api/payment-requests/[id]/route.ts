@@ -20,7 +20,7 @@ import {
 } from '@/lib/request-classification';
 import { parseDateInputToDate, requiredPaymentRequestWriteFieldsFromBody, validateRequiredPaymentBankFields, validateRequiredPaymentRequestWriteFields, validateRequiredVendorInvoiceFields } from '@/lib/payment-requests/form';
 import { assertFiscalYearWritable } from '@/lib/fiscal-year';
-import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import { supportingDocsForPersistence, validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
   approvalLevelsOf,
   snapshotForDocumentWrite,
@@ -219,6 +219,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     });
     if (bankFieldsError) {
       return NextResponse.json({ error: bankFieldsError }, { status: 400 });
+    }
+
+    const supportingDocsError = validateRequiredSupportingDocs({
+      existingUrls: (body as { supportingDocs?: unknown }).supportingDocs,
+    });
+    if (supportingDocsError) {
+      return NextResponse.json({ error: supportingDocsError }, { status: 400 });
     }
 
     const normalizedPayload = normalizePaymentRequestBody(body as Record<string, unknown>);
