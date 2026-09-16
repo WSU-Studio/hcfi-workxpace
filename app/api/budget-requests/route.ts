@@ -14,7 +14,7 @@ import { createBudgetRequestNotifications } from '@/lib/budget-request-notificat
 import { assertCanActOnDepartment, buildDepartmentScope } from '@/lib/access/cross-department';
 import { ALL_FISCAL_YEARS, assertFiscalYearWritable, parseFiscalYearParam } from '@/lib/fiscal-year';
 import { schemaAppliesToDepartment } from '@/lib/approval-schema';
-import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import { supportingDocsForPersistence, validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
   requiredBudgetRequestWriteFieldsFromBody,
   validateRequiredBudgetRequestWriteFields,
@@ -176,6 +176,12 @@ export async function POST(req: Request) {
     );
     if (writeFieldsError) {
       return NextResponse.json({ error: writeFieldsError.message }, { status: 400 });
+    }
+    const supportingDocsError = validateRequiredSupportingDocs({
+      existingUrls: body.supportingDocs,
+    });
+    if (supportingDocsError) {
+      return NextResponse.json({ error: supportingDocsError }, { status: 400 });
     }
     if (!approvalSchemaId || typeof approvalSchemaId !== 'string') {
       return NextResponse.json({ error: 'Approval schema is required' }, { status: 400 });

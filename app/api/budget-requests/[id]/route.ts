@@ -14,7 +14,7 @@ import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display'
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { sumPlanRealization } from '@/lib/budget-plan-realization';
 import { loadOrvCreditsForBudgetPlan } from '@/lib/budget-plan-orv-credits';
-import { supportingDocsForPersistence } from '@/lib/supporting-docs';
+import { supportingDocsForPersistence, validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
   validateRequiredBudgetRequestWriteFields,
 } from '@/lib/budget-requests/form';
@@ -285,6 +285,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     });
     if (writeFieldsError) {
       return NextResponse.json({ error: writeFieldsError.message }, { status: 400 });
+    }
+
+    const supportingDocsError = validateRequiredSupportingDocs({
+      existingUrls: body.supportingDocs,
+    });
+    if (supportingDocsError) {
+      return NextResponse.json({ error: supportingDocsError }, { status: 400 });
     }
 
     const selectedSchema = await prisma.approvalSchema.findUnique({
