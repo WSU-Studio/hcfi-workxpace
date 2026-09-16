@@ -1,6 +1,7 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
 import { isRichTextEmpty } from '@/lib/utils';
+import { validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
   getItemSubtotal,
   getItemTotal,
@@ -65,6 +66,7 @@ export type BudgetRequestValidationField =
   | 'subject'
   | 'description'
   | 'notes'
+  | 'supportingDocs'
   | 'months'
   | 'items'
   | 'approvalSchema';
@@ -207,7 +209,8 @@ export function applyPlanToFormValues(
 
 /**
  * Required write fields highlighted on Budget Request create/edit:
- * Department, Project, Description, Notes (Supporting Documents stay optional).
+ * Department, Project, Description, Notes. Supporting Documents are required
+ * separately via `validateRequiredSupportingDocs` (at least one file).
  */
 export function validateRequiredBudgetRequestWriteFields(
   formData: Pick<BudgetRequestFormValues, 'departmentId' | 'projectId' | 'description' | 'notes'>,
@@ -259,6 +262,8 @@ interface ValidateBudgetRequestFormInput {
   grandTotal?: number;
   schemasForDepartment: { id: string }[];
   requireBudgetPlan?: boolean;
+  existingSupportingDocs?: unknown;
+  pendingSupportingFiles?: ArrayLike<unknown>;
 }
 
 export function validateBudgetRequestForm({
@@ -269,6 +274,8 @@ export function validateBudgetRequestForm({
   grandTotal,
   schemasForDepartment,
   requireBudgetPlan = false,
+  existingSupportingDocs,
+  pendingSupportingFiles,
 }: ValidateBudgetRequestFormInput): BudgetRequestValidationError | null {
   if (requireBudgetPlan && !formData.budgetPlanId) {
     return { message: 'Select a budget plan before submitting', field: 'budgetPlan' };
@@ -280,6 +287,14 @@ export function validateBudgetRequestForm({
 
   const requiredFieldsError = validateRequiredBudgetRequestWriteFields(formData);
   if (requiredFieldsError) return requiredFieldsError;
+
+  const supportingDocsError = validateRequiredSupportingDocs({
+    existingUrls: existingSupportingDocs,
+    pendingFiles: pendingSupportingFiles,
+  });
+  if (supportingDocsError) {
+    return { message: supportingDocsError, field: 'supportingDocs' };
+  }
 
   if (!formData.approvalSchemaId) {
     return {

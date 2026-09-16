@@ -214,6 +214,8 @@ export default function EditBudgetRequestPage() {
       totalAmount: taxSummary.totalAmount,
       grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
+      existingSupportingDocs,
+      pendingSupportingFiles: attachmentFiles,
     });
 
     if (validationError) {

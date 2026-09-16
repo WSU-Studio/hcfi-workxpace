@@ -152,6 +152,8 @@ export default function NewBudgetRequestClient() {
       totalAmount: taxSummary.totalAmount,
       grandTotal: taxSummary.grandTotal,
       schemasForDepartment: schemasForDept,
+      existingSupportingDocs,
+      pendingSupportingFiles: attachmentFiles,
     });
 
     if (validationError) {
