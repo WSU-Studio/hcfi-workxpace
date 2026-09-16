@@ -322,6 +322,7 @@ export default function PaymentRequestForm({
           existingSupportingDocs={existingSupportingDocs}
           onRemoveExistingSupportingDoc={onRemoveExistingSupportingDoc}
           disabled={isSubmitting || isUploadingAttachments}
+          required
         />
       ) : null}
 
