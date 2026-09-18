@@ -207,6 +207,27 @@ export async function GET(request: Request) {
       }
     }
 
+    const allocationBudgetRequestIds = [...new Set(rows.map((r) => r.budgetRequestId).filter(Boolean))];
+    const allocationYear =
+      fy != null && fy !== '' && !Number.isNaN(parseInt(fy, 10)) ? parseInt(fy, 10) : null;
+    const allocationRows =
+      allocationBudgetRequestIds.length > 0
+        ? await prisma.budgetRequestAllocation.findMany({
+            where: {
+              budgetRequestId: { in: allocationBudgetRequestIds },
+              ...(allocationYear != null ? { year: allocationYear } : {}),
+            },
+            select: { budgetRequestId: true, month: true, allocation: true },
+          })
+        : [];
+    const budgetRequestAllocations = allocationRows
+      .map((row) => ({
+        budgetRequestId: row.budgetRequestId,
+        month: row.month,
+        amount: Number(row.allocation),
+      }))
+      .filter((row) => Number.isFinite(row.amount) && row.amount > 0);
+
     const serialized = rows.map((r) => {
       const brDepartmentId = brDepartmentByBudgetRequestId.get(r.budgetRequestId);
       return {
@@ -232,7 +253,13 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ rows: serialized, total, limit, offset });
+    return NextResponse.json({
+      rows: serialized,
+      total,
+      limit,
+      offset,
+      budgetRequestAllocations,
+    });
   } catch (e) {
     console.error('data mart staging:', e);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
