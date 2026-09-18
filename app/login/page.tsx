@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AlertCircle } from 'lucide-react';
 import Card from '@/components/ui/Card';
+import PasswordInput from '@/components/ui/PasswordInput';
 import Logo from '@/public/workxpace-logo.svg';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import MicrosoftSignInButton from '@/components/auth/MicrosoftSignInButton';
@@ -143,16 +144,16 @@ function LoginPageInner() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (errorMessage) setErrorMessage('');
                 }}
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 aria-invalid={Boolean(errorMessage)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="block h-auto border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>

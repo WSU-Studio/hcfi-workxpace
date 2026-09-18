@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
+import PasswordInput from '@/components/ui/PasswordInput';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import ButtonLink from '@/components/ui/ButtonLink';
@@ -155,13 +156,13 @@ export default function UserForm({ userId }: UserFormProps) {
               <label className="text-sm font-medium">
                 Password {!userId && <span className="text-red-500">*</span>}
               </label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={formData.password}
                 onChange={(e) => onChange('password', e.target.value)}
                 required={!userId}
                 minLength={!userId ? 6 : undefined}
                 placeholder={userId ? 'Leave empty to keep current password' : 'Min 6 characters'}
+                autoComplete="new-password"
               />
             </div>
             <div className="space-y-1.5">

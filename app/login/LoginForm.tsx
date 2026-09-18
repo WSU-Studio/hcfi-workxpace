@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import Image from 'next/image';
 import Card from '@/components/ui/Card';
+import PasswordInput from '@/components/ui/PasswordInput';
 import Logo from '@/public/workxpace-logo.svg';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 
@@ -67,12 +68,12 @@ export default function LoginForm({ showMicrosoftLogin }: LoginFormProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                autoComplete="current-password"
+                className="block h-auto border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>

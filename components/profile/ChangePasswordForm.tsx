@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import PasswordInput from '@/components/ui/PasswordInput';
 import {
   MIN_PASSWORD_LENGTH,
   validateChangePasswordInput,
@@ -78,10 +78,9 @@ export default function ChangePasswordForm() {
         <label htmlFor="currentPassword" className="mb-1.5 block font-medium">
           Current password <span className="text-red-500">*</span>
         </label>
-        <Input
+        <PasswordInput
           id="currentPassword"
           name="currentPassword"
-          type="password"
           autoComplete="current-password"
           value={form.currentPassword}
           onChange={(event) => setField('currentPassword', event.target.value)}
@@ -95,10 +94,9 @@ export default function ChangePasswordForm() {
         <label htmlFor="newPassword" className="mb-1.5 block font-medium">
           New password <span className="text-red-500">*</span>
         </label>
-        <Input
+        <PasswordInput
           id="newPassword"
           name="newPassword"
-          type="password"
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           value={form.newPassword}
@@ -114,10 +112,9 @@ export default function ChangePasswordForm() {
         <label htmlFor="confirmPassword" className="mb-1.5 block font-medium">
           Confirm new password <span className="text-red-500">*</span>
         </label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
           name="confirmPassword"
-          type="password"
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           value={form.confirmPassword}
