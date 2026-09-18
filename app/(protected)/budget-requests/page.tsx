@@ -23,6 +23,7 @@ import FiscalYearFilter from '@/components/forms/FiscalYearFilter';
 import EditWarningModal from '@/components/ui/EditWarningModal';
 import { getRequestStatusDisplay, requiresEditConfirmation } from '@/lib/budget-plan-approval-display';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
+import AllocationPeriodCell from '@/components/ui/AllocationPeriodCell';
 import {
   ALL_FISCAL_YEARS,
   type FiscalYearFilterValue,
@@ -43,6 +44,8 @@ interface BudgetRequest {
   budgetPlan: { code: string; subject: string };
   approvalSchemaId?: string;
   department: { name: string };
+  fiscalYear?: number;
+  allocationMonths?: number[];
   lineItems?: { total: unknown }[];
 }
 
@@ -198,12 +201,13 @@ export default function BudgetRequestsPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Budget Plan</TableHead>
+                <TableHead>Alokasi</TableHead>
                 <TableHead>Actions</TableHead>
               </TableHeaderRow>
             </thead>
             <tbody>
               {currentRequests.length === 0 ? (
-                <TableEmptyRow colSpan={10}>
+                <TableEmptyRow colSpan={11}>
                   No budget requests. <Link href="/budget-requests/new" className="text-blue-600 hover:underline">Create one</Link> from an approved budget plan.
                 </TableEmptyRow>
               ) : (
@@ -246,6 +250,12 @@ export default function BudgetRequestsPage() {
                   </TableCell>
                   <TableCell>{r.department?.name ?? '-'}</TableCell>
                   <TableCell>{r.budgetPlan?.code ?? '-'}</TableCell>
+                  <TableCell>
+                    <AllocationPeriodCell
+                      fiscalYear={r.fiscalYear}
+                      months={r.allocationMonths ?? []}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Link href={`/budget-requests/${r.id}`} className="text-blue-600 hover:underline">View</Link>
                     {r.canEdit ? (

@@ -23,6 +23,7 @@ import {
   approvalLevelsOf,
   captureApprovalSchemaSnapshot,
 } from '@/lib/approval-schema-snapshot';
+import { monthsWithPositiveAllocation } from '@/lib/allocation-period';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
       include: {
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
+        allocations: { select: { month: true, allocation: true } },
         approvalSchema: {
           include: {
             approvalLevels: {
@@ -89,9 +91,15 @@ export async function GET(request: Request) {
     }
 
     const requests = rows.map((row) => {
-      const { approvalSchema: _liveSchema, approvalSchemaSnapshot: _snapshot, ...r } = row;
+      const {
+        approvalSchema: _liveSchema,
+        approvalSchemaSnapshot: _snapshot,
+        allocations,
+        ...r
+      } = row;
       return {
       ...r,
+      allocationMonths: monthsWithPositiveAllocation(allocations),
       grandTotal: Number(r.grandTotal ?? 0),
       totalAmount: Number(r.totalAmount ?? 0),
       vatAmount: Number(r.vatAmount ?? 0),
