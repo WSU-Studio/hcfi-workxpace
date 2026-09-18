@@ -270,7 +270,7 @@ export function pivotDataMartRows(
       const leafMap = deptMap.get(deptKey)!;
       const deptSub = makeMetricsMutable();
 
-      const leaves: PivotLeafRow[] = Array.from(leafMap.values()).sort(
+      const leaves = Array.from(leafMap.values()).sort(
         (a, b) =>
           a.categoryKeyIndex.localeCompare(b.categoryKeyIndex) ||
           a.expenseCategory.localeCompare(b.expenseCategory) ||
