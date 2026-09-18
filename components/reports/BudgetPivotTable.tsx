@@ -2,7 +2,9 @@
 
 import { Fragment } from 'react';
 import { formatCurrency, formatSignedCurrency } from '@/lib/utils';
+import BudgetRequestCodeLink from '@/components/reports/BudgetRequestCodeLink';
 import {
+  PIVOT_HIERARCHY_COLUMN_COUNT,
   PIVOT_METRICS,
   PIVOT_METRIC_LABELS,
   type MetricMap,
@@ -26,7 +28,7 @@ const MONTH_LABELS = [
   'Dec',
 ] as const;
 
-const HIERARCHY_COLUMN_COUNT = 7; // origin, dept, cki, expense, glCode, glName, description
+const HIERARCHY_COLUMN_COUNT = PIVOT_HIERARCHY_COLUMN_COUNT;
 
 /** Sticky subtotal/total label width. Use `w-*` (not only `max-w-*`) — table
  *  column width follows min-/width of cells; `max-w` alone never expands them. */
@@ -148,7 +150,7 @@ export default function BudgetPivotTable({
   const cellsPerMetric = 13; // 12 months + FY
   const valueColumnCount = visibleMetrics.length * cellsPerMetric;
   const totalColumnCount = HIERARCHY_COLUMN_COUNT + valueColumnCount;
-  const minTableWidthPx = 900 + visibleMetrics.length * 950;
+  const minTableWidthPx = 1040 + visibleMetrics.length * 950;
 
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -199,6 +201,9 @@ export default function BudgetPivotTable({
             </th>
             <th className="min-w-[180px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900">
               GL Account Name
+            </th>
+            <th className="min-w-[140px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900">
+              BR No
             </th>
             <th className="min-w-[220px] border-b border-slate-200 px-3 py-2 font-semibold uppercase tracking-wide text-sky-900 border-r border-slate-200">
               Description
@@ -261,6 +266,12 @@ export default function BudgetPivotTable({
                         <td className="border-b border-slate-100 px-3 py-1.5">
                           {leaf.glAccountName}
                         </td>
+                        <td className="border-b border-slate-100 px-3 py-1.5 whitespace-nowrap">
+                          <BudgetRequestCodeLink
+                            code={leaf.budgetRequestCode}
+                            budgetRequestId={leaf.budgetRequestId}
+                          />
+                        </td>
                         <td className="border-b border-slate-100 px-3 py-1.5">
                           {leaf.description}
                         </td>
@@ -279,7 +290,7 @@ export default function BudgetPivotTable({
                           Subtotal — {dept.department}
                         </div>
                       </td>
-                      <td colSpan={6} className="border-y border-slate-200" />
+                      <td colSpan={HIERARCHY_COLUMN_COUNT - 1} className="border-y border-slate-200" />
                       <MetricCellsRow
                         metrics={dept.subtotals}
                         visibleMetrics={visibleMetrics}
@@ -297,7 +308,7 @@ export default function BudgetPivotTable({
                       Total — {origin.originOffice}
                     </div>
                   </td>
-                  <td colSpan={6} className="border-y-2 border-sky-200" />
+                  <td colSpan={HIERARCHY_COLUMN_COUNT - 1} className="border-y-2 border-sky-200" />
                   <MetricCellsRow
                     metrics={origin.subtotals}
                     visibleMetrics={visibleMetrics}
@@ -318,7 +329,7 @@ export default function BudgetPivotTable({
                   Grand Total
                 </div>
               </td>
-              <td colSpan={6} className="bg-slate-900" />
+              <td colSpan={HIERARCHY_COLUMN_COUNT - 1} className="bg-slate-900" />
               <MetricCellsRow
                 metrics={data.grandTotals}
                 visibleMetrics={visibleMetrics}

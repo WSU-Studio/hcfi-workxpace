@@ -1,4 +1,6 @@
 import {
+  PIVOT_HIERARCHY_COLUMN_COUNT,
+  PIVOT_HIERARCHY_HEADERS,
   PIVOT_METRICS,
   PIVOT_METRIC_LABELS,
   type MetricMap,
@@ -7,10 +9,11 @@ import {
 } from './budget-pivot';
 
 /**
- * Build a workbook that mirrors HCFI's "Opex Management" mockup: 7 hierarchy
- * columns on the left + 3 metric blocks (Actual / BR / BP) on the right,
- * each block = 12 monthly cells + FY total. Column section labels use merged
- * cells so the export visually matches the on-screen 3-section view.
+ * Build a workbook that mirrors HCFI's "Opex Management" mockup: hierarchy
+ * columns on the left (including BR No) + 3 metric blocks (Actual / BR / BP)
+ * on the right, each block = 12 monthly cells + FY total. Column section
+ * labels use merged cells so the export visually matches the on-screen
+ * 3-section view.
  *
  * Triggers a browser download with the supplied `fileName`. Lazy-imports
  * `xlsx` (SheetJS) so it's not part of the initial bundle.
@@ -35,17 +38,7 @@ const MONTH_LABELS = [
   'Dec',
 ] as const;
 
-const HIERARCHY_HEADERS = [
-  'Origin Office',
-  'Department',
-  'Category Key Index',
-  'Expense Category',
-  'GL Account',
-  'GL Account Name',
-  'Description',
-] as const;
-
-const HIERARCHY_COL_COUNT = HIERARCHY_HEADERS.length;
+const HIERARCHY_COL_COUNT = PIVOT_HIERARCHY_COLUMN_COUNT;
 const CELLS_PER_METRIC = 13; // 12 months + FY
 
 type Row = Array<string | number | null>;
@@ -106,7 +99,7 @@ export async function exportPivotToXlsx(
   aoa.push(sectionRow);
 
   // Row 5: column headers
-  const headerRow: Row = [...HIERARCHY_HEADERS];
+  const headerRow: Row = [...PIVOT_HIERARCHY_HEADERS];
   for (const metric of visibleMetrics) {
     headerRow.push(...metricBlockHeader(metric, yearSuffix));
   }
@@ -125,6 +118,7 @@ export async function exportPivotToXlsx(
           leaf.expenseCategory,
           leaf.glAccountCode,
           leaf.glAccountName,
+          leaf.budgetRequestCode,
           leaf.description,
         ];
         baseRow.push(...metricValuesRow(leaf.metrics, visibleMetrics));
@@ -134,6 +128,7 @@ export async function exportPivotToXlsx(
       }
       // Department subtotal row
       const deptSubRow: Row = [
+        '',
         '',
         '',
         '',
@@ -154,6 +149,7 @@ export async function exportPivotToXlsx(
       '',
       '',
       '',
+      '',
     ];
     originTotalRow.push(...metricValuesRow(origin.subtotals, visibleMetrics));
     aoa.push(originTotalRow);
@@ -161,7 +157,7 @@ export async function exportPivotToXlsx(
 
   // Grand total
   if (data.origins.length > 0) {
-    const grandRow: Row = ['Grand Total', '', '', '', '', '', ''];
+    const grandRow: Row = ['Grand Total', '', '', '', '', '', '', ''];
     grandRow.push(...metricValuesRow(data.grandTotals, visibleMetrics));
     aoa.push(grandRow);
   }
@@ -196,6 +192,7 @@ export async function exportPivotToXlsx(
     { wch: 18 }, // Expense Category
     { wch: 16 }, // GL Account
     { wch: 28 }, // GL Account Name
+    { wch: 18 }, // BR No
     { wch: 32 }, // Description
     ...Array.from({ length: visibleMetrics.length * CELLS_PER_METRIC }, () => ({ wch: 12 })),
   ];

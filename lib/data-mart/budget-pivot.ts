@@ -1,4 +1,5 @@
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
+import { spreadCopiedGrandTotalAcrossMonths } from '@/lib/allocation-period';
 
 /**
  * Pivot Data Mart staging rows into the shape used by the "Budget Pivot"
@@ -7,13 +8,17 @@ import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
  *
  * The report mockup HCFI sent puts THREE metric blocks side-by-side:
  *   • Actual         (← `paidAmount`)
- *   • Budget Request (← `expectedAmount`, the BR/GR approved amount)
+ *   • Budget Request (← `BudgetRequestAllocation` by month, once per BR;
+ *     staging `expectedAmount` is the full GR total on each payment row and
+ *     must not be summed into month columns)
  *   • Budget Plan    (← `planAmount`)
  * Each block is 12 monthly cells + an FY total.
  *
  * Hierarchy (rows): Origin Office › Department › leaf
- *   leaf identity = (Category Key Index, Expense Category, GL Account, GL
- *   Account Name, Description). Each leaf carries all three metric buckets;
+ *   leaf identity = (Budget Request, Category Key Index, Expense Category,
+ *   GL Account, GL Account Name, Description). BR is part of the key so two
+ *   requests that share a description are not merged into one row (finance
+ *   read those as duplicate BRs). Each leaf carries all three metric buckets;
  *   group nodes carry per-metric subtotals; a per-metric grand total is also
  *   returned. Storing all three metrics together lets a UI either show all
  *   side-by-side or render only one section without re-aggregating.
@@ -29,6 +34,20 @@ export const PIVOT_METRIC_LABELS: Record<PivotMetric, string> = {
   budgetRequest: 'Budget Request',
   budgetPlan: 'Budget Plan',
 };
+
+/** Left-side columns shared by the on-screen table and XLSX export. */
+export const PIVOT_HIERARCHY_HEADERS = [
+  'Origin Office',
+  'Department',
+  'Category Key Index',
+  'Expense Category',
+  'GL Account',
+  'GL Account Name',
+  'BR No',
+  'Description',
+] as const;
+
+export const PIVOT_HIERARCHY_COLUMN_COUNT = PIVOT_HIERARCHY_HEADERS.length;
 
 /** Maps a metric to the staging-row field it aggregates. */
 export const PIVOT_METRIC_TO_FIELD: Record<
@@ -48,12 +67,21 @@ export type MetricBucket = {
 export type MetricMap = Record<PivotMetric, MetricBucket>;
 
 export type PivotLeafRow = {
+  budgetRequestId: string;
+  budgetRequestCode: string;
   categoryKeyIndex: string;
   expenseCategory: string;
   glAccountCode: string;
   glAccountName: string;
   description: string;
   metrics: MetricMap;
+};
+
+/** Monthly BR allocation overlay for the Budget Request pivot section. */
+export type BudgetRequestMonthlyAllocation = {
+  budgetRequestId: string;
+  month: number;
+  amount: number;
 };
 
 export type PivotDepartmentGroup = {
@@ -116,22 +144,55 @@ function applyMonthly(
   target[metric].fy += amount;
 }
 
+/** Group allocations by BR, then split the copied grand total across months. */
+function groupAllocationsByBudgetRequest(
+  allocations: BudgetRequestMonthlyAllocation[],
+): Map<string, Map<number, number>> {
+  const byBr = new Map<string, Map<number, number>>();
+  for (const row of allocations) {
+    const id = row.budgetRequestId?.trim();
+    if (!id || row.month < 1 || row.month > 12) continue;
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount === 0) continue;
+    let months = byBr.get(id);
+    if (!months) {
+      months = new Map();
+      byBr.set(id, months);
+    }
+    months.set(row.month, (months.get(row.month) ?? 0) + amount);
+  }
+  const spread = new Map<string, Map<number, number>>();
+  for (const [id, monthly] of byBr) {
+    spread.set(id, spreadCopiedGrandTotalAcrossMonths(monthly));
+  }
+  return spread;
+}
+
 /**
  * Aggregate flat staging rows into the hierarchical pivot shape. Stable order:
  * origin offices alphabetical, departments alphabetical, leaves alphabetical
- * by (catKeyIndex, expenseCategory, glAccountCode, description). Predictable
- * ordering matches the manually-arranged Excel reports HCFI is used to.
+ * by (catKeyIndex, expenseCategory, glAccountCode, budgetRequestCode,
+ * description). Predictable ordering matches the manually-arranged Excel
+ * reports HCFI is used to.
  *
  * Leaves where ALL three metrics are zero are dropped — that mirrors Excel's
  * convention of suppressing fully-empty rows so the table stays compact.
  * Leaves with at least one non-zero metric are kept (the other zeros render
  * as "—").
+ *
+ * Budget Request month cells use `allocations` (once per BR, on the first
+ * leaf). BR stores the grand total on each selected month, so the overlay
+ * splits that total evenly across those months.
  */
-export function pivotDataMartRows(rows: DataMartStagingApiRow[]): PivotedReport {
+export function pivotDataMartRows(
+  rows: DataMartStagingApiRow[],
+  allocations: BudgetRequestMonthlyAllocation[] = [],
+): PivotedReport {
   type LeafMutable = Omit<PivotLeafRow, 'metrics'> & {
     metrics: ReturnType<typeof makeMetricsMutable>;
   };
   const originMap = new Map<string, Map<string, Map<string, LeafMutable>>>();
+  const expectedFallbackByBr = new Map<string, { month: number; amount: number }>();
 
   for (const row of rows) {
     const monthIdx = (row.month ?? 0) - 1;
@@ -149,7 +210,18 @@ export function pivotDataMartRows(rows: DataMartStagingApiRow[]): PivotedReport 
     const glCode = safeText(row.glAccountCode);
     const glName = safeText(row.glAccountName);
     const description = safeText(row.paymentDescription ?? row.budgetRequestSubject);
-    const leafKey = `${cki}|${expense}|${glCode}|${glName}|${description}`;
+    const budgetRequestId = (row.budgetRequestId ?? '').trim();
+    const budgetRequestCode = safeText(row.budgetRequestCode);
+    const leafKey = `${budgetRequestId}|${cki}|${expense}|${glCode}|${glName}|${description}`;
+
+    if (budgetRequestId && brAmt > 0) {
+      const existing = expectedFallbackByBr.get(budgetRequestId);
+      if (!existing) {
+        expectedFallbackByBr.set(budgetRequestId, { month: monthIdx + 1, amount: brAmt });
+      } else if (brAmt > existing.amount) {
+        existing.amount = brAmt;
+      }
+    }
 
     let deptMap = originMap.get(originKey);
     if (!deptMap) {
@@ -164,6 +236,8 @@ export function pivotDataMartRows(rows: DataMartStagingApiRow[]): PivotedReport 
     let leaf = leafMap.get(leafKey);
     if (!leaf) {
       leaf = {
+        budgetRequestId,
+        budgetRequestCode,
         categoryKeyIndex: cki,
         expenseCategory: expense,
         glAccountCode: glCode,
@@ -175,9 +249,11 @@ export function pivotDataMartRows(rows: DataMartStagingApiRow[]): PivotedReport 
     }
 
     applyMonthly(leaf.metrics, 'actual', monthIdx, actualAmt);
-    applyMonthly(leaf.metrics, 'budgetRequest', monthIdx, brAmt);
     applyMonthly(leaf.metrics, 'budgetPlan', monthIdx, bpAmt);
   }
+
+  const allocationsByBr = groupAllocationsByBudgetRequest(allocations);
+  const brAmountAssigned = new Set<string>();
 
   const grandTotals = makeMetricsMutable();
   let leafCount = 0;
@@ -199,10 +275,27 @@ export function pivotDataMartRows(rows: DataMartStagingApiRow[]): PivotedReport 
           a.categoryKeyIndex.localeCompare(b.categoryKeyIndex) ||
           a.expenseCategory.localeCompare(b.expenseCategory) ||
           a.glAccountCode.localeCompare(b.glAccountCode) ||
+          a.budgetRequestCode.localeCompare(b.budgetRequestCode) ||
           a.description.localeCompare(b.description),
       );
 
       for (const leaf of leaves) {
+        const brId = leaf.budgetRequestId;
+        if (brId && !brAmountAssigned.has(brId)) {
+          brAmountAssigned.add(brId);
+          const monthly = allocationsByBr.get(brId);
+          if (monthly && monthly.size > 0) {
+            for (const [month, amount] of monthly) {
+              applyMonthly(leaf.metrics, 'budgetRequest', month - 1, amount);
+            }
+          } else {
+            const fallback = expectedFallbackByBr.get(brId);
+            if (fallback) {
+              applyMonthly(leaf.metrics, 'budgetRequest', fallback.month - 1, fallback.amount);
+            }
+          }
+        }
+
         addBucket(deptSub.actual, leaf.metrics.actual);
         addBucket(deptSub.budgetRequest, leaf.metrics.budgetRequest);
         addBucket(deptSub.budgetPlan, leaf.metrics.budgetPlan);

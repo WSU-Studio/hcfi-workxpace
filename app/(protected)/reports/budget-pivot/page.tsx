@@ -12,6 +12,7 @@ import {
   pivotDataMartRows,
   emptyPivotedReport,
   PIVOT_METRIC_LABELS,
+  type BudgetRequestMonthlyAllocation,
   type PivotMetric,
 } from '@/lib/data-mart/budget-pivot';
 import { exportPivotToXlsx } from '@/lib/data-mart/budget-pivot-export';
@@ -62,6 +63,9 @@ export default function BudgetPivotReportPage() {
   const [projects, setProjects] = useState<MasterProject[]>([]);
 
   const [rows, setRows] = useState<DataMartStagingApiRow[]>([]);
+  const [budgetRequestAllocations, setBudgetRequestAllocations] = useState<
+    BudgetRequestMonthlyAllocation[]
+  >([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +124,7 @@ export default function BudgetPivotReportPage() {
       try {
         const url = new URL('/api/reports/data-mart', window.location.origin);
         url.searchParams.set('fiscalYear', q.fiscalYear);
+        url.searchParams.set('limit', '500');
         if (q.month) url.searchParams.set('month', q.month);
         if (q.departmentId) url.searchParams.set('departmentId', q.departmentId);
         if (q.originOfficeId) url.searchParams.set('originOfficeId', q.originOfficeId);
@@ -131,10 +136,12 @@ export default function BudgetPivotReportPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to load');
         setRows(data.rows ?? []);
+        setBudgetRequestAllocations(data.budgetRequestAllocations ?? []);
         setTotal(typeof data.total === 'number' ? data.total : 0);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed');
         setRows([]);
+        setBudgetRequestAllocations([]);
         setTotal(0);
       } finally {
         setLoading(false);
@@ -212,8 +219,8 @@ export default function BudgetPivotReportPage() {
 
   const pivot = useMemo(() => {
     if (rows.length === 0) return emptyPivotedReport();
-    return pivotDataMartRows(rows);
-  }, [rows]);
+    return pivotDataMartRows(rows, budgetRequestAllocations);
+  }, [rows, budgetRequestAllocations]);
 
   const subtitle = useMemo(() => {
     const fyNum = Number(fiscalYear);
