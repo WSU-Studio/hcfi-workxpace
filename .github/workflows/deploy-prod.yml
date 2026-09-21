@@ -36,6 +36,8 @@ jobs:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           ADINSKEY: ${{ secrets.ADINSKEY }}
           CONFINS_BASE_URL: ${{ secrets.CONFINS_BASE_URL }}
+          CONFINS_USERNAME: ${{ secrets.CONFINS_USERNAME }}
+          CONFINS_PASSWORD: ${{ secrets.CONFINS_PASSWORD }}
           CONFINS_USE_MOCK: ${{ secrets.CONFINS_USE_MOCK }}
           CONFINS_MOCK_FALLBACK: ${{ secrets.CONFINS_MOCK_FALLBACK }}
           CONFINS_INCOMING_REF_FIELD: ${{ secrets.CONFINS_INCOMING_REF_FIELD }}
@@ -73,6 +75,8 @@ jobs:
             '',
             `ADINSKEY=${q(e.ADINSKEY)}`,
             `CONFINS_BASE_URL=${q(e.CONFINS_BASE_URL)}`,
+            `CONFINS_USERNAME=${q(e.CONFINS_USERNAME)}`,
+            `CONFINS_PASSWORD=${q(e.CONFINS_PASSWORD)}`,
             `CONFINS_USE_MOCK=${q(e.CONFINS_USE_MOCK)}`,
             `CONFINS_MOCK_FALLBACK=${q(e.CONFINS_MOCK_FALLBACK)}`,
             `CONFINS_INCOMING_REF_FIELD=${q(e.CONFINS_INCOMING_REF_FIELD)}`,

@@ -5,7 +5,7 @@ export const CONFINS_BUDGET_REAL_PATH =
   process.env.CONFINS_BUDGET_REAL_PATH ||
   '/v1/IntegrationEBudgetingX/GetListGetListBudgetRealBySourceTypeX';
 
-/** Baris `ReturnObject` dari GetListGetListBudgetRealBySourceTypeX (API CONFINS E-Budgeting 1.03). */
+/** Baris `ReturnObject` dari GetListGetListBudgetRealBySourceTypeX (API CONFINS E-Budgeting 1.04). */
 export type ConfinsBudgetRealApiRow = Record<string, unknown> & {
   DataInterfaceSource?: string;
   InterfaceID?: string;

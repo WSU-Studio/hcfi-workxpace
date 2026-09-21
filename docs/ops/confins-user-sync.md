@@ -67,7 +67,9 @@ Both paths call the same `runConfinsEmployeeSync()` logic.
 | `CRON_SECRET` | Production `.env` + GitHub Secrets | Shared bearer token for cron endpoints |
 | `PORT` | GitHub Secrets (Option A only) | PM2 port for localhost curl on self-hosted runner |
 | `CONFINS_BASE_URL` | Production `.env` | Confins API base URL |
-| `ADINSKEY` | Production `.env` | Confins auth header |
+| `CONFINS_USERNAME` | Production `.env` | Service account for `POST /v4/Authenticate/Login` (API 1.04) |
+| `CONFINS_PASSWORD` | Production `.env` | Login password; session `AccessToken` is sent as `AdInsKey` |
+| `ADINSKEY` | Production `.env` | Optional: sent on login (gateway/legacy). Fallback if login creds are unset |
 
 `NEXTAUTH_URL` is **not** used by the sync workflow. The job runs on the
 **self-hosted runner** and calls `http://127.0.0.1:{PORT}/...` locally.
@@ -166,8 +168,9 @@ Running Option A and B together causes **double sync** (2x Confins API load, red
 | `503 CRON_SECRET is not configured` | Missing env on server | Add to `.env`, restart PM2 |
 | `matchedInConfins: 0` | Email mismatch | Confins `Username` must match Workxpace `email` exactly |
 | Confins API error / cron fails at night | Confins often only up ~08:00–17:00 WIB | Sync schedule is **09:00 WIB**; avoid midnight jobs |
-| Confins API error | `CONFINS_BASE_URL` / `ADINSKEY` | Check Confins connectivity from server |
-| `Invalid JSON from Confins (... body=...)` | Confins/gateway returned HTML or non-JSON (wrong URL, auth, WAF, downtime) | Check `body=` preview in the error; verify `CONFINS_BASE_URL` + `ADINSKEY` on the server; `curl` the employee path from the PM2 host |
+| Confins API error | `CONFINS_BASE_URL` / login creds / `ADINSKEY` | Check Confins connectivity from server |
+| `Invalid user credentials` | `CONFINS_USERNAME` / `CONFINS_PASSWORD` | Confirm the Confins service account from the 1.04 Postman collection |
+| `Invalid JSON from Confins (... body=...)` | Confins/gateway returned HTML or non-JSON (wrong URL, auth, WAF, downtime) | Check `body=` preview in the error; verify `CONFINS_BASE_URL` + login creds on the server; `curl` the employee path from the PM2 host |
 | `ReturnObject is not an array` | Confins returned an error envelope without employee rows | Read `StatusCode` / `Message` in the error; confirm AdInsKey and path |
 | `errors[].reason: EmpNo already assigned` | Duplicate EmpNo in Confins | Resolve in Confins or manually in User Management |
 

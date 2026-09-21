@@ -29,7 +29,7 @@ Authentication: **credentials** (email/password) and optional **Azure AD SSO**.
 - **Auth:** NextAuth.js v4 (Prisma adapter)
 - **Database:** PostgreSQL + Prisma ORM
 - **Storage:** AWS S3 (supporting documents)
-- **Integration:** Confins E-Budgeting API WSU **1.03**
+- **Integration:** Confins E-Budgeting API WSU **1.04** (login session + v1 data APIs)
 - **Process manager (prod):** PM2 on self-hosted runner
 
 ---
@@ -79,9 +79,13 @@ AWS_SECRET_ACCESS_KEY=""
 AWS_REGION=""
 AWS_S3_BUCKET=""
 
-# Confins E-Budgeting 1.03
+# Confins E-Budgeting 1.04 (login + session token)
 CONFINS_BASE_URL=""
+CONFINS_USERNAME=""
+CONFINS_PASSWORD=""
+# Optional gateway/legacy header sent on login. Data APIs use AccessToken as AdInsKey.
 ADINSKEY=""
+# CONFINS_LOGIN_PATH="/v4/Authenticate/Login"
 CONFINS_USE_MOCK=true
 CONFINS_MOCK_FALLBACK=true
 # CONFINS_INCOMING_REF_FIELD="Description"
@@ -158,9 +162,11 @@ Additional requestor/reviewer/approver accounts are created by seed for multi-st
 
 ### API
 
-- Endpoint: `GetListGetListBudgetRealBySourceTypeX` (E-Budgeting **1.03**)
+- Auth: `POST /v4/Authenticate/Login` (WSU **1.04**) — eBudget caches `AccessToken` and sends it as `AdInsKey`. Token expires (~29 minutes in QA); client re-logins on expiry or 401.
+- Credentials: `CONFINS_USERNAME` + `CONFINS_PASSWORD`. Optional `ADINSKEY` is still sent on the login request (gateway/legacy). Live calls without login creds fall back to static `ADINSKEY`.
+- Data: `GetListGetListBudgetRealBySourceTypeX` and master endpoints are unchanged (`/v1/IntegrationEBudgetingX/...`)
 - Default request `sourceType` untuk rekonsiliasi: **`CONFINS` + `EGL`** (Payment Request ada di CONFINS; override satu source via `?sourceType=EGL` atau env `CONFINS_RECONCILIATION_SOURCE_TYPES`)
-- Mock mode: toggle **Activate Mock API** in Application Settings, or set `CONFINS_USE_MOCK=true`
+- Mock mode: toggle **Activate Mock API** in Application Settings, or set `CONFINS_USE_MOCK=true` — login is skipped
 
 ### Reconciliation rules (current)
 
@@ -198,8 +204,9 @@ app/
   api/                  # REST routes + NextAuth
 components/             # UI, forms, reconciliation, reports
 lib/
-  integrations/confins/ # Confins 1.03 client, budget-real mapping, reconciliation fetch
-  reconciliation/     # Incoming BR ref parsing from Description
+  integrations/confins/ # Confins budget-real mapping, reconciliation fetch
+  confins/              # HTTP client + 1.04 login session (AdInsKey)
+  reconciliation/       # Incoming BR ref parsing from Description
   data-mart/            # Staging & export helpers
 prisma/                 # Schema, migrations, seed
 types/                  # Shared TypeScript types (access control, reconciliation, …)

@@ -5,6 +5,7 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 
 ## Architecture
 - **Session:** `lib/auth/session-user.ts` builds JWT claims. `ADMIN` role starts from `fullMenuAccess` / `fullActivityAccess`; other roles start from defaults. Stored `UserAccess` JSON overrides the baseline.
+- **Confins API (WSU 1.04):** `lib/confins/auth.ts` logs in via `POST /v4/Authenticate/Login` (`CONFINS_USERNAME` / `CONFINS_PASSWORD`), caches `AccessToken` in-process, and `lib/confins/client.ts` sends it as `AdInsKey`. Token TTL follows `ExpiresIn` (~29 min in QA) with a 60s refresh buffer; 401 retries once after re-login. Static `ADINSKEY` is optional on the login request and is the fallback when login creds are unset. Mock mode skips login. Data paths stay `/v1/IntegrationEBudgetingX/...`.
 - **Department RLS (documents):** `lib/access/cross-department.ts` — `viewOtherDepartmentDocuments` / `createForOtherDepartment`.
 - **Department RLS (dashboard):** `lib/access/dashboard.ts` — `viewAllDashboardDepartments`. Independent from document RLS.
 - **Dashboard personas:** `activityAccess.dashboardView` = `department` | `director` | `fpa`. Assigned per user on Access Control. Runtime view is locked (no switcher).
@@ -30,9 +31,12 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 - `components/reports/BudgetPivotTable.tsx` — Budget Pivot presentation. Hierarchy includes **BR No** (link via `BudgetRequestCodeLink`) immediately before Description. Aggregation in `lib/data-mart/budget-pivot.ts`; XLSX in `lib/data-mart/budget-pivot-export.ts`.
 - `components/reports/BudgetRequestCodeLink.tsx` — BR document code as a `/budget-requests/[id]` link, or plain text when there is no id.
 - `components/ui/PasswordInput.tsx` — Password field with a right-side Eye / EyeOff toggle (same overlay pattern as SearchInput). Used on login, profile change-password, and user management.
-- `lib/allocation-period.ts` — `monthsWithPositiveAllocation` / `formatAllocatedMonthLabels` / `formatFiscalYearLabel` for BR list summaries; `spreadCopiedGrandTotalAcrossMonths` evenly splits a copied BR grand total across selected months for the Budget Pivot.
+- `lib/confins/http.ts` — Shared Confins POST transport (`fetchConfinsJson`, timeout, BOM strip).
+- `lib/confins/auth.ts` — Confins 1.04 login session: `getConfinsAdInsKey` / `invalidateConfinsSession`.
+- `lib/confins/client.ts` — Data API client (`ReturnObject[]`); uses access-token AdInsKey from auth.ts.
 
 ## Patterns
+- **Confins 1.04 session:** Live Confins calls authenticate first (`/v4/Authenticate/Login`, `IsRememberMe: true`). `AccessToken` is the `AdInsKey` for master sync, employee sync, and budget-real. Cache is process-local (PM2). Re-login when TTL remains < 60s or Confins returns HTTP/StatusCode 401. Deploy needs GitHub secrets `CONFINS_USERNAME` and `CONFINS_PASSWORD`. Do not log tokens or passwords.
 - **BP document codes:** `{DEPT}{YYYY}{MM}{seq}` e.g. `IT202608001`. Shared helper `lib/budget-plans/code.ts` — form create (`POST /api/budget-plans`) and bulk import (`/api/budget-plans/bulk-import`) must use the same allocator. Sequence is the highest existing suffix + 1 (not a row COUNT — gaps from deleted drafts make COUNT reuse a live code and Prisma P2002 on `code`). Do **not** mint `BP-00001` from trailing digits of the latest row. Bulk-imported rows are flagged with `importedViaBulk`, not a separate code prefix. Unique collisions retry up to 3 times; API errors must not dump `Invalid prisma.budgetPlan.create()`.
 - **BP bulk-import template:** Columns are `lib/budget-plans/bulk-import-columns.ts`. Sample row must use master **codes** (Origin Office `99` = HEAD OFFICE, schema e.g. `BP-PRIMARY` or production `BP-TESTING-ALLDEPT`), not dummy `SG` / `A1`. Download Template hits the live-data API so the sample matches this environment. Sheet "Instructions" documents the rules; parser prefers sheet named "Budget Plans".
 - **Approval schema delete:** `DELETE /api/workspace-management/approval-schema/[id]` refuses with 409 if any open BP/BR/PR still references the schema (and also if closed documents still hold the FK). Do not delete `approval_levels` first — they cascade from the schema; deleting them first then failing the schema delete leaves documents without approval info.

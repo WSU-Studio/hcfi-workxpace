@@ -1,8 +1,20 @@
+import { getConfinsAdInsKey, invalidateConfinsSession, isConfinsAuthFailure } from './auth';
+import {
+  CONFINS_DEFAULT_TIMEOUT_MS,
+  fetchConfinsJson,
+  previewConfinsBody,
+  resolveConfinsBaseUrl,
+} from './http';
+
 type ConfinsEnvelope<T> = {
   ReturnObject?: T;
   StatusCode?: string;
   Message?: string;
   ErrorMessages?: unknown;
+  HeaderObj?: {
+    StatusCode?: string;
+    Message?: string;
+  };
 };
 
 type ConfinsRequestOptions = {
@@ -23,12 +35,7 @@ type ConfinsRequestOptions = {
   allowMockFallback?: boolean;
 };
 
-const DEFAULT_TIMEOUT_MS = 30_000;
 const LOCAL_DEV = process.env.NODE_ENV !== 'production';
-const BODY_PREVIEW_CHARS = 240;
-
-const resolveConfinsBaseUrl = (): string =>
-  process.env.CONFINS_BASE_URL || process.env.CREDIT_SIMULATION_API_URL || '';
 
 const isMockEnabledFromEnv = (): boolean =>
   process.env.CONFINS_USE_MOCK === 'true' || (LOCAL_DEV && process.env.CONFINS_USE_MOCK !== 'false');
@@ -36,29 +43,9 @@ const isMockEnabledFromEnv = (): boolean =>
 const isMockFallbackEnabled = (): boolean =>
   process.env.CONFINS_MOCK_FALLBACK !== 'false';
 
-function previewBody(text: string): string {
-  const compact = text.replace(/\s+/g, ' ').trim();
-  if (!compact) return '(empty)';
-  return compact.length > BODY_PREVIEW_CHARS
-    ? `${compact.slice(0, BODY_PREVIEW_CHARS)}…`
-    : compact;
-}
-
-function stripBom(text: string): string {
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-}
-
 export class ConfinsClient {
-  private readonly baseUrl: string;
-  private readonly adInsKey: string | null;
-
-  constructor() {
-    this.baseUrl = resolveConfinsBaseUrl();
-    this.adInsKey = process.env.ADINSKEY || null;
-  }
-
   async post<T>(options: ConfinsRequestOptions): Promise<T[]> {
-    const { liveOnly = false, timeoutMs = DEFAULT_TIMEOUT_MS, allowMockFallback = true } = options;
+    const { liveOnly = false, timeoutMs = CONFINS_DEFAULT_TIMEOUT_MS, allowMockFallback = true } = options;
 
     if (!liveOnly) {
       const mockEnabled = await this.isMockEnabled();
@@ -68,48 +55,52 @@ export class ConfinsClient {
       }
     }
 
-    if (!this.baseUrl) {
+    if (!resolveConfinsBaseUrl()) {
       throw new Error('Missing required env: CONFINS_BASE_URL (or activate mock API in Application Settings)');
     }
 
-    if (!this.adInsKey) {
-      throw new Error('Missing required env: ADINSKEY');
-    }
-
-    const url = `${this.baseUrl}${options.path}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          AdInsKey: this.adInsKey,
-        },
-        body: JSON.stringify(options.body),
-        signal: controller.signal,
+      let credential = await getConfinsAdInsKey();
+      let fetched = await fetchConfinsJson({
+        path: options.path,
+        body: options.body,
+        headers: { AdInsKey: credential.key },
+        timeoutMs,
       });
 
-      const rawText = await response.text();
-      const text = stripBom(rawText).trim();
-      const contentType = response.headers.get('content-type') ?? '';
-
-      let data: ConfinsEnvelope<T[]> = {};
-      if (text) {
-        try {
-          data = JSON.parse(text) as ConfinsEnvelope<T[]>;
-        } catch {
-          throw new Error(
-            `Invalid JSON from Confins (${response.status} ${contentType || 'no-content-type'}) ` +
-              `path=${options.path} body=${previewBody(text)}`,
-          );
-        }
+      if (isConfinsAuthFailure(fetched.status, fetched.json) && credential.fromSession) {
+        console.warn('[Confins] session rejected, re-authenticating', { path: options.path });
+        invalidateConfinsSession();
+        credential = await getConfinsAdInsKey();
+        fetched = await fetchConfinsJson({
+          path: options.path,
+          body: options.body,
+          headers: { AdInsKey: credential.key },
+          timeoutMs,
+        });
       }
 
-      if (!response.ok) {
+      const data = (fetched.json ?? {}) as ConfinsEnvelope<T[]>;
+
+      if (isConfinsAuthFailure(fetched.status, fetched.json)) {
+        throw new Error(
+          data.Message ||
+            data.HeaderObj?.Message ||
+            `Confins request failed with status ${fetched.status} path=${options.path}`,
+        );
+      }
+
+      if (fetched.parseError) {
+        throw new Error(
+          `Invalid JSON from Confins (${fetched.status} ${fetched.contentType || 'no-content-type'}) ` +
+            `path=${options.path} body=${previewConfinsBody(fetched.text)}`,
+        );
+      }
+
+      if (!fetched.ok) {
         const message =
           data?.Message ||
-          `Confins request failed with status ${response.status} path=${options.path} body=${previewBody(text)}`;
+          `Confins request failed with status ${fetched.status} path=${options.path} body=${previewConfinsBody(fetched.text)}`;
         throw new Error(message);
       }
 
@@ -119,17 +110,22 @@ export class ConfinsClient {
         throw new Error(
           `Invalid Confins response: ReturnObject is not an array` +
             ` path=${options.path}${statusHint}${messageHint}` +
-            (text ? ` body=${previewBody(text)}` : ''),
+            (fetched.text ? ` body=${previewConfinsBody(fetched.text)}` : ''),
         );
       }
 
       return data.ReturnObject;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Confins request timed out after ${timeoutMs}ms path=${options.path}`);
-      }
-      // Keep payload/parse failures visible — do not hide them behind mock data.
       if (error instanceof Error && error.message.startsWith('Invalid JSON from Confins')) {
+        throw error;
+      }
+      if (
+        error instanceof Error &&
+        (error.message.startsWith('Missing required env') ||
+          error.message.startsWith('Missing Confins auth') ||
+          error.message.startsWith('Confins login failed') ||
+          /invalid user credentials/i.test(error.message))
+      ) {
         throw error;
       }
       if (!liveOnly && allowMockFallback && isMockFallbackEnabled()) {
@@ -137,8 +133,6 @@ export class ConfinsClient {
         return (await getConfinsMockData(options.path)) as T[];
       }
       throw error;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 
