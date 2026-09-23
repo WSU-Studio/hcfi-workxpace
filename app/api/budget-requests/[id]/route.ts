@@ -88,8 +88,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     // reviewers need on this page to decide whether the plan still has room
     // for the current request. We deliberately exclude the current BR (`id`)
     // so the projection "outstanding if this BR is approved" can be derived
-    // cleanly on the client as `outstanding - this.grandTotal`, regardless
-    // of whether this BR is itself already Approved.
+    // cleanly on the client as `outstanding - periodAllocation`
+    // (grandTotal × selected months), regardless of whether this BR is itself
+    // already Approved. Sibling realization also sums BR allocations so
+    // multi-month BRs count as period totals.
     const siblingApprovedRequests = br.budgetPlanId
       ? await prisma.budgetRequest.findMany({
           where: {
@@ -97,7 +99,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             status: 'Approved',
             NOT: { id: br.id },
           },
-          select: { requestDate: true, grandTotal: true, status: true },
+          select: {
+            requestDate: true,
+            grandTotal: true,
+            status: true,
+            allocations: { select: { month: true, allocation: true } },
+          },
         })
       : [];
 

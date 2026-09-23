@@ -28,26 +28,17 @@ export function formatFiscalYearLabel(fiscalYear: number | null | undefined): st
   return `FY ${fiscalYear}`;
 }
 
-/**
- * BR persists the grand total on every selected month (`normalizeBudgetRequestBody`).
- * Spread that total evenly across those months so a pivot FY total equals the BR
- * total instead of total × month count. Remainder (rupiah) goes on the last month.
- */
-export function spreadCopiedGrandTotalAcrossMonths(
-  monthly: Map<number, number>,
-): Map<number, number> {
-  const months = Array.from(monthly.keys()).sort((a, b) => a - b);
-  if (months.length <= 1) return monthly;
-
-  const totalRupiah = Math.round(Math.max(...months.map((month) => monthly.get(month) ?? 0)));
-  if (totalRupiah <= 0) return monthly;
-
-  const count = months.length;
-  const base = Math.floor(totalRupiah / count);
-  const remainder = totalRupiah - base * count;
-  const spread = new Map<number, number>();
-  months.forEach((month, index) => {
-    spread.set(month, base + (index === count - 1 ? remainder : 0));
-  });
-  return spread;
+/** Sum of positive monthly allocation amounts (period budget impact). */
+export function sumPositiveAllocations(
+  allocations: Array<{ allocation?: unknown }> | null | undefined,
+): number {
+  if (!allocations?.length) return 0;
+  let sum = 0;
+  for (const row of allocations) {
+    const amount = Number(row.allocation ?? 0);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    sum += amount;
+  }
+  return sum;
 }
+

@@ -360,6 +360,7 @@ export default function BudgetRequestForm({
           onChange={onLineItemsChange}
           taxConfig={taxConfig}
           onTaxChange={onTaxConfigChange}
+          monthCount={selectedMonths.length}
           summary={{
             transactionAmount: taxSummary.totalAmount,
             vatAmount: taxSummary.vatAmount,

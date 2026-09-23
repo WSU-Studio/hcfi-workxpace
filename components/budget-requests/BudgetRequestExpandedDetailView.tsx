@@ -20,6 +20,7 @@ export type BudgetRequestExpandedDetailProps = {
     invoiceAmount: number;
     grandTotal: number;
   };
+  monthCount?: number;
   orderedLevels: { stepOrder: number; levelType: string; role: { roleName: string } | null }[];
   stepProgresses: ApprovalStepProgress[];
 };
@@ -30,6 +31,7 @@ export default function BudgetRequestExpandedDetailView({
   accountLabel,
   opexType,
   totals,
+  monthCount = 0,
   orderedLevels,
   stepProgresses,
 }: BudgetRequestExpandedDetailProps) {
@@ -46,7 +48,11 @@ export default function BudgetRequestExpandedDetailView({
 
       {data.lineItems.length > 0 ? (
         <Card>
-          <BudgetRequestLineItemsSection lineItems={data.lineItems} totals={totals} />
+          <BudgetRequestLineItemsSection
+            lineItems={data.lineItems}
+            totals={totals}
+            monthCount={monthCount}
+          />
         </Card>
       ) : null}
 

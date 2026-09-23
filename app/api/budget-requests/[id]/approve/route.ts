@@ -28,6 +28,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         budgetPlan: { select: { code: true, subject: true } },
         department: { select: { name: true } },
         lineItems: { select: { item: true, qty: true, unitPrice: true, deduction: true, total: true } },
+        allocations: { select: { year: true, month: true, allocation: true } },
         approvalSchema: {
           include: {
             approvalLevels: {
@@ -186,10 +187,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const vatAmount = Math.round(totalAmount * (vatPercent / 100));
       const whtAmount = Math.round(totalAmount * (whtPercent / 100));
       const invoiceAmount = totalAmount + vatAmount;
-      const grandTotal = invoiceAmount - whtAmount;
+      const transactionGrandTotal = invoiceAmount - whtAmount;
+      const transactionCents = Math.round(transactionGrandTotal * 100);
+      const allocationMonths = before.allocations.length
+        ? before.allocations.map((row) => ({ year: row.year, month: row.month }))
+        : [{ year: before.fiscalYear, month: new Date(before.requestDate).getMonth() + 1 }];
+      const monthCount = Math.max(1, allocationMonths.length);
+      const periodGrandTotal = (transactionCents * monthCount) / 100;
 
       await prisma.$transaction(async (tx) => {
         await tx.budgetRequestLineItem.deleteMany({ where: { budgetRequestId: id } });
+        await tx.budgetRequestAllocation.deleteMany({ where: { budgetRequestId: id } });
         await tx.budgetRequest.update({
           where: { id },
           data: {
@@ -197,9 +205,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             vatAmount,
             whtAmount,
             invoiceAmount,
-            grandTotal,
+            grandTotal: periodGrandTotal,
             lineItems: {
               create: normalizedLineItems,
+            },
+            allocations: {
+              create: allocationMonths.map((row) => ({
+                year: row.year,
+                month: row.month,
+                allocation: transactionCents / 100,
+              })),
             },
           },
         });

@@ -60,6 +60,7 @@ type BudgetRequestDetailApi = {
     deduction?: number;
     total: number;
   }[];
+  allocations?: { year: number; month: number; allocation: number }[];
   accountOptions?: { id: string; accountCode: string; accountName: string }[];
   originOffices?: { code: string; name: string; isActive: boolean }[];
   approvalSchema?: {
@@ -99,7 +100,10 @@ export default function BudgetRequestExpandedDetailPage() {
   const vatAmount = Number(data.vatAmount ?? 0);
   const whtAmount = Number(data.whtAmount ?? 0);
   const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
-  const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
+  const transactionGrandTotal = invoiceAmount - whtAmount;
+  const monthCount = Array.from(
+    new Set((data.allocations ?? []).map((a) => a.month).filter((m) => m >= 1 && m <= 12)),
+  ).length;
 
   const accountLabel = (() => {
     const coaId = data.budgetPlan?.coaId;
@@ -129,12 +133,13 @@ export default function BudgetRequestExpandedDetailPage() {
           originOfficeLabel={originOfficeLabel}
           accountLabel={accountLabel}
           opexType={opexType}
+          monthCount={monthCount}
           totals={{
             transactionAmount,
             vatAmount,
             whtAmount,
             invoiceAmount,
-            grandTotal,
+            grandTotal: transactionGrandTotal,
           }}
           orderedLevels={orderedLevels}
           stepProgresses={stepProgresses}

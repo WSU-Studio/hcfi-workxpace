@@ -128,7 +128,7 @@ export default function BudgetRequestDetailPage() {
   const vatAmount = Number(data.vatAmount ?? 0);
   const whtAmount = Number(data.whtAmount ?? 0);
   const invoiceAmount = Number(data.invoiceAmount ?? transactionAmount + vatAmount);
-  const grandTotal = Number(data.grandTotal ?? invoiceAmount - whtAmount);
+  const transactionGrandTotal = invoiceAmount - whtAmount;
   const allocatedMonths = Array.from(new Set((data.allocations || []).map((a) => a.month))).sort((a, b) => a - b);
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString('id-ID', {
@@ -200,7 +200,7 @@ export default function BudgetRequestDetailPage() {
     vatAmount,
     whtAmount,
     invoiceAmount,
-    grandTotal,
+    grandTotal: transactionGrandTotal,
   };
 
   if (usingCompactView) {
@@ -456,13 +456,17 @@ export default function BudgetRequestDetailPage() {
           </div>
 
           <BudgetRequestPeriodAllocationSummary
-            grandTotal={grandTotal}
+            grandTotal={transactionGrandTotal}
             monthCount={allocatedMonths.length}
             allocations={data.allocations}
           />
 
           {data.lineItems?.length ? (
-            <BudgetRequestLineItemsSection lineItems={data.lineItems} totals={amountTotals} />
+            <BudgetRequestLineItemsSection
+              lineItems={data.lineItems}
+              totals={amountTotals}
+              monthCount={allocatedMonths.length}
+            />
           ) : null}
         </div>
 

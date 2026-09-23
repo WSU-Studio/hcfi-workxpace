@@ -1,6 +1,4 @@
 import type { DataMartStagingApiRow } from '@/types/data-mart-staging';
-import { spreadCopiedGrandTotalAcrossMonths } from '@/lib/allocation-period';
-
 /**
  * Pivot Data Mart staging rows into the shape used by the "Budget Pivot"
  * report. Pure function — no DOM/network — so it's testable and reusable for
@@ -144,7 +142,10 @@ function applyMonthly(
   target[metric].fy += amount;
 }
 
-/** Group allocations by BR, then split the copied grand total across months. */
+/**
+ * Group allocations by BR. Each selected month keeps the full item grand total
+ * (copied at BR save) — no even split. FY = grandTotal × month count.
+ */
 function groupAllocationsByBudgetRequest(
   allocations: BudgetRequestMonthlyAllocation[],
 ): Map<string, Map<number, number>> {
@@ -161,11 +162,7 @@ function groupAllocationsByBudgetRequest(
     }
     months.set(row.month, (months.get(row.month) ?? 0) + amount);
   }
-  const spread = new Map<string, Map<number, number>>();
-  for (const [id, monthly] of byBr) {
-    spread.set(id, spreadCopiedGrandTotalAcrossMonths(monthly));
-  }
-  return spread;
+  return byBr;
 }
 
 /**
@@ -181,8 +178,8 @@ function groupAllocationsByBudgetRequest(
  * as "—").
  *
  * Budget Request month cells use `allocations` (once per BR, on the first
- * leaf). BR stores the grand total on each selected month, so the overlay
- * splits that total evenly across those months.
+ * leaf). BR stores the item grand total on each selected month; the overlay
+ * keeps that full amount per month (period FY = grandTotal × months).
  */
 export function pivotDataMartRows(
   rows: DataMartStagingApiRow[],

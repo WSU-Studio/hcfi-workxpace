@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/utils';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 type BudgetRequestPeriodAllocationSummaryProps = {
+  /** Item / transaction total (inc. tax) — not yet multiplied by months. */
   grandTotal: number;
   monthCount: number;
   allocations?: { year: number; month: number; allocation: number }[];
@@ -15,18 +16,21 @@ export default function BudgetRequestPeriodAllocationSummary({
   monthCount,
   allocations = [],
 }: BudgetRequestPeriodAllocationSummaryProps) {
-  const grandTotalPeriodAllocation = computeGrandTotalPeriodAllocation(grandTotal, monthCount);
+  const brGrandTotal = computeGrandTotalPeriodAllocation(grandTotal, monthCount);
 
   if (monthCount <= 0 || grandTotal <= 0) return null;
 
   return (
     <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+      <p className="text-xs text-gray-500">
+        Grand total BR = item subtotal (inc. tax) × jumlah bulan terpilih.
+      </p>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-600">Grand total transaction (inc. tax)</span>
+        <span className="text-gray-600">Item subtotal (inc. tax)</span>
         <span className="font-medium tabular-nums text-gray-900">{formatCurrency(grandTotal)}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-600">Selected months</span>
+        <span className="text-gray-600">× Selected months</span>
         <span className="font-medium tabular-nums text-gray-900">{monthCount}</span>
       </div>
 
@@ -54,8 +58,8 @@ export default function BudgetRequestPeriodAllocationSummary({
       ) : null}
 
       <div className="flex items-center justify-between border-t border-gray-200 pt-3 text-base font-bold text-gray-900">
-        <span>Grand Total Period Allocation</span>
-        <span className="tabular-nums">{formatCurrency(grandTotalPeriodAllocation)}</span>
+        <span>Grand total</span>
+        <span className="tabular-nums">{formatCurrency(brGrandTotal)}</span>
       </div>
     </div>
   );

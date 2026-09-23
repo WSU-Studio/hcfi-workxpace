@@ -133,13 +133,13 @@ export function mapApiLineToEditor(
   };
 }
 
-/** Grand Total Period Allocation = grand total (inc. tax) × selected month count. */
+/** Grand total (BR) = item/transaction total (inc. tax) × selected month count. */
 export function computeGrandTotalPeriodAllocation(
-  grandTotal: number,
+  transactionGrandTotal: number,
   monthCount: number,
 ): number {
-  if (monthCount <= 0 || grandTotal <= 0) return 0;
-  return grandTotal * monthCount;
+  if (monthCount <= 0 || transactionGrandTotal <= 0) return 0;
+  return transactionGrandTotal * monthCount;
 }
 
 export function computeTaxSummary(

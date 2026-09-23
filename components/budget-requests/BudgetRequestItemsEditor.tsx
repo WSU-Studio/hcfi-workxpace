@@ -27,6 +27,8 @@ type BudgetRequestItemsEditorProps = {
     whtPercent: number;
   };
   onTaxChange: (tax: { vatPercent: number; whtPercent: number }) => void;
+  /** Selected months; shows Grand total = item subtotal × months in the footer. */
+  monthCount?: number;
 };
 
 const emptyItem = (): BudgetRequestLineItemInput => ({
@@ -45,7 +47,14 @@ const toNumber = (value: string): number => {
 export const getItemSubtotal = (item: BudgetRequestLineItemInput) => item.qty * item.unitPrice;
 export const getItemTotal = (item: BudgetRequestLineItemInput) => Math.max(0, getItemSubtotal(item) - item.deduction);
 
-export default function BudgetRequestItemsEditor({ items, onChange, summary, taxConfig, onTaxChange }: BudgetRequestItemsEditorProps) {
+export default function BudgetRequestItemsEditor({
+  items,
+  onChange,
+  summary,
+  taxConfig,
+  onTaxChange,
+  monthCount = 0,
+}: BudgetRequestItemsEditorProps) {
   const handleItemChange = (id: string, field: keyof Omit<BudgetRequestLineItemInput, 'id'>, value: string) => {
     onChange(
       items.map((item) => {
@@ -175,9 +184,27 @@ export default function BudgetRequestItemsEditor({ items, onChange, summary, tax
               <td colSpan={2} className="px-3 py-3 text-right font-semibold text-gray-900">({formatCurrency(summary.whtAmount)})</td>
             </tr>
             <tr className="border-t border-gray-200">
-              <td colSpan={5} className="px-3 py-3 text-right text-base font-bold text-gray-800">Grandtotal</td>
-              <td colSpan={2} className="px-3 py-3 text-right text-base font-bold text-gray-900">{formatCurrency(summary.grandTotal)}</td>
+              <td colSpan={5} className="px-3 py-3 text-right text-sm font-semibold text-gray-700">
+                Item subtotal (inc. tax)
+              </td>
+              <td colSpan={2} className="px-3 py-3 text-right text-sm font-semibold text-gray-900">
+                {formatCurrency(summary.grandTotal)}
+              </td>
             </tr>
+            {monthCount > 0 ? (
+              <tr className="border-t border-gray-200 bg-green-50">
+                <td colSpan={5} className="px-3 py-3 text-right text-base font-bold text-gray-800">
+                  Grand total
+                  <span className="ml-2 text-xs font-normal text-gray-500">
+                    ({formatCurrency(summary.grandTotal)} × {monthCount} month
+                    {monthCount === 1 ? '' : 's'})
+                  </span>
+                </td>
+                <td colSpan={2} className="px-3 py-3 text-right text-base font-bold text-gray-900">
+                  {formatCurrency(summary.grandTotal * monthCount)}
+                </td>
+              </tr>
+            ) : null}
           </tfoot>
         </Table>
       </div>

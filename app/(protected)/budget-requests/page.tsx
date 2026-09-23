@@ -197,7 +197,7 @@ export default function BudgetRequestsPage() {
                 <TableHead className={stickyListCol.id.head}>ID</TableHead>
                 <TableHead>Subject</TableHead>
                 <TableHead>Requested By</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Grand total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Budget Plan</TableHead>

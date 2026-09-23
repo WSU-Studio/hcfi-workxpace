@@ -171,7 +171,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
                 // `status` is required so the realization bucket can filter
                 // out non-Approved BRs (Draft / Pending / Revision / etc.)
                 // — only fully-approved requests count as realized budget.
-                select: { requestDate: true, grandTotal: true, status: true },
+                select: {
+                  requestDate: true,
+                  grandTotal: true,
+                  status: true,
+                  allocations: { select: { month: true, allocation: true } },
+                },
               })
             : [],
           plan.fiscalYear,

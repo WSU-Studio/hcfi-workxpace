@@ -25,6 +25,10 @@ import {
   getRequestorSubmissionStepProgress,
   getRequestStatusDisplay,
 } from '@/lib/budget-plan-approval-display';
+import { computeGrandTotalPeriodAllocation } from '@/lib/budget-requests/form';
+import { monthsWithPositiveAllocation } from '@/lib/allocation-period';
+import BudgetRequestPeriodAllocationSummary from '@/components/budget-requests/BudgetRequestPeriodAllocationSummary';
+import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 
 const usingCompactView = isBudgetRequestCompactDetailView();
 
@@ -98,6 +102,7 @@ export default function ReviewBudgetRequestPage() {
     categoryKeyIndexOptions?: { id: string; name: string }[];
     costCenterOptions?: { id: string; name: string }[];
     opexAllocationOptions?: { id: string; name: string }[];
+    allocations?: { year: number; month: number; allocation: number }[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -232,16 +237,18 @@ export default function ReviewBudgetRequestPage() {
   const whtAmount = Math.round(transactionAmount * (whtPercent / 100));
   const invoiceAmount = transactionAmount + vatAmount;
   const grandTotal = invoiceAmount - whtAmount;
+  const allocatedMonths = monthsWithPositiveAllocation(data.allocations);
+  const periodAllocation = computeGrandTotalPeriodAllocation(grandTotal, allocatedMonths.length);
 
   // Budget Plan Status — totals are computed server-side excluding this BR
   // (see `app/api/budget-requests/[id]/route.ts`), so the projected
-  // outstanding "if this BR is approved" is just `outstanding - grandTotal`,
-  // and the same calculation also yields the actual current outstanding for
-  // an already-Approved BR (because self was excluded from realization).
+  // outstanding "if this BR is approved" is `outstanding - periodAllocation`
+  // (item grand total × selected months). Sibling realization uses the same
+  // allocation-sum rule.
   const planAllocationTotal = Number(data.budgetPlan?.allocationTotal ?? 0);
   const planRealization = Number(data.budgetPlan?.realization ?? 0);
   const planOutstanding = Number(data.budgetPlan?.outstanding ?? 0);
-  const projectedOutstanding = planOutstanding - grandTotal;
+  const projectedOutstanding = planOutstanding - periodAllocation;
   const isOverbudget = projectedOutstanding < 0;
   // `canEditClassification` keeps its original meaning — "can edit the
   // review form including line items (qty / unit price)". Line items are
@@ -589,12 +596,35 @@ export default function ReviewBudgetRequestPage() {
               <TableCell colSpan={5} className="text-right">WHT / PPh</TableCell>
               <TableCell className="text-right">({formatCurrency(whtAmount)})</TableCell>
             </TableBodyRow>
-            <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
-              <TableCell colSpan={5} className="text-right">Grandtotal</TableCell>
+            <TableBodyRow className="font-medium">
+              <TableCell colSpan={5} className="text-right">Item subtotal (inc. tax)</TableCell>
               <TableCell className="text-right">{formatCurrency(grandTotal)}</TableCell>
             </TableBodyRow>
+            {allocatedMonths.length > 0 ? (
+              <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
+                <TableCell colSpan={5} className="text-right">
+                  Grand total
+                  <span className="ml-2 text-xs font-normal text-gray-600">
+                    ({formatCurrency(grandTotal)} × {allocatedMonths.length} month
+                    {allocatedMonths.length === 1 ? '' : 's'})
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(periodAllocation)}</TableCell>
+              </TableBodyRow>
+            ) : null}
           </tbody>
         </Table>
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Month / Period Allocation</label>
+            <MonthChecklistSelector selectedMonths={allocatedMonths} readOnly />
+          </div>
+          <BudgetRequestPeriodAllocationSummary
+            grandTotal={grandTotal}
+            monthCount={allocatedMonths.length}
+            allocations={data.allocations}
+          />
+        </div>
       </Card>
 
       {canViewBudgetPlanSnapshot ? (
@@ -621,10 +651,16 @@ export default function ReviewBudgetRequestPage() {
               </span>
             </div>
             <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
-              <span className="text-sm text-gray-600">This request grand total</span>
-              <span className="font-medium tabular-nums">{formatCurrency(grandTotal)}</span>
+              <span className="text-sm text-gray-600">This request period allocation</span>
+              <span className="font-medium tabular-nums">{formatCurrency(periodAllocation)}</span>
             </div>
           </div>
+          {allocatedMonths.length > 0 ? (
+            <p className="text-xs text-gray-500">
+              Transaction grand total {formatCurrency(grandTotal)} × {allocatedMonths.length} month
+              {allocatedMonths.length === 1 ? '' : 's'}
+            </p>
+          ) : null}
           <div
             className={`flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 ${
               isOverbudget

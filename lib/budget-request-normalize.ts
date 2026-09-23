@@ -26,6 +26,12 @@ export type NormalizedBudgetRequestPayload = {
   normalizedVatAmount: number;
   normalizedWhtAmount: number;
   normalizedInvoiceAmount: number;
+  /** Per-month item amount (inc. tax) copied onto each selected month. */
+  transactionGrandTotal: number;
+  /**
+   * BR budget impact stored on the document: transaction × selected month count.
+   * Example: 10jt items × 4 months → 40jt.
+   */
   normalizedGrandTotal: number;
   monthlyAllocations: { year: number; month: number; allocation: number }[];
 };
@@ -75,13 +81,17 @@ export function normalizeBudgetRequestBody(
   const normalizedVatAmount = toNumber(vatAmount) || calculatedVatAmount;
   const normalizedWhtAmount = toNumber(whtAmount) || calculatedWhtAmount;
   const normalizedInvoiceAmount = toNumber(invoiceAmount) || totalAmount + normalizedVatAmount;
-  const normalizedGrandTotal = toNumber(grandTotal) || normalizedInvoiceAmount - normalizedWhtAmount;
+  // Body `grandTotal` is the item/transaction total (inc. tax), not the period total.
+  const transactionGrandTotal =
+    toNumber(grandTotal) || normalizedInvoiceAmount - normalizedWhtAmount;
+  const transactionCents = Math.round(transactionGrandTotal * 100);
+  const monthCount = normalizedMonths.length;
+  const normalizedGrandTotal = (transactionCents * monthCount) / 100;
 
-  const grandTotalCents = Math.round(normalizedGrandTotal * 100);
   const monthlyAllocations = normalizedMonths.map((month) => ({
     year,
     month,
-    allocation: grandTotalCents / 100,
+    allocation: transactionCents / 100,
   }));
 
   return {
@@ -94,6 +104,7 @@ export function normalizeBudgetRequestBody(
     normalizedVatAmount,
     normalizedWhtAmount,
     normalizedInvoiceAmount,
+    transactionGrandTotal,
     normalizedGrandTotal,
     monthlyAllocations,
   };

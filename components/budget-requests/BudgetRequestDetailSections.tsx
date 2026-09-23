@@ -2,6 +2,7 @@ import RichTextContent from '@/components/ui/RichTextContent';
 import SupportingDocumentLinks from '@/components/forms/SupportingDocumentLinks';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { getRequestStatusDisplay } from '@/lib/budget-plan-approval-display';
+import { computeGrandTotalPeriodAllocation } from '@/lib/budget-requests/form';
 import { normalizeSupportingDocs } from '@/lib/supporting-docs';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ type AmountTotals = {
   vatAmount: number;
   whtAmount: number;
   invoiceAmount: number;
+  /** Item / transaction net (inc. tax) — not yet × months. */
   grandTotal: number;
 };
 
@@ -110,12 +112,20 @@ export function BudgetRequestDetailSummarySection({
 type BudgetRequestLineItemsSectionProps = {
   lineItems: BudgetRequestDetailSectionsData['lineItems'];
   totals: AmountTotals;
+  /** Selected allocation months; when > 0, footer shows Grand total = item × months. */
+  monthCount?: number;
 };
 
-export function BudgetRequestLineItemsSection({ lineItems, totals }: BudgetRequestLineItemsSectionProps) {
+export function BudgetRequestLineItemsSection({
+  lineItems,
+  totals,
+  monthCount = 0,
+}: BudgetRequestLineItemsSectionProps) {
   if (!lineItems.length) return null;
 
   const { transactionAmount, vatAmount, whtAmount, invoiceAmount, grandTotal } = totals;
+  const periodGrandTotal =
+    monthCount > 0 ? computeGrandTotalPeriodAllocation(grandTotal, monthCount) : grandTotal;
 
   return (
     <Table>
@@ -166,12 +176,23 @@ export function BudgetRequestLineItemsSection({ lineItems, totals }: BudgetReque
           </TableCell>
           <TableCell className="text-right">({formatCurrency(whtAmount)})</TableCell>
         </TableBodyRow>
-        <TableBodyRow className="bg-green-200/60 text-base font-semibold hover:bg-green-200/80">
+        <TableBodyRow className="font-medium">
           <TableCell colSpan={5} className="text-right">
-            Grandtotal
+            Item subtotal (inc. tax)
           </TableCell>
           <TableCell className="text-right">{formatCurrency(grandTotal)}</TableCell>
         </TableBodyRow>
+        {monthCount > 0 ? (
+          <TableBodyRow className="bg-green-200/60 text-base font-semibold hover:bg-green-200/80">
+            <TableCell colSpan={5} className="text-right">
+              Grand total
+              <span className="ml-2 text-xs font-normal text-gray-600">
+                ({formatCurrency(grandTotal)} × {monthCount} month{monthCount === 1 ? '' : 's'})
+              </span>
+            </TableCell>
+            <TableCell className="text-right">{formatCurrency(periodGrandTotal)}</TableCell>
+          </TableBodyRow>
+        ) : null}
       </tbody>
     </Table>
   );

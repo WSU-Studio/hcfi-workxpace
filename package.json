@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:create": "prisma migrate dev --create-only",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:migrate-br-period-grand-total": "tsx scripts/migrate-br-period-grand-total.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1038.0",

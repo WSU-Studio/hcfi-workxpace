@@ -9,7 +9,11 @@ import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import { BudgetRequestDetailSummarySection } from '@/components/budget-requests/BudgetRequestDetailSections';
+import BudgetRequestPeriodAllocationSummary from '@/components/budget-requests/BudgetRequestPeriodAllocationSummary';
+import MonthChecklistSelector from '@/components/ui/MonthChecklistSelector';
 import { formatCurrency, formatSignedCurrency } from '@/lib/utils';
+import { computeGrandTotalPeriodAllocation } from '@/lib/budget-requests/form';
+import { monthsWithPositiveAllocation } from '@/lib/allocation-period';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 import { PenSquare } from 'lucide-react';
 
@@ -73,6 +77,7 @@ export type BudgetRequestReviewData = {
   categoryKeyIndexOptions?: { id: string; name: string }[];
   costCenterOptions?: { id: string; name: string }[];
   opexAllocationOptions?: { id: string; name: string }[];
+  allocations?: { year: number; month: number; allocation: number }[];
 };
 
 type BudgetRequestReviewWorkspaceProps = {
@@ -138,11 +143,13 @@ export default function BudgetRequestReviewWorkspace({
   const whtAmount = Math.round(transactionAmount * (whtPercent / 100));
   const invoiceAmount = transactionAmount + vatAmount;
   const grandTotal = invoiceAmount - whtAmount;
+  const allocatedMonths = monthsWithPositiveAllocation(data.allocations);
+  const periodAllocation = computeGrandTotalPeriodAllocation(grandTotal, allocatedMonths.length);
 
   const planAllocationTotal = Number(data.budgetPlan?.allocationTotal ?? 0);
   const planRealization = Number(data.budgetPlan?.realization ?? 0);
   const planOutstanding = Number(data.budgetPlan?.outstanding ?? 0);
-  const projectedOutstanding = planOutstanding - grandTotal;
+  const projectedOutstanding = planOutstanding - periodAllocation;
   const isOverbudget = projectedOutstanding < 0;
 
   const canEditClassification = Boolean(data.canReview);
@@ -356,14 +363,37 @@ export default function BudgetRequestReviewWorkspace({
               </TableCell>
               <TableCell className="text-right">({formatCurrency(whtAmount)})</TableCell>
             </TableBodyRow>
-            <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
+            <TableBodyRow className="font-medium">
               <TableCell colSpan={5} className="text-right">
-                Grandtotal
+                Item subtotal (inc. tax)
               </TableCell>
               <TableCell className="text-right">{formatCurrency(grandTotal)}</TableCell>
             </TableBodyRow>
+            {allocatedMonths.length > 0 ? (
+              <TableBodyRow className="bg-green-200/60 hover:bg-green-200/80 text-base font-semibold">
+                <TableCell colSpan={5} className="text-right">
+                  Grand total
+                  <span className="ml-2 text-xs font-normal text-gray-600">
+                    ({formatCurrency(grandTotal)} × {allocatedMonths.length} month
+                    {allocatedMonths.length === 1 ? '' : 's'})
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(periodAllocation)}</TableCell>
+              </TableBodyRow>
+            ) : null}
           </tbody>
         </Table>
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Month / Period Allocation</label>
+            <MonthChecklistSelector selectedMonths={allocatedMonths} readOnly />
+          </div>
+          <BudgetRequestPeriodAllocationSummary
+            grandTotal={grandTotal}
+            monthCount={allocatedMonths.length}
+            allocations={data.allocations}
+          />
+        </div>
       </Card>
 
       {canViewBudgetPlanSnapshot ? (
@@ -387,10 +417,16 @@ export default function BudgetRequestReviewWorkspace({
               </span>
             </div>
             <div className="flex items-baseline justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
-              <span className="text-sm text-gray-600">This request grand total</span>
-              <span className="font-medium tabular-nums">{formatCurrency(grandTotal)}</span>
+              <span className="text-sm text-gray-600">This request period allocation</span>
+              <span className="font-medium tabular-nums">{formatCurrency(periodAllocation)}</span>
             </div>
           </div>
+          {allocatedMonths.length > 0 ? (
+            <p className="text-xs text-gray-500">
+              Transaction grand total {formatCurrency(grandTotal)} × {allocatedMonths.length} month
+              {allocatedMonths.length === 1 ? '' : 's'}
+            </p>
+          ) : null}
           <div
             className={`flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 ${
               isOverbudget ? 'bg-red-50 ring-1 ring-red-300' : 'bg-emerald-50 ring-1 ring-emerald-200'

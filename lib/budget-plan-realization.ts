@@ -3,14 +3,13 @@
  * monthly allocation grid.
  *
  * Semantics:
- *   - `realization[m]` = sum of `grandTotal` of every linked BudgetRequest
- *     whose `requestDate` falls in month `m` of the plan's fiscal year AND
- *     whose status is `'Approved'` (i.e. it has completed every step of the
- *     attached approval schema). Pending / Draft / Revision / Declined BRs
- *     do NOT contribute — they don't represent actually-realized budget yet.
- *     This mirrors the `approvedRequestedTotal` metric in
- *     `lib/budget-realization/aggregate.ts`.
- *   - Plus Other Receive (ORV) credits from saved reconciliation / Data Mart
+ *   - `realization[m]` = sum of BudgetRequestAllocation amounts for month `m`
+ *     from every linked BudgetRequest whose status is `'Approved'`. Each
+ *     selected month carries the full item grand total (period impact =
+ *     grandTotal × month count). When allocations are missing, falls back to
+ *     putting `grandTotal` on the `requestDate` month.
+ *     Pending / Draft / Revision / Declined BRs do NOT contribute.
+ *     Plus Other Receive (ORV) credits from saved reconciliation / Data Mart
  *     staging for BRs on this plan. ORV is signed negative (credit), so it
  *     reduces effective realization and increases outstanding — Hyundai rule.
  *   - `outstanding[m]` = cumulative `(allocation[1..m] - realization[1..m])`.
@@ -35,6 +34,11 @@ export interface AllocationInput {
   allocation: DecimalLike;
 }
 
+export interface LinkedRequestAllocationInput {
+  month: number;
+  allocation: DecimalLike;
+}
+
 export interface LinkedRequestInput {
   requestDate: Date | string | null | undefined;
   grandTotal: DecimalLike;
@@ -44,6 +48,11 @@ export interface LinkedRequestInput {
    * treated as not-yet-realized.
    */
   status: string | null | undefined;
+  /**
+   * Per-month BR allocations (full item grand total on each selected month).
+   * Preferred source for realization bucketing.
+   */
+  allocations?: LinkedRequestAllocationInput[] | null;
 }
 
 /**
@@ -74,14 +83,11 @@ export interface EnrichedAllocation {
 }
 
 /**
- * Bucket linked BudgetRequests' grandTotal into months 1..12 for a given
- * fiscal year. Skipped:
- *   - Requests without a parseable `requestDate`
- *   - Requests outside the plan's fiscal year (likely belong to a sibling
- *     plan or are corrupt records)
- *   - Requests whose status is not `'Approved'` — those represent budget
- *     that has been requested but not yet realized, so they do not move the
- *     plan's realized total.
+ * Bucket approved BudgetRequests into months 1..12 for a given fiscal year.
+ *
+ * Preferred path: sum positive `allocations` into their months (each month
+ * already holds the full item grand total). Fallback when allocations are
+ * empty: put `grandTotal` on the `requestDate` month (legacy / incomplete rows).
  */
 export function bucketRealizationByMonth(
   linkedRequests: LinkedRequestInput[],
@@ -90,6 +96,20 @@ export function bucketRealizationByMonth(
   const buckets = new Array(12).fill(0) as number[];
   for (const req of linkedRequests) {
     if (req.status !== APPROVED_BR_STATUS) continue;
+
+    const positiveAllocations = (req.allocations ?? []).filter((row) => {
+      const month = Number(row.month);
+      return Number.isFinite(month) && month >= 1 && month <= 12 && toNumber(row.allocation) > 0;
+    });
+
+    if (positiveAllocations.length > 0) {
+      for (const row of positiveAllocations) {
+        const monthIndex = Number(row.month) - 1;
+        buckets[monthIndex] = (buckets[monthIndex] ?? 0) + toNumber(row.allocation);
+      }
+      continue;
+    }
+
     if (!req.requestDate) continue;
     const date = req.requestDate instanceof Date ? req.requestDate : new Date(req.requestDate);
     if (Number.isNaN(date.getTime())) continue;
