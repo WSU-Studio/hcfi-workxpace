@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { readResponseJson } from '@/lib/fetch-json';
 import { toSupportingDocsProxyUrl } from '@/lib/supporting-docs-storage';
 
 export type SupportingDocsScope =
@@ -84,10 +85,14 @@ export async function uploadSupportingDocs(
     body: uploadFormData,
   });
 
-  const uploadBody = await uploadRes.json();
+  const uploadBody = await readResponseJson<{
+    error?: string;
+    files?: Array<{ url: string }>;
+  }>(uploadRes, 'Failed to upload supporting documents');
+
   if (!uploadRes.ok) {
     throw new Error(uploadBody.error ?? 'Failed to upload supporting documents');
   }
 
-  return (uploadBody.files ?? []).map((item: { url: string }) => item.url);
+  return (uploadBody.files ?? []).map((item) => item.url);
 }

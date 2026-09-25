@@ -11,6 +11,7 @@ import { useBudgetRequestForm } from '@/hooks/useBudgetRequestForm';
 import { useSupportingDocuments } from '@/hooks/useSupportingDocuments';
 import { useRefreshSessionAccessOnce } from '@/hooks/useRefreshSessionAccessOnce';
 import { notifyFormError } from '@/lib/forms/feedback';
+import { readResponseJson } from '@/lib/fetch-json';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   BudgetRequestFormOptions,
@@ -193,15 +194,23 @@ export default function NewBudgetRequestClient() {
       });
 
       if (!response.ok) {
-        const body = await response.json();
+        const body = await readResponseJson<{ error?: string }>(
+          response,
+          'Failed to submit budget request',
+        );
         reportError(body.error ?? 'Failed to submit budget request');
         return;
       }
 
-      const data = await response.json();
+      const data = await readResponseJson<{ id: string }>(
+        response,
+        'Failed to submit budget request',
+      );
       router.push(`/budget-requests/${data.id}`);
-    } catch {
-      reportError('Failed to submit budget request');
+    } catch (submitError) {
+      reportError(
+        submitError instanceof Error ? submitError.message : 'Failed to submit budget request',
+      );
     } finally {
       setIsSubmitting(false);
     }

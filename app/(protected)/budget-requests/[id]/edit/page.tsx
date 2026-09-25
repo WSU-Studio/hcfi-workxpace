@@ -10,6 +10,7 @@ import BudgetRequestForm from '@/components/budget-requests/BudgetRequestForm';
 import { useBudgetRequestForm } from '@/hooks/useBudgetRequestForm';
 import { useSupportingDocuments } from '@/hooks/useSupportingDocuments';
 import { notifyFormError } from '@/lib/forms/feedback';
+import { readResponseJson } from '@/lib/fetch-json';
 import { supportingDocsForPersistence } from '@/lib/supporting-docs';
 import {
   BudgetRequestFormOptions,
@@ -262,14 +263,16 @@ export default function EditBudgetRequestPage() {
       });
 
       if (!response.ok) {
-        const body = await response.json();
-        reportError(body.error ?? 'Failed');
+        const body = await readResponseJson<{ error?: string }>(response, 'Failed to update budget request');
+        reportError(body.error ?? 'Failed to update budget request');
         return;
       }
 
       router.push(`/budget-requests/${id}`);
-    } catch {
-      reportError('Failed');
+    } catch (submitError) {
+      reportError(
+        submitError instanceof Error ? submitError.message : 'Failed to update budget request',
+      );
     } finally {
       setIsSubmitting(false);
     }
