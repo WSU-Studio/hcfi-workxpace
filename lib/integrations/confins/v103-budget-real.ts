@@ -292,13 +292,16 @@ function resolveSource(row: ConfinsBudgetRealApiRow): ConfinsPaymentSource {
  * MENGECUALIKAN `InterfaceID` dari komposisi ID. Field stabil yang dipakai:
  *
  *   PaymentRequestNo | JournalNo | GLAccount | DC | VoucherEGL | Activity
- *   | Period | InvoiceNo | amount(cents)
+ *   | Period | InvoiceNo | amount(cents) | OriginOffice | DepartmentName
+ *   | OpexAllocation
  *
  * `Period` dimasukkan agar baris recurring schedule (mis. amortization
  * `SC...` yang di-post 12x ke periode berbeda) tidak collide ID — semua
  * field stabilnya sama kecuali Period. `InvoiceNo` ditambahkan sebagai
  * pembeda tambahan untuk batch invoice yang punya PR/JournalNo identik
- * tapi invoice fisik berbeda.
+ * tapi invoice fisik berbeda. `OriginOffice`, `DepartmentName`, dan
+ * `OpexAllocation` membedakan dua baris bisnis yang 9 field WSU-nya sama
+ * (contoh: satu PaymentRequestNo muncul dua kali di modul reconciliation).
  *
  * Hash SHA-1 di-truncate 16 hex untuk ringkas namun cukup unik. Prefix
  * `PR-Journal-` dipertahankan untuk keterbacaan di log/DB.
@@ -313,7 +316,8 @@ function stableRowId(row: ConfinsBudgetRealApiRow): string {
 
 /**
  * Canonical key dari field stabil sebuah row Confins (tanpa InterfaceID).
- * Dipakai untuk membentuk `stableRowId` dan juga signature fallback.
+ * Dipakai untuk membentuk `stableRowId`. Signature unused (`buildPaymentSignature`)
+ * tetap terpisah: PaymentRequestNo | JournalNo | GLAccount | amount.
  */
 function stableRowCanonicalKey(row: ConfinsBudgetRealApiRow): string {
   const pr = String(row.PaymentRequestNo ?? '').trim();
@@ -326,7 +330,10 @@ function stableRowCanonicalKey(row: ConfinsBudgetRealApiRow): string {
   const invoiceNo = String(row.InvoiceNo ?? '').trim();
   const amt = parseConfinsOriginAmount(row.OriginAmount);
   const amtCents = Math.round(amt * 100);
-  return `${pr}|${jn}|${gl}|${dc}|${voucher}|${activity}|${period}|${invoiceNo}|${amtCents}`;
+  const originOffice = String(row.OriginOffice ?? '').trim();
+  const departmentName = String(row.DepartmentName ?? '').trim();
+  const opexAllocation = String(row.OpexAllocation ?? '').trim();
+  return `${pr}|${jn}|${gl}|${dc}|${voucher}|${activity}|${period}|${invoiceNo}|${amtCents}|${originOffice}|${departmentName}|${opexAllocation}`;
 }
 
 export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): ConfinsCashDisbursement[] {
@@ -404,9 +411,10 @@ export function mapBudgetRealRowsToPayments(rows: ConfinsBudgetRealApiRow[]): Co
   });
 
   // Dedupe berdasarkan `id` (stableRowId). Dua baris sumber dengan canonical key
-  // identik (PR/Journal/GL/DC/Voucher/Activity/Period/InvoiceNo/amount sama)
-  // adalah baris logis yang sama — kalau tidak di-dedupe akan memicu duplicate
-  // React key di tabel dan pengiriman baris ganda saat save. Baris pertama menang.
+  // identik (PR/Journal/GL/DC/Voucher/Activity/Period/InvoiceNo/amount/
+  // OriginOffice/DepartmentName/OpexAllocation sama) adalah baris logis yang
+  // sama — kalau tidak di-dedupe akan memicu duplicate React key di tabel dan
+  // pengiriman baris ganda saat save. Baris pertama menang.
   const seen = new Set<string>();
   return mapped.filter((payment) => {
     if (seen.has(payment.id)) return false;
