@@ -83,7 +83,8 @@ AWS_S3_BUCKET=""
 CONFINS_BASE_URL=""
 CONFINS_USERNAME=""
 CONFINS_PASSWORD=""
-# Optional gateway/legacy header sent on login. Data APIs use AccessToken as AdInsKey.
+# Static gateway key sent as the AdInsKey header (login and data calls).
+# Do not put the login JWT here. AccessToken is sent as Authorization: Bearer.
 ADINSKEY=""
 # CONFINS_LOGIN_PATH="/v4/Authenticate/Login"
 CONFINS_USE_MOCK=true
@@ -162,8 +163,8 @@ Additional requestor/reviewer/approver accounts are created by seed for multi-st
 
 ### API
 
-- Auth: `POST /v4/Authenticate/Login` (WSU **1.04**) — eBudget caches `AccessToken` and sends it as `AdInsKey`. Token expires (~29 minutes in QA); client re-logins on expiry or 401.
-- Credentials: `CONFINS_USERNAME` + `CONFINS_PASSWORD`. Optional `ADINSKEY` is still sent on the login request (gateway/legacy). Live calls without login creds fall back to static `ADINSKEY`.
+- Auth: `POST /v4/Authenticate/Login` (WSU **1.04**) — eBudget caches `AccessToken` and sends it as `Authorization: Bearer`. Token expires (~29 minutes in QA); client re-logins on expiry or 401.
+- Credentials: `CONFINS_USERNAME` + `CONFINS_PASSWORD`. `ADINSKEY` is the static `AdInsKey` header (Postman TQA requests). A JWT in `AdInsKey` is rejected with HTTP 401. Live calls without login creds use static `ADINSKEY` only.
 - Data: `GetListGetListBudgetRealBySourceTypeX` and master endpoints are unchanged (`/v1/IntegrationEBudgetingX/...`)
 - Default request `sourceType` untuk rekonsiliasi: **`CONFINS` + `EGL`** (Payment Request ada di CONFINS; override satu source via `?sourceType=EGL` atau env `CONFINS_RECONCILIATION_SOURCE_TYPES`)
 - Mock mode: toggle **Activate Mock API** in Application Settings, or set `CONFINS_USE_MOCK=true` — login is skipped

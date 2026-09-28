@@ -143,9 +143,16 @@ export async function fetchReconciliationPayments(
   const now = new Date();
   const toYear = options.fiscalYear ?? now.getFullYear();
   const filterMonth = options.month ?? now.getMonth() + 1;
-  const fromYear = options.fromYear ?? 2005;
-  /** Confins `toMonth` = batas periode posting. Tarik full year lalu filter RequestDate di app. */
-  const apiToMonth = 12;
+  /**
+   * Confins memfilter periode posting (`Period`), lalu app menyaring `RequestDate`.
+   * Jendela API = bulan yang dipilih di layar (sama seperti Postman).
+   * Default lama `fromYear` 2005 → Desember tahun fiskal mengunduh ribuan baris
+   * yang kemudian dibuang; EGL pada rentang itu gagal atau puluhan detik.
+   * `fromYear` eksplisit dari query tetap dihormati.
+   */
+  const fromYear = options.fromYear ?? toYear;
+  const apiFromMonth = options.month != null ? filterMonth : 1;
+  const apiToMonth = options.month != null ? filterMonth : 12;
   const sourceTypes = resolveReconciliationSourceTypes(options);
   const departmentName = await resolveDepartmentName(options.departmentId);
   const confinsMockEnabled = await isConfinsMockEnabled();
@@ -157,7 +164,7 @@ export async function fetchReconciliationPayments(
     {
       toMonth: apiToMonth,
       toYear,
-      fromMonth: null,
+      fromMonth: apiFromMonth,
       fromYear,
       formCode: null,
       coa: null,

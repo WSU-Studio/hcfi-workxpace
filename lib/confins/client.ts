@@ -1,4 +1,9 @@
-import { getConfinsAdInsKey, invalidateConfinsSession, isConfinsAuthFailure } from './auth';
+import {
+  buildConfinsAuthHeaders,
+  getConfinsAdInsKey,
+  invalidateConfinsSession,
+  isConfinsAuthFailure,
+} from './auth';
 import {
   CONFINS_DEFAULT_TIMEOUT_MS,
   fetchConfinsJson,
@@ -64,7 +69,7 @@ export class ConfinsClient {
       let fetched = await fetchConfinsJson({
         path: options.path,
         body: options.body,
-        headers: { AdInsKey: credential.key },
+        headers: buildConfinsAuthHeaders(credential),
         timeoutMs,
       });
 
@@ -75,7 +80,7 @@ export class ConfinsClient {
         fetched = await fetchConfinsJson({
           path: options.path,
           body: options.body,
-          headers: { AdInsKey: credential.key },
+          headers: buildConfinsAuthHeaders(credential),
           timeoutMs,
         });
       }

@@ -10,8 +10,9 @@ export const maxDuration = 180;
 
 /**
  * Confins E-Budgeting 1.04 — budget realization / payment lines untuk rekonsiliasi.
- * Query: fiscalYear, month (filter tampilan by RequestDate), departmentId,
- * sourceType (optional — default tarik CONFINS + EGL), fromYear (default 2005).
+ * Query: fiscalYear, month (jendela periode posting + filter RequestDate),
+ * departmentId, sourceType (optional — default tarik CONFINS + EGL),
+ * fromYear (default = fiscalYear).
  */
 export async function GET(request: Request) {
   try {

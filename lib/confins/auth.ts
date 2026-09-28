@@ -24,10 +24,29 @@ type ConfinsSession = {
 };
 
 export type ConfinsAdInsKey = {
-  key: string;
-  /** True when the header is a login AccessToken that can expire and be refreshed. */
+  /** Static gateway key (`ADINSKEY`). Never the login JWT. */
+  adInsKey?: string;
+  /** Login `AccessToken`, sent as `Authorization: Bearer`. */
+  accessToken?: string;
+  /** True when `accessToken` came from login and can be refreshed after 401. */
   fromSession: boolean;
 };
+
+/**
+ * Headers for Confins data calls, matching Postman collection WSU 1.04.
+ * The gateway rejects a JWT placed in `AdInsKey` (HTTP 401). The session
+ * token belongs in `Authorization`. `AdInsKey` stays the static gateway key.
+ */
+export function buildConfinsAuthHeaders(credential: ConfinsAdInsKey): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (credential.adInsKey) {
+    headers.AdInsKey = credential.adInsKey;
+  }
+  if (credential.accessToken) {
+    headers.Authorization = `Bearer ${credential.accessToken}`;
+  }
+  return headers;
+}
 
 let session: ConfinsSession | null = null;
 let loginInFlight: Promise<string> | null = null;
@@ -164,20 +183,22 @@ export function invalidateConfinsSession(): void {
 }
 
 /**
- * AdInsKey for Confins data APIs (Postman 1.04).
+ * Auth material for Confins data APIs (Postman collection WSU 1.04).
  *
- * Prefer `/v4/Authenticate/Login` AccessToken (expires; cached in-process).
- * Fall back to static `ADINSKEY` when login credentials are not configured.
+ * Login `AccessToken` is sent as `Authorization: Bearer`.
+ * Static `ADINSKEY` is sent as `AdInsKey` when set.
+ * With only `ADINSKEY`, data calls use that header and skip login.
  */
 export async function getConfinsAdInsKey(): Promise<ConfinsAdInsKey> {
+  const legacyKey = getLegacyAdInsKey() || undefined;
+
   if (hasConfinsLoginCredentials()) {
-    const key = await getAccessToken();
-    return { key, fromSession: true };
+    const accessToken = await getAccessToken();
+    return { accessToken, adInsKey: legacyKey, fromSession: true };
   }
 
-  const legacyKey = getLegacyAdInsKey();
   if (legacyKey) {
-    return { key: legacyKey, fromSession: false };
+    return { adInsKey: legacyKey, fromSession: false };
   }
 
   throw new Error(

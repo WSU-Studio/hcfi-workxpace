@@ -513,7 +513,7 @@ export default function ReconciliationPage() {
             You don&apos;t have permission to run the synchronization.
           </p>
         )}
-        {syncMessage && <p className="text-sm text-gray-700">{syncMessage}</p>}
+        {syncMessage && <p className="text-xs text-gray-500">{syncMessage}</p>}
       </Card>
 
       <Card className="space-y-4 p-4">

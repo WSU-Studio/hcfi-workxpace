@@ -68,8 +68,8 @@ Both paths call the same `runConfinsEmployeeSync()` logic.
 | `PORT` | GitHub Secrets (Option A only) | PM2 port for localhost curl on self-hosted runner |
 | `CONFINS_BASE_URL` | Production `.env` | Confins API base URL |
 | `CONFINS_USERNAME` | Production `.env` | Service account for `POST /v4/Authenticate/Login` (API 1.04) |
-| `CONFINS_PASSWORD` | Production `.env` | Login password; session `AccessToken` is sent as `AdInsKey` |
-| `ADINSKEY` | Production `.env` | Optional: sent on login (gateway/legacy). Fallback if login creds are unset |
+| `CONFINS_PASSWORD` | Production `.env` | Login password; session `AccessToken` is sent as `Authorization: Bearer` |
+| `ADINSKEY` | Production `.env` | Static `AdInsKey` header. Fallback if login creds are unset. Do not store the JWT here |
 
 `NEXTAUTH_URL` is **not** used by the sync workflow. The job runs on the
 **self-hosted runner** and calls `http://127.0.0.1:{PORT}/...` locally.
