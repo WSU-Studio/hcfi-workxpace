@@ -8,6 +8,14 @@ export type SupportingDocsScope =
   | 'payment-requests'
   | 'branding';
 
+/** Per-file cap for BP / BR / PR supporting documents. Branding logos stay smaller. */
+export const SUPPORTING_DOCUMENT_MAX_BYTES = 50 * 1024 * 1024;
+export const SUPPORTING_DOCUMENT_MAX_LABEL = '50MB';
+
+export function supportingDocumentTooLargeMessage(fileName: string): string {
+  return `File is too large (max ${SUPPORTING_DOCUMENT_MAX_LABEL}): ${fileName}`;
+}
+
 export function normalizeSupportingDocs(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
 

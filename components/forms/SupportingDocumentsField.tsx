@@ -1,7 +1,13 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { supportingDocFileNameFromUrl } from '@/lib/supporting-docs';
+import { useState } from 'react';
+import {
+  SUPPORTING_DOCUMENT_MAX_BYTES,
+  SUPPORTING_DOCUMENT_MAX_LABEL,
+  supportingDocFileNameFromUrl,
+  supportingDocumentTooLargeMessage,
+} from '@/lib/supporting-docs';
 
 export type SupportingDocumentsFieldProps = {
   attachmentFiles: File[];
@@ -35,6 +41,7 @@ export default function SupportingDocumentsField({
   required = false,
 }: SupportingDocumentsFieldProps) {
   const displayLabel = required && !label.trim().endsWith('*') ? `${label} *` : label;
+  const [sizeError, setSizeError] = useState<string | null>(null);
 
   return (
     <div>
@@ -86,14 +93,21 @@ export default function SupportingDocumentsField({
             aria-required={required || undefined}
             onChange={(event) => {
               const picked = Array.from(event.target.files || []);
+              const oversized = picked.filter((file) => file.size > SUPPORTING_DOCUMENT_MAX_BYTES);
+              const accepted = picked.filter((file) => file.size <= SUPPORTING_DOCUMENT_MAX_BYTES);
+              setSizeError(
+                oversized.length > 0
+                  ? oversized.map((file) => supportingDocumentTooLargeMessage(file.name)).join(' ')
+                  : null,
+              );
               // Append to the current selection (skip files already picked)
               // instead of replacing it, so users can add documents in batches.
               const known = new Set(attachmentFiles.map(fileIdentity));
               const merged = [
                 ...attachmentFiles,
-                ...picked.filter((file) => !known.has(fileIdentity(file))),
+                ...accepted.filter((file) => !known.has(fileIdentity(file))),
               ];
-              onAttachmentFilesChange(multiple ? merged : picked);
+              onAttachmentFilesChange(multiple ? merged : accepted);
               event.target.value = '';
             }}
           />
@@ -105,6 +119,8 @@ export default function SupportingDocumentsField({
             : 'No file selected'}
         </span>
       </div>
+      <p className="mt-1.5 text-xs text-gray-500">Maximum {SUPPORTING_DOCUMENT_MAX_LABEL} per file.</p>
+      {sizeError ? <p className="mt-1 text-xs text-red-600">{sizeError}</p> : null}
 
       {attachmentFiles.length > 0 ? (
         <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">

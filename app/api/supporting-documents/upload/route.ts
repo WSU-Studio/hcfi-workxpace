@@ -7,12 +7,15 @@ import { isLocalFileStorageEnabled } from '@/lib/file-storage-mode';
 import { saveLocalFile } from '@/lib/local-file-storage';
 import { getS3Client } from '@/lib/s3';
 import {
+  SUPPORTING_DOCUMENT_MAX_BYTES,
+  supportingDocumentTooLargeMessage,
+} from '@/lib/supporting-docs';
+import {
   buildSupportingDocsProxyUrl,
   parseSupportingDocsScope,
   supportingDocsKeyPrefix,
 } from '@/lib/supporting-docs-storage';
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'image/jpeg',
@@ -82,7 +85,7 @@ export async function POST(request: Request) {
     const uploaded = await Promise.all(
       files.map(async (file) => {
         const allowedTypes = scope === 'branding' ? BRANDING_MIME_TYPES : ALLOWED_MIME_TYPES;
-        const maxBytes = scope === 'branding' ? BRANDING_MAX_FILE_SIZE_BYTES : MAX_FILE_SIZE_BYTES;
+        const maxBytes = scope === 'branding' ? BRANDING_MAX_FILE_SIZE_BYTES : SUPPORTING_DOCUMENT_MAX_BYTES;
 
         if (!allowedTypes.has(file.type)) {
           throw new Error(`File type is not allowed: ${file.name}`);
@@ -90,7 +93,9 @@ export async function POST(request: Request) {
 
         if (file.size > maxBytes) {
           throw new Error(
-            `File is too large (max ${scope === 'branding' ? '2MB' : '10MB'}): ${file.name}`,
+            scope === 'branding'
+              ? `File is too large (max 2MB): ${file.name}`
+              : supportingDocumentTooLargeMessage(file.name),
           );
         }
 
