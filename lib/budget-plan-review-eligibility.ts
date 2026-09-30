@@ -83,8 +83,14 @@ export function isNextStepFinal(
 }
 
 /**
- * Gate the reviewer action on the current pending step. The requestor can
- * never act on their own document (defence in depth — the UI hides it too).
+ * Gate the reviewer action on the current pending step.
+ *
+ * The document requestor may still act when they are the PIC (or an
+ * unrestricted role holder) of that step. A creator who also sits in the
+ * approval schema must approve their own BP/BR/PR when the ladder reaches
+ * their level — otherwise the document stays stuck with no Review action.
+ * `requestorId` stays on the signature so existing callers compile; it is
+ * not a deny rule.
  */
 export function canUserActOnCurrentStep(params: {
   status: string;
@@ -94,7 +100,6 @@ export function canUserActOnCurrentStep(params: {
   requestorId: string | null;
   actorUserId: string;
 }): boolean {
-  if (params.requestorId && params.requestorId === params.actorUserId) return false;
   const next = getNextApprovalStep(params.status, params.approvalLevels, params.histories);
   if (!next) return false;
   return userIsEligibleForLevel(next, params.actorUserId, params.userRoleIds);

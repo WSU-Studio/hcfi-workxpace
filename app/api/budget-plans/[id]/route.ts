@@ -133,7 +133,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         histories as unknown as BudgetPlanHistoryEntry[],
       );
       nextStepOrder = next?.stepOrder ?? null;
-      // Defence in depth: requestor can never review their own plan.
       canReview =
         !!session?.user?.id &&
         canUserActOnCurrentStep({
@@ -396,9 +395,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (REVIEW_INTENT_STATUSES.has(body.status)) {
         if (!REVIEWABLE_FROM_STATUSES.has(before.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
-        }
-        if (before.requestorId === session.user.id) {
-          return NextResponse.json({ error: 'Requestor cannot review own plan' }, { status: 403 });
         }
         const levels = approvalLevelsOf(before);
         const reviewHistories = (await prisma.activityHistory.findMany({
