@@ -72,7 +72,7 @@ export default function CategoryPage() {
       <h1 className="text-2xl font-semibold">Category Master</h1>
       {isSyncManaged && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Category dikelola melalui sinkronisasi. Kontrol tambah/ubah/hapus disembunyikan.
+          Category is managed by sync. Add/edit/delete control is hidden.
         </div>
       )}
       <div className="flex items-center justify-between gap-4">

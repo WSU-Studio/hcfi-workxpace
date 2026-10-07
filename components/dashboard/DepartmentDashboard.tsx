@@ -85,13 +85,13 @@ export default function DepartmentDashboard({ data }: PersonaProps) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DashboardProportionDonut
-          title="Proporsi Realisasi terhadap Budget"
+          title="Proportion of Realization vs Budget"
           realized={kpis.actualYtd}
           remaining={kpis.remainingBudget}
           total={kpis.totalBudget}
         />
         <DashboardGroupedBar
-          title="Perbandingan Budget, Realisasi & Sisa Anggaran"
+          title="Comparison of Budget, Realization & Remaining Budget"
           titleClassName="uppercase tracking-wide"
           yAxisLabel="Rupiah"
           showYAxis
@@ -99,10 +99,10 @@ export default function DepartmentDashboard({ data }: PersonaProps) {
           categories={data.monthly.map((row) => MONTH_LABELS_ID[row.month - 1] ?? row.label)}
           series={[
             { key: 'budget', label: 'Budget', color: '#2563eb', values: data.monthly.map((row) => row.budget) },
-            { key: 'actual', label: 'Realisasi', color: '#22c55e', values: data.monthly.map((row) => row.actual) },
+            { key: 'actual', label: 'Realization', color: '#22c55e', values: data.monthly.map((row) => row.actual) },
             {
               key: 'remaining',
-              label: 'Sisa Anggaran',
+              label: 'Remaining Budget',
               color: '#94a3b8',
               values: data.monthly.map((row) => Math.max(0, row.budget - row.actual)),
             },

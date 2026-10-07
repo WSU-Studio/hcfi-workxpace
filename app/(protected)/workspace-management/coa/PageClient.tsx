@@ -132,7 +132,7 @@ export default function CoaPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">COA (Kode Akun)</h1>
+      <h1 className="text-2xl font-semibold">COA (Chart of Accounts)</h1>
 
       <MasterSyncBanner
         label="COA"
@@ -151,7 +151,7 @@ export default function CoaPage() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            Add COA
+            Add Account
           </Link>
         )}
       </div>

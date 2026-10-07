@@ -38,7 +38,7 @@ export default function MasterSyncBanner({
 }: MasterSyncBannerProps) {
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-2">
-      <p>{label} dikelola melalui sinkronisasi.</p>
+      <p>{label} is managed by sync.</p>
       {note && <p className="text-blue-900/90">{note}</p>}
       <div className="flex flex-wrap items-center gap-3">
         {canRunSync && (

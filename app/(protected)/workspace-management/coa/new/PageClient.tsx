@@ -45,7 +45,7 @@ export default function NewCoaPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-6">New COA</h1>
+      <h1 className="text-2xl font-semibold mb-6">New Account</h1>
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">{error}</div>}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
