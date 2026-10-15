@@ -123,3 +123,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
   }
 }
+
+const MAX_UNSAVE_BATCH = 100;
+
+/** DELETE — un-save selected matched rows; Data Mart staging cascades via FK. */
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const activity = session.user.access?.activityAccess as ActivityAccess | undefined;
+    if (!activity?.saveReconciliationResult) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = (await request.json()) as { ids?: string[] };
+    const ids = (body.ids ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'No IDs to unsave' }, { status: 400 });
+    }
+    if (ids.length > MAX_UNSAVE_BATCH) {
+      return NextResponse.json(
+        { error: `At most ${MAX_UNSAVE_BATCH} rows can be unsaved at once` },
+        { status: 400 }
+      );
+    }
+
+    const result = await prisma.reconciliationSavedPayment.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    await logActivity({
+      userId: session.user.id,
+      entityType: 'Reconciliation',
+      entityId: 'unsave',
+      action: 'delete',
+      details: { unsavedCount: result.count, ids },
+    });
+
+    return NextResponse.json({ ok: true, unsavedCount: result.count });
+  } catch (e) {
+    console.error('reconciliation unsave:', e);
+    return NextResponse.json({ error: 'Failed to unsave' }, { status: 500 });
+  }
+}
