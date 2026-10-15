@@ -57,6 +57,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          RECONCILIATION_ALLOW_RESET: ${{ secrets.RECONCILIATION_ALLOW_RESET }}
         run: |
           node <<'SCRIPT'
           const fs = require('fs');
