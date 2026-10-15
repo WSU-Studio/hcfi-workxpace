@@ -1,9 +1,12 @@
 /**
- * Reset seluruh simpanan rekonsiliasi hanya boleh aktif di development atau jika
- * RECONCILIATION_ALLOW_RESET=true (staging / QA). Menghindari penghapusan massal di produksi.
+ * Reset seluruh simpanan rekonsiliasi.
+ * - RECONCILIATION_ALLOW_RESET=true  → always allow (TQA / staging)
+ * - RECONCILIATION_ALLOW_RESET=false → always deny (incl. local + production)
+ * - unset → allow only when NODE_ENV=development
  */
 export function isReconciliationResetAllowed(): boolean {
-  if (process.env.RECONCILIATION_ALLOW_RESET === 'true') return true;
-  if (process.env.NODE_ENV === 'development') return true;
-  return false;
+  const flag = process.env.RECONCILIATION_ALLOW_RESET;
+  if (flag === 'true') return true;
+  if (flag === 'false') return false;
+  return process.env.NODE_ENV === 'development';
 }

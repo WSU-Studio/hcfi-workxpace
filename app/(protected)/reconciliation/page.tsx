@@ -596,7 +596,7 @@ export default function ReconciliationPage() {
         </div>
       </Card>
 
-      {canSave && (
+      {canSave && resetEligible && (
         <Card className="space-y-3 border-dashed border-amber-200 bg-amber-50/40 p-4">
           <h3 className="text-sm font-semibold text-amber-950">Pengujian ulang (development / QA)</h3>
           <p className="text-xs leading-relaxed text-amber-950/90">
@@ -614,16 +614,11 @@ export default function ReconciliationPage() {
             <Button
               type="button"
               variant="danger"
-              disabled={!resetEligible || resetLoading}
+              disabled={resetLoading}
               onClick={resetSavedForTesting}
             >
               {resetLoading ? 'Memproses…' : 'Reset simpanan rekonsiliasi (testing)'}
             </Button>
-            {!resetEligible && (
-              <span className="text-xs text-amber-900/80">
-                Tombol nonaktif di build ini — gunakan development atau set env di atas.
-              </span>
-            )}
           </div>
         </Card>
       )}
