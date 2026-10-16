@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, hcfi-workxpace-prod]
     environment: production
 
     env:
@@ -94,6 +94,7 @@ jobs:
             `NEXTAUTH_URL=${q(e.NEXTAUTH_URL)}`,
             `NEXTAUTH_SECRET=${q(e.NEXTAUTH_SECRET)}`,
             `CRON_SECRET=${q(e.CRON_SECRET)}`,
+            `RECONCILIATION_ALLOW_RESET=${q(e.RECONCILIATION_ALLOW_RESET)}`,
             '',
             `SMTP_HOST=${q(e.SMTP_HOST)}`,
             `SMTP_PORT=${q(e.SMTP_PORT)}`,
