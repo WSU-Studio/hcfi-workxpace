@@ -1,0 +1,127 @@
+name: Build & Deploy to Self-Hosted TQA Runner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, hcfi-workxpace-tqa]
+    environment: production
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      MODE_ENV: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          node -v
+          npm -v
+          test -f package-lock.json || { echo "package-lock.json missing"; exit 1; }
+          rm -rf node_modules
+          npm ci
+
+      # Write secrets via env + node so bash does not expand `$`, backticks, etc.
+      # (e.g. SMTP_PASS=M$6720... would become "M" with echo "...${{ secrets.SMTP_PASS }}...")
+      - name: Create .env file
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PORT: ${{ secrets.PORT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          ADINSKEY: ${{ secrets.ADINSKEY }}
+          CONFINS_BASE_URL: ${{ secrets.CONFINS_BASE_URL }}
+          CONFINS_USERNAME: ${{ secrets.CONFINS_USERNAME }}
+          CONFINS_PASSWORD: ${{ secrets.CONFINS_PASSWORD }}
+          CONFINS_USE_MOCK: ${{ secrets.CONFINS_USE_MOCK }}
+          CONFINS_MOCK_FALLBACK: ${{ secrets.CONFINS_MOCK_FALLBACK }}
+          CONFINS_INCOMING_REF_FIELD: ${{ secrets.CONFINS_INCOMING_REF_FIELD }}
+          NEXT_PUBLIC_SYNC_MANAGED_MASTERS: ${{ secrets.NEXT_PUBLIC_SYNC_MANAGED_MASTERS }}
+          AZURE_APPLICATION_ID: ${{ secrets.AZURE_APPLICATION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_ALLOWED_GROUP_IDS: ${{ secrets.AZURE_ALLOWED_GROUP_IDS }}
+          NEXT_PUBLIC_AZURE_AD_SSO_ENABLED: ${{ secrets.NEXT_PUBLIC_AZURE_AD_SSO_ENABLED }}
+          NEXT_PUBLIC_DEPLOYMENT_TENANT: ${{ secrets.NEXT_PUBLIC_DEPLOYMENT_TENANT }}
+          NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW: ${{ secrets.NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          RECONCILIATION_ALLOW_RESET: ${{ secrets.RECONCILIATION_ALLOW_RESET }}
+        run: |
+          node <<'SCRIPT'
+          const fs = require('fs');
+          const e = process.env;
+          const blankIfEmptyToken = (value) =>
+            !value || value === 'EMPTY' ? '' : value;
+          const q = (value) => JSON.stringify(value ?? '');
+          const lines = [
+            `DATABASE_URL=${q(e.DATABASE_URL)}`,
+            `PORT=${q(e.PORT)}`,
+            '',
+            `AWS_ACCESS_KEY_ID=${q(blankIfEmptyToken(e.AWS_ACCESS_KEY_ID))}`,
+            `AWS_SECRET_ACCESS_KEY=${q(blankIfEmptyToken(e.AWS_SECRET_ACCESS_KEY))}`,
+            `AWS_REGION=${q(e.AWS_REGION)}`,
+            `AWS_S3_BUCKET=${q(e.AWS_S3_BUCKET)}`,
+            '',
+            `ADINSKEY=${q(e.ADINSKEY)}`,
+            `CONFINS_BASE_URL=${q(e.CONFINS_BASE_URL)}`,
+            `CONFINS_USERNAME=${q(e.CONFINS_USERNAME)}`,
+            `CONFINS_PASSWORD=${q(e.CONFINS_PASSWORD)}`,
+            `CONFINS_USE_MOCK=${q(e.CONFINS_USE_MOCK)}`,
+            `CONFINS_MOCK_FALLBACK=${q(e.CONFINS_MOCK_FALLBACK)}`,
+            `CONFINS_INCOMING_REF_FIELD=${q(e.CONFINS_INCOMING_REF_FIELD)}`,
+            `NEXT_PUBLIC_SYNC_MANAGED_MASTERS=${q(e.NEXT_PUBLIC_SYNC_MANAGED_MASTERS)}`,
+            '',
+            `AZURE_APPLICATION_ID=${q(e.AZURE_APPLICATION_ID)}`,
+            `AZURE_TENANT_ID=${q(e.AZURE_TENANT_ID)}`,
+            `AZURE_CLIENT_SECRET=${q(e.AZURE_CLIENT_SECRET)}`,
+            `AZURE_ALLOWED_GROUP_IDS=${q(e.AZURE_ALLOWED_GROUP_IDS)}`,
+            `NEXT_PUBLIC_AZURE_AD_SSO_ENABLED=${q(e.NEXT_PUBLIC_AZURE_AD_SSO_ENABLED)}`,
+            `NEXT_PUBLIC_DEPLOYMENT_TENANT=${q(e.NEXT_PUBLIC_DEPLOYMENT_TENANT)}`,
+            `NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW=${q(e.NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW)}`,
+            '',
+            `NEXTAUTH_URL=${q(e.NEXTAUTH_URL)}`,
+            `NEXTAUTH_SECRET=${q(e.NEXTAUTH_SECRET)}`,
+            `CRON_SECRET=${q(e.CRON_SECRET)}`,
+            `RECONCILIATION_ALLOW_RESET=${q(e.RECONCILIATION_ALLOW_RESET)}`,
+            '',
+            `SMTP_HOST=${q(e.SMTP_HOST)}`,
+            `SMTP_PORT=${q(e.SMTP_PORT)}`,
+            `SMTP_USER=${q(e.SMTP_USER)}`,
+            `SMTP_PASS=${q(e.SMTP_PASS)}`,
+            `SMTP_FROM=${q(e.SMTP_FROM)}`,
+            '',
+            'NODE_ENV="production"',
+            '',
+          ];
+          fs.writeFileSync('.env', lines.join('\n'));
+          const smtpPass = e.SMTP_PASS || '';
+          console.log(
+            `[env] wrote .env (SMTP_USER set=${Boolean(e.SMTP_USER)}, SMTP_PASS length=${smtpPass.length})`,
+          );
+          SCRIPT
+
+      - name: Build application
+        run: npm run build
+
+      - name: Apply Database Migrations
+        run: |
+          npm run db:migrate:deploy
+          npm run seed
+
+      - name: Restart App with PM2
+        run: |
+          pm2 restart nextjs-app || pm2 start npm --name "nextjs-app" -- start
+          pm2 save
+        
