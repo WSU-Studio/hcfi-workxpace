@@ -6,7 +6,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, hcfi-workxpace-tqa]
-    environment: production
+    environment: TQA
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
