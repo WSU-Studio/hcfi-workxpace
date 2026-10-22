@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import Input from '@/components/ui/Input';
 import { BudgetRequestDetailSummarySection } from '@/components/budget-requests/BudgetRequestDetailSections';
 import BudgetRequestPeriodAllocationSummary from '@/components/budget-requests/BudgetRequestPeriodAllocationSummary';
@@ -449,65 +450,74 @@ export default function BudgetRequestReviewWorkspace({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="block mb-1.5 text-sm font-medium">Cost Center</label>
-              <Select
+              <SearchableSelect
                 value={classification.costCenterId}
+                options={[
+                  { value: '', label: '-' },
+                  ...(data.costCenterOptions || []).map((costCenter) => ({
+                    value: costCenter.id,
+                    label: costCenter.name,
+                  })),
+                ]}
                 disabled={!canEditClassificationFields}
-                onChange={(e) => setClassification((p) => ({ ...p, costCenterId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {(data.costCenterOptions || []).map((costCenter) => (
-                  <option key={costCenter.id} value={costCenter.id}>
-                    {costCenter.name}
-                  </option>
-                ))}
-              </Select>
+                onChange={(costCenterId) => setClassification((p) => ({ ...p, costCenterId }))}
+                placeholder="-"
+                searchPlaceholder="Search cost center..."
+              />
             </div>
             <div>
               <label className="block mb-1.5 text-sm font-medium">Category</label>
-              <Select
+              <SearchableSelect
                 value={classification.categoryId}
+                options={[
+                  { value: '', label: '-' },
+                  ...(data.categoryOptions || []).map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  })),
+                ]}
                 disabled={!canEditClassificationFields}
-                onChange={(e) => setClassification((p) => ({ ...p, categoryId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {(data.categoryOptions || []).map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
+                onChange={(categoryId) => setClassification((p) => ({ ...p, categoryId }))}
+                placeholder="-"
+                searchPlaceholder="Search category..."
+              />
             </div>
             <div>
               <label className="block mb-1.5 text-sm font-medium">Category Key Index</label>
-              <Select
+              <SearchableSelect
                 value={classification.categoryKeyIndexId}
+                options={[
+                  { value: '', label: '-' },
+                  ...(data.categoryKeyIndexOptions || []).map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                  })),
+                ]}
                 disabled={!canEditClassificationFields}
-                onChange={(e) => setClassification((p) => ({ ...p, categoryKeyIndexId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {(data.categoryKeyIndexOptions || []).map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </Select>
+                onChange={(categoryKeyIndexId) => setClassification((p) => ({ ...p, categoryKeyIndexId }))}
+                placeholder="-"
+                searchPlaceholder="Search category key index..."
+              />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="block mb-1.5 text-sm font-medium">Kode Akun</label>
-              <Select
+              <SearchableSelect
                 value={classification.coaId}
+                options={[
+                  { value: '', label: '-' },
+                  ...(data.accountOptions || []).map((account) => ({
+                    value: account.id,
+                    label: `${account.accountCode} - ${account.accountName}`,
+                    searchText: `${account.accountCode} ${account.accountName}`,
+                  })),
+                ]}
                 disabled={!canEditClassificationFields}
-                onChange={(e) => setClassification((p) => ({ ...p, coaId: e.target.value }))}
-              >
-                <option value="">-</option>
-                {(data.accountOptions || []).map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.accountCode} - {account.accountName}
-                  </option>
-                ))}
-              </Select>
+                onChange={(coaId) => setClassification((p) => ({ ...p, coaId }))}
+                placeholder="-"
+                searchPlaceholder="Search kode akun..."
+              />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -531,18 +541,20 @@ export default function BudgetRequestReviewWorkspace({
             {classification.opexType === 'OPEX' ? (
               <div>
                 <label className="block mb-1.5 text-sm font-medium">Opex Allocation</label>
-                <Select
+                <SearchableSelect
                   value={classification.opexAllocationId}
+                  options={[
+                    { value: '', label: '-' },
+                    ...(data.opexAllocationOptions || []).map((allocation) => ({
+                      value: allocation.id,
+                      label: allocation.name,
+                    })),
+                  ]}
                   disabled={!canEditClassificationFields}
-                  onChange={(e) => setClassification((p) => ({ ...p, opexAllocationId: e.target.value }))}
-                >
-                  <option value="">-</option>
-                  {(data.opexAllocationOptions || []).map((allocation) => (
-                    <option key={allocation.id} value={allocation.id}>
-                      {allocation.name}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(opexAllocationId) => setClassification((p) => ({ ...p, opexAllocationId }))}
+                  placeholder="-"
+                  searchPlaceholder="Search opex allocation..."
+                />
               </div>
             ) : null}
           </div>
