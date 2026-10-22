@@ -15,6 +15,8 @@ Workxpace is the HCFI eBudgeting app (Next.js App Router, Prisma, NextAuth). Pro
 - [Leave blank - user populates]
 
 ## Components
+- `app/(protected)/workspace-management/opex-allocation/*` — CRUD for `OpexAllocationMaster` (list / new / detail / edit). API: `GET|POST /api/workspace-management/opex-allocation`, `GET|PUT|DELETE /api/workspace-management/opex-allocation/[id]`. Access: `viewOpexAllocation` + `create|edit|deleteOpexAllocation`. Delete blocked (409) while Budget Plans still reference the row — deactivate via `isActive` instead. Classification dropdowns load only `isActive: true` via `loadClassificationOptions`.
+- `components/classification/RequestClassificationFields.tsx` — Classification masters (Cost Center, Category, Category Key Index, Kode Akun, Opex Allocation) use `SearchableSelect`; OPEX/CAPEX Type stays a plain `Select`. Same pattern on BP/BR review classification sections.
 - `lib/budget-plans/form.ts` — Budget Plan form values, allocation helpers, and required-field validation (`validateRequiredBudgetPlanWriteFields` / `validateBudgetPlanForm`). Supporting Documents are the only optional field on create/edit.
 - `lib/budget-plans/code.ts` — Budget Plan document-code allocator (`allocateNextBudgetPlanCode` / `createBudgetPlanCodeAllocator`). Sequence is MAX(existing suffix)+1, not COUNT (COUNT collides when the same `{DEPT}{YYYY}{MM}` prefix has gaps).
 - `lib/budget-plans/bulk-import-template.ts` — Builds the BP bulk-import XLSX. Download is `GET /api/budget-plans/bulk-import/template` so the sample row uses live Origin Office / Department / Project / Approval Schema codes (static `public/templates/...xlsx` is a fallback).
