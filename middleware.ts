@@ -105,6 +105,17 @@ export default withAuth(
           return NextResponse.redirect(new URL('/forbidden', req.url));
         }
       }
+      if (req.nextUrl.pathname.includes('/opex-allocation')) {
+        if (!menuAccess.viewOpexAllocation) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if ((req.nextUrl.pathname.includes('/edit') || req.nextUrl.pathname.includes('/[id]/edit')) && !activityAccess.editOpexAllocation) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+        if (req.nextUrl.pathname.includes('/new') && !activityAccess.createOpexAllocation) {
+          return NextResponse.redirect(new URL('/forbidden', req.url));
+        }
+      }
       if (req.nextUrl.pathname.match(/^\/workspace-management\/coa(\/|$)/)) {
         if (!menuAccess.viewCoa) {
           return NextResponse.redirect(new URL('/forbidden', req.url));
