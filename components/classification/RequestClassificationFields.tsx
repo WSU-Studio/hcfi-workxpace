@@ -1,6 +1,7 @@
 'use client';
 
 import Select from '@/components/ui/Select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import type { ClassificationOption, AccountOption } from '@/lib/classification-options';
 import type { RequestClassificationValue } from '@/lib/request-classification';
 
@@ -14,6 +15,13 @@ export type RequestClassificationFieldsProps = {
   accountOptions: AccountOption[];
   readOnly?: boolean;
 };
+
+function toNamedOptions(rows: ClassificationOption[]) {
+  return [
+    { value: '', label: '-' },
+    ...rows.map((row) => ({ value: row.id, label: row.name })),
+  ];
+}
 
 export default function RequestClassificationFields({
   value,
@@ -30,66 +38,67 @@ export default function RequestClassificationFields({
     onChange({ ...value, [field]: next });
   };
 
+  const costCenterSelectOptions = toNamedOptions(costCenterOptions);
+  const categorySelectOptions = toNamedOptions(categoryOptions);
+  const categoryKeyIndexSelectOptions = toNamedOptions(categoryKeyIndexOptions);
+  const opexAllocationSelectOptions = toNamedOptions(opexAllocationOptions);
+  const accountSelectOptions = [
+    { value: '', label: '-' },
+    ...accountOptions.map((account) => ({
+      value: account.id,
+      label: `${account.accountCode} - ${account.accountName}`,
+      searchText: `${account.accountCode} ${account.accountName}`,
+    })),
+  ];
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div>
           <label className="mb-1.5 block text-sm font-medium">Cost Center</label>
-          <Select
+          <SearchableSelect
             value={value.costCenterId}
+            options={costCenterSelectOptions}
             disabled={readOnly}
-            onChange={(e) => setField('costCenterId', e.target.value)}
-          >
-            <option value="">-</option>
-            {costCenterOptions.map((costCenter) => (
-              <option key={costCenter.id} value={costCenter.id}>
-                {costCenter.name}
-              </option>
-            ))}
-          </Select>
+            onChange={(next) => setField('costCenterId', next)}
+            placeholder="-"
+            searchPlaceholder="Search cost center..."
+          />
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium">Category</label>
-          <Select
+          <SearchableSelect
             value={value.categoryId}
+            options={categorySelectOptions}
             disabled={readOnly}
-            onChange={(e) => setField('categoryId', e.target.value)}
-          >
-            <option value="">-</option>
-            {categoryOptions.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </Select>
+            onChange={(next) => setField('categoryId', next)}
+            placeholder="-"
+            searchPlaceholder="Search category..."
+          />
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium">Category Key Index</label>
-          <Select
+          <SearchableSelect
             value={value.categoryKeyIndexId}
+            options={categoryKeyIndexSelectOptions}
             disabled={readOnly}
-            onChange={(e) => setField('categoryKeyIndexId', e.target.value)}
-          >
-            <option value="">-</option>
-            {categoryKeyIndexOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </Select>
+            onChange={(next) => setField('categoryKeyIndexId', next)}
+            placeholder="-"
+            searchPlaceholder="Search category key index..."
+          />
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-medium">Kode Akun</label>
-          <Select value={value.coaId} disabled={readOnly} onChange={(e) => setField('coaId', e.target.value)}>
-            <option value="">-</option>
-            {accountOptions.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.accountCode} - {account.accountName}
-              </option>
-            ))}
-          </Select>
+          <SearchableSelect
+            value={value.coaId}
+            options={accountSelectOptions}
+            disabled={readOnly}
+            onChange={(next) => setField('coaId', next)}
+            placeholder="-"
+            searchPlaceholder="Search kode akun..."
+          />
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -113,18 +122,14 @@ export default function RequestClassificationFields({
         {value.opexType === 'OPEX' ? (
           <div>
             <label className="mb-1.5 block text-sm font-medium">Opex Allocation</label>
-            <Select
+            <SearchableSelect
               value={value.opexAllocationId}
+              options={opexAllocationSelectOptions}
               disabled={readOnly}
-              onChange={(e) => setField('opexAllocationId', e.target.value)}
-            >
-              <option value="">-</option>
-              {opexAllocationOptions.map((allocation) => (
-                <option key={allocation.id} value={allocation.id}>
-                  {allocation.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(next) => setField('opexAllocationId', next)}
+              placeholder="-"
+              searchPlaceholder="Search opex allocation..."
+            />
           </div>
         ) : null}
       </div>
