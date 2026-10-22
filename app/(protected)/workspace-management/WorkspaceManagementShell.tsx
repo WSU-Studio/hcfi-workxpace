@@ -12,6 +12,7 @@ import {
   IconBriefcase,
   IconCategory,
   IconHierarchy2,
+  IconChartPie,
   IconTag,
   IconMapPin,
   IconReceipt2,
@@ -40,6 +41,12 @@ export default function WorkspaceManagementShell({ children }: { children: React
       show: menuAccess.viewCategoryKeyIndex,
     },
     { name: 'Cost Center', href: '/workspace-management/cost-center', icon: IconHierarchy2, show: menuAccess.viewCostCenter },
+    {
+      name: 'Opex Allocation',
+      href: '/workspace-management/opex-allocation',
+      icon: IconChartPie,
+      show: menuAccess.viewOpexAllocation,
+    },
     { name: 'COA', href: '/workspace-management/coa', icon: IconReceipt2, show: menuAccess.viewCoa },
     { name: 'Role', href: '/workspace-management/role', icon: IconIdBadge2, show: menuAccess.viewRole },
     {
