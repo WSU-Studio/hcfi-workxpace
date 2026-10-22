@@ -50,6 +50,7 @@ export interface MenuAccess {
   viewCategory: boolean;
   viewCategoryKeyIndex: boolean;
   viewCostCenter: boolean;
+  viewOpexAllocation: boolean;
   viewCoa: boolean;
   viewRole: boolean;
   viewApprovalSchema: boolean;
@@ -93,6 +94,9 @@ export interface ActivityAccess {
   createCostCenter: boolean;
   editCostCenter: boolean;
   deleteCostCenter: boolean;
+  createOpexAllocation: boolean;
+  editOpexAllocation: boolean;
+  deleteOpexAllocation: boolean;
   createCoa: boolean;
   editCoa: boolean;
   deleteCoa: boolean;
