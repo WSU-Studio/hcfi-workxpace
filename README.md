@@ -104,6 +104,10 @@ NEXT_PUBLIC_DEPLOYMENT_TENANT=
 NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW=false
 # When enabled: /budget-requests/[id] = compact view; /budget-requests/[id]/detail = full drill-down
 
+# Login env banner (optional) — see lib/deployment/app-env-banner.ts
+# development | tqa | staging | production (empty = no banner; local next dev falls back to DEVELOPMENT)
+NEXT_PUBLIC_APP_ENV=
+
 # Master sync UI (optional)
 NEXT_PUBLIC_SYNC_MANAGED_MASTERS=""
 

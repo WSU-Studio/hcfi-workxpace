@@ -10,6 +10,7 @@ import PasswordInput from '@/components/ui/PasswordInput';
 import Logo from '@/public/workxpace-logo.svg';
 import LoadingSpin from '@/components/ui/LoadingSpin';
 import MicrosoftSignInButton from '@/components/auth/MicrosoftSignInButton';
+import EnvironmentBanner from '@/components/auth/EnvironmentBanner';
 
 const CALLBACK_URL = '/dashboard';
 
@@ -104,6 +105,7 @@ function LoginPageInner() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md">
+        <EnvironmentBanner />
         <div className="flex items-center justify-center gap-4 mb-8 text-blue-600">
           <Image src={Logo} alt="Workxpace Logo" width={64} height={64} />
           <div>
