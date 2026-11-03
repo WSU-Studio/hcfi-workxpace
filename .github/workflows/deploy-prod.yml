@@ -91,6 +91,8 @@ jobs:
             `NEXT_PUBLIC_DEPLOYMENT_TENANT=${q(e.NEXT_PUBLIC_DEPLOYMENT_TENANT)}`,
             `NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW=${q(e.NEXT_PUBLIC_BR_DETAIL_COMPACT_VIEW)}`,
             '',
+            // Login banner — this workflow is TQA (NODE_ENV is production after build).
+            `NEXT_PUBLIC_APP_ENV=${q('tqa')}`,
             `NEXTAUTH_URL=${q(e.NEXTAUTH_URL)}`,
             `NEXTAUTH_SECRET=${q(e.NEXTAUTH_SECRET)}`,
             `CRON_SECRET=${q(e.CRON_SECRET)}`,
