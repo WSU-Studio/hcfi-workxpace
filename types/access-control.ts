@@ -41,6 +41,8 @@ export interface MenuAccess {
   /** Laporan tersimpan (rekonsiliasi, dll.) */
   reports: boolean;
   userManagement: boolean;
+  /** Admin page to create/list temporary approval substitutes. */
+  approvalDelegation: boolean;
   workspaceManagement: boolean;
   settings?: boolean;
   viewDivision: boolean;
@@ -103,6 +105,8 @@ export interface ActivityAccess {
   createUser: boolean;
   editUser: boolean;
   deleteUser: boolean;
+  createApprovalDelegation: boolean;
+  cancelApprovalDelegation: boolean;
   /**
    * Mengubah hak akses (Menu / Activity / Workspace Management Access) milik
    * user lain. Terpisah dari `editUser` (yang hanya mengedit data profil
