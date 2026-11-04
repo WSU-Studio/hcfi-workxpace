@@ -12,6 +12,7 @@ import {
   IconChartBar,
   IconCoins,
   IconId,
+  IconKey,
   IconLayoutDashboardFilled,
   IconLogout,
   IconReceipt,
@@ -50,6 +51,7 @@ const Sidebar = () => {
     { name: 'Reconciliation', href: '/reconciliation', icon: IconScale, show: menuAccess.reconciliation },
     { name: 'Reports', href: '/reports', icon: IconChartBar, show: menuAccess.reports },
     { name: 'User Management', href: '/user-management', icon: IconId, show: menuAccess.userManagement },
+    { name: 'Approval Delegation', href: '/approval-delegation', icon: IconKey, show: menuAccess.approvalDelegation },
     { name: 'Workspace Management', href: '/workspace-management', icon: IconSubtask, show: menuAccess.workspaceManagement },
     { name: 'Application Settings', href: '/settings', icon: IconSettings, show: menuAccess.settings ?? menuAccess.workspaceManagement },
   ].filter((i) => i.show);
