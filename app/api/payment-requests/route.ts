@@ -27,6 +27,10 @@ import {
   approvalLevelsOf,
   captureApprovalSchemaSnapshot,
 } from '@/lib/approval-schema-snapshot';
+import {
+  loadActorDelegationContext,
+  type ActorDelegationContext,
+} from '@/lib/approval-delegation';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +56,9 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const delegationCtx = session?.user?.id
+      ? await loadActorDelegationContext(session.user.id)
+      : null;
     const { searchParams } = new URL(request.url);
 
     // Cross-department view scope: applies both to the PR list and to the
@@ -111,7 +118,7 @@ export async function GET(request: Request) {
 
     const requests =
       prSettled.status === 'fulfilled'
-        ? await serializePaymentRequestList(prSettled.value, session, userRoleIds)
+        ? await serializePaymentRequestList(prSettled.value, session, userRoleIds, delegationCtx)
         : [];
     if (prSettled.status === 'rejected') {
       console.error('[GET /api/payment-requests] paymentRequest.findMany failed', prSettled.reason);
@@ -148,7 +155,8 @@ export async function GET(request: Request) {
 async function serializePaymentRequestList(
   rows: PaymentRequestListRow[],
   session: Session | null,
-  userRoleIds: string[]
+  userRoleIds: string[],
+  delegationCtx: ActorDelegationContext | null,
 ) {
   const requestorIds = Array.from(
     new Set(rows.map((row) => row.requestorId).filter((id): id is string => Boolean(id)))
@@ -198,6 +206,7 @@ async function serializePaymentRequestList(
         userRoleIds,
         requestorId: r.requestorId ?? null,
         actorUserId: session.user.id,
+        delegationCtx,
       }),
   };
   });
