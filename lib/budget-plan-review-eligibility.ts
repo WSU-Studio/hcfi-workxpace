@@ -3,6 +3,7 @@ import {
   countCompletedApprovalSteps,
   type BudgetPlanHistoryEntry,
 } from '@/lib/budget-plan-approval-display';
+import type { ActorDelegationContext } from '@/lib/approval-delegation';
 
 export async function getBudgetPlanUserRoleIds(userId: string): Promise<string[]> {
   const user = await prisma.user.findUnique({
@@ -38,6 +39,46 @@ export function userIsEligibleForLevel(
   const picUserIds = picUserIdsForLevel(level);
   if (picUserIds.length === 0) return true;
   return picUserIds.includes(actorUserId);
+}
+
+/** Mode A: outbound delegator blocked; inbound delegate inherits delegator eligibility. */
+export function userIsEligibleForLevelWithDelegation(
+  level: ApprovalLevel,
+  actorUserId: string,
+  userRoleIds: string[],
+  ctx: ActorDelegationContext | null | undefined,
+): boolean {
+  const direct = userIsEligibleForLevel(level, actorUserId, userRoleIds);
+  if (direct) {
+    if (ctx?.actorHasOutbound) return false;
+    return true;
+  }
+  if (!ctx?.inboundDelegators.length) return false;
+  return ctx.inboundDelegators.some((delegator) =>
+    userIsEligibleForLevel(level, delegator.userId, delegator.roleIds),
+  );
+}
+
+/**
+ * When the actor is approving only because of an inbound delegation, return
+ * the first matching delegator for history `onBehalfOf*`.
+ */
+export function resolveOnBehalfOfDelegator(params: {
+  level: ApprovalLevel;
+  actorUserId: string;
+  userRoleIds: string[];
+  ctx: ActorDelegationContext | null | undefined;
+}): { userId: string; name: string } | null {
+  const { level, actorUserId, userRoleIds, ctx } = params;
+  if (!ctx) return null;
+  const direct = userIsEligibleForLevel(level, actorUserId, userRoleIds);
+  if (direct && !ctx.actorHasOutbound) return null;
+  for (const delegator of ctx.inboundDelegators) {
+    if (userIsEligibleForLevel(level, delegator.userId, delegator.roleIds)) {
+      return { userId: delegator.userId, name: delegator.name };
+    }
+  }
+  return null;
 }
 
 /**
@@ -99,8 +140,15 @@ export function canUserActOnCurrentStep(params: {
   userRoleIds: string[];
   requestorId: string | null;
   actorUserId: string;
+  /** When omitted, eligibility ignores approval delegation (legacy / tests). */
+  delegationCtx?: ActorDelegationContext | null;
 }): boolean {
   const next = getNextApprovalStep(params.status, params.approvalLevels, params.histories);
   if (!next) return false;
-  return userIsEligibleForLevel(next, params.actorUserId, params.userRoleIds);
+  return userIsEligibleForLevelWithDelegation(
+    next,
+    params.actorUserId,
+    params.userRoleIds,
+    params.delegationCtx,
+  );
 }
