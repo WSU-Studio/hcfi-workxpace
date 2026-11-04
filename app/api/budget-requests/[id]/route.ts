@@ -25,6 +25,7 @@ import {
   snapshotForDocumentWrite,
   withFrozenApprovalSchema,
 } from '@/lib/approval-schema-snapshot';
+import { loadActorDelegationContext } from '@/lib/approval-delegation';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,6 +132,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       orderBy: { timestamp: 'desc' },
     });
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const delegationCtx = session?.user?.id
+      ? await loadActorDelegationContext(session.user.id)
+      : null;
     const canReview =
       !!session?.user?.id &&
       canUserActOnCurrentStep({
@@ -140,6 +144,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         userRoleIds,
         requestorId: br.requestorId ?? null,
         actorUserId: session.user.id,
+        delegationCtx,
       });
     const originOfficeMaster = (prisma as unknown as {
       originOfficeMaster: OriginOfficeMasterDelegate;

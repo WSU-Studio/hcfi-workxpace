@@ -7,11 +7,13 @@ import {
   canUserActOnCurrentStep,
   getBudgetPlanUserRoleIds,
   getNextApprovalStep,
+  resolveOnBehalfOfDelegator,
 } from '@/lib/budget-plan-review-eligibility';
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { createBudgetRequestNotifications } from '@/lib/budget-request-notifications';
 import { canEditClassificationFields } from '@/lib/access/classification';
 import { approvalLevelsOf } from '@/lib/approval-schema-snapshot';
+import { loadActorDelegationContext } from '@/lib/approval-delegation';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +48,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const levels = approvalLevelsOf(before);
     const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+    const delegationCtx = await loadActorDelegationContext(session.user.id);
     // Used by the multi-step eligibility checks below; this is the *only*
     // way to tell apart "still on step 2 of a 4-step ladder" from "already
     // through every step" when `status === 'Reviewed'`.
@@ -56,6 +59,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const action =
       body?.action === 'revision' ? 'revision' : body?.action === 'decline' ? 'decline' : 'approve';
     let newStatus: string;
+    let onBehalfOf: { userId: string; name: string } | null = null;
+    const nextStep = levels.length
+      ? getNextApprovalStep(before.status, levels, histories)
+      : null;
 
     if (action === 'revision' || action === 'decline') {
       const allowed = canUserActOnCurrentStep({
@@ -65,6 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         userRoleIds,
         requestorId: before.requestorId ?? null,
         actorUserId: session.user.id,
+        delegationCtx,
       });
       if (!allowed) {
         return NextResponse.json({ error: 'You are not allowed to request revision at this stage' }, { status: 403 });
@@ -76,6 +84,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         );
       }
       newStatus = action === 'decline' ? 'Declined' : 'Revision';
+      if (nextStep) {
+        onBehalfOf = resolveOnBehalfOfDelegator({
+          level: nextStep,
+          actorUserId: session.user.id,
+          userRoleIds,
+          ctx: delegationCtx,
+        });
+      }
     } else
 
     {
@@ -92,17 +108,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           userRoleIds,
           requestorId: before.requestorId ?? null,
           actorUserId: session.user.id,
+          delegationCtx,
         });
         if (!allowed) {
           return NextResponse.json({ error: 'You are not allowed to approve at this stage' }, { status: 403 });
         }
         const ordered = [...levels].sort((a, b) => a.stepOrder - b.stepOrder);
-        const next = getNextApprovalStep(before.status, levels, histories);
+        const next = nextStep;
         if (!next) {
           return NextResponse.json({ error: 'No approval step available' }, { status: 400 });
         }
         const isLastStep = next.stepOrder === ordered[ordered.length - 1]!.stepOrder;
         newStatus = isLastStep ? 'Approved' : 'Reviewed';
+        onBehalfOf = resolveOnBehalfOfDelegator({
+          level: next,
+          actorUserId: session.user.id,
+          userRoleIds,
+          ctx: delegationCtx,
+        });
       }
     }
 
@@ -261,6 +284,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           action === 'approve'
             ? (typeof body?.approvalNote === 'string' ? body.approvalNote.trim() || null : null)
             : null,
+        ...(onBehalfOf
+          ? { onBehalfOfUserId: onBehalfOf.userId, onBehalfOfName: onBehalfOf.name }
+          : {}),
       },
     });
     await createBudgetRequestNotifications({
