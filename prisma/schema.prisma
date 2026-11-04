@@ -69,6 +69,9 @@ model User {
   paymentRequestCommentMentions PaymentRequestCommentMention[]
   reconciliationSavedPayments ReconciliationSavedPayment[] @relation("ReconciliationSavedBy")
   reconciliationUnusedPaymentsMarked ReconciliationUnusedPayment[] @relation("ReconciliationUnusedMarkedBy")
+  approvalDelegationsAsDelegator ApprovalDelegation[] @relation("ApprovalDelegationDelegator")
+  approvalDelegationsAsDelegate  ApprovalDelegation[] @relation("ApprovalDelegationDelegate")
+  approvalDelegationsCreated     ApprovalDelegation[] @relation("ApprovalDelegationCreatedBy")
 
   @@index([roleId])
   @@index([departmentId])
@@ -283,6 +286,29 @@ model AlternatingRule {
 
   @@index([approvalLevelId])
   @@map("alternating_rules")
+}
+
+/// Temporary user→user approval substitute (not per schema level).
+/// status: Active | Cancelled. Expired is derived from endDate when listing.
+model ApprovalDelegation {
+  id              String   @id @default(cuid())
+  delegatorUserId String
+  delegateUserId  String
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("Active") // Active | Cancelled
+  notes           String?  @db.Text
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  delegator       User     @relation("ApprovalDelegationDelegator", fields: [delegatorUserId], references: [id], onDelete: Cascade)
+  delegate        User     @relation("ApprovalDelegationDelegate", fields: [delegateUserId], references: [id], onDelete: Cascade)
+  createdBy       User     @relation("ApprovalDelegationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([delegatorUserId, startDate, endDate])
+  @@index([delegateUserId, startDate, endDate])
+  @@index([status])
+  @@map("approval_delegations")
 }
 
 model BudgetPlan {
