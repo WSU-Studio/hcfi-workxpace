@@ -22,7 +22,7 @@ export type BudgetPlanHistoryEntry = {
   user: { name: string | null } | null;
 };
 
-/** Actor line for approval progress: `Bob · menggantikan Alice` when delegated. */
+/** Actor line for approval progress: `Bob · on behalf of Alice` when delegated. */
 export function formatApprovalActorName(
   actorName: string | null | undefined,
   details?: { onBehalfOfName?: string | null } | null,
@@ -30,7 +30,7 @@ export function formatApprovalActorName(
   const name = actorName?.trim() || null;
   if (!name) return null;
   const onBehalf = details?.onBehalfOfName?.trim();
-  if (onBehalf) return `${name} · menggantikan ${onBehalf}`;
+  if (onBehalf) return `${name} · on behalf of ${onBehalf}`;
   return name;
 }
 

@@ -23,7 +23,7 @@ export default function BudgetRequestPeriodAllocationSummary({
   return (
     <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
       <p className="text-xs text-gray-500">
-        Grand total BR = item subtotal (inc. tax) × jumlah bulan terpilih.
+        Grand total BR = item subtotal (inc. tax) × number of selected months.
       </p>
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-600">Item subtotal (inc. tax)</span>
