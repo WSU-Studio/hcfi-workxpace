@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { remapNotificationUserIds } from '@/lib/approval-delegation';
 
 export const approvalLevelPicsSelect = {
   pics: { select: { userId: true } },
@@ -163,5 +164,6 @@ export async function resolveSchemaNotificationUserIds(params: {
     select: { id: true },
   });
 
-  return Array.from(new Set(users.map((user) => user.id))).filter((id) => id !== actorUserId);
+  const ids = Array.from(new Set(users.map((user) => user.id))).filter((id) => id !== actorUserId);
+  return remapNotificationUserIds(ids);
 }
