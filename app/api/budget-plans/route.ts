@@ -21,6 +21,7 @@ import {
   approvalLevelsOf,
   captureApprovalSchemaSnapshot,
 } from '@/lib/approval-schema-snapshot';
+import { loadActorDelegationContext } from '@/lib/approval-delegation';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRoleIds = session?.user?.id ? await getBudgetPlanUserRoleIds(session.user.id) : [];
+    const delegationCtx = session?.user?.id
+      ? await loadActorDelegationContext(session.user.id)
+      : null;
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') ?? '';
     const status = searchParams.get('status') ?? '';
@@ -113,6 +117,7 @@ export async function GET(request: Request) {
             userRoleIds,
             requestorId: plan.requestorId ?? null,
             actorUserId: session.user.id,
+            delegationCtx,
           }),
       };
     });

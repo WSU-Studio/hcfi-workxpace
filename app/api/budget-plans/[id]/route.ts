@@ -9,6 +9,7 @@ import {
   getBudgetPlanUserRoleIds,
   getNextApprovalStep,
   isNextStepFinal,
+  resolveOnBehalfOfDelegator,
 } from '@/lib/budget-plan-review-eligibility';
 import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display';
 import { enrichAllocationsWithRealization } from '@/lib/budget-plan-realization';
@@ -24,6 +25,7 @@ import {
   budgetPlanFormValuesFromBody,
   validateRequiredBudgetPlanWriteFields,
 } from '@/lib/budget-plans/form';
+import { loadActorDelegationContext } from '@/lib/approval-delegation';
 import {
   approvalLevelsOf,
   snapshotForDocumentWrite,
@@ -127,6 +129,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const approvalLevels = approvalLevelsOf(plan);
     if (session?.user?.id && approvalLevels.length) {
       const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+      const delegationCtx = await loadActorDelegationContext(session.user.id);
       const next = getNextApprovalStep(
         plan.status,
         approvalLevels,
@@ -142,6 +145,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           userRoleIds,
           requestorId: plan.requestorId ?? null,
           actorUserId: session.user.id,
+          delegationCtx,
         });
     }
 
@@ -392,6 +396,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       // schema we are, so a 3- or 4-step ladder progresses correctly instead
       // of getting stuck on step 2 like the old 2-step heuristic.
       let resolvedStatus: string = body.status;
+      let onBehalfOf: { userId: string; name: string } | null = null;
       if (REVIEW_INTENT_STATUSES.has(body.status)) {
         if (!REVIEWABLE_FROM_STATUSES.has(before.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
@@ -406,6 +411,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           return NextResponse.json({ error: 'No available review step' }, { status: 400 });
         }
         const userRoleIds = await getBudgetPlanUserRoleIds(session.user.id);
+        const delegationCtx = await loadActorDelegationContext(session.user.id);
         const allowed = canUserActOnCurrentStep({
           status: before.status,
           approvalLevels: levels,
@@ -413,10 +419,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           userRoleIds,
           requestorId: before.requestorId ?? null,
           actorUserId: session.user.id,
+          delegationCtx,
         });
         if (!allowed) {
           return NextResponse.json({ error: 'You are not allowed to review at this stage' }, { status: 403 });
         }
+        onBehalfOf = resolveOnBehalfOfDelegator({
+          level: next,
+          actorUserId: session.user.id,
+          userRoleIds,
+          ctx: delegationCtx,
+        });
         if (body.status === 'Reviewed' || body.status === 'Approved') {
           // Approve intent → land on `Approved` only if this is the final
           // step; otherwise advance one rung to `Reviewed`.
@@ -592,6 +605,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
               }
             : {}),
           ...(approvalNoteForHistory !== undefined ? { approvalNote: approvalNoteForHistory } : {}),
+          ...(onBehalfOf
+            ? { onBehalfOfUserId: onBehalfOf.userId, onBehalfOfName: onBehalfOf.name }
+            : {}),
         },
       });
 
