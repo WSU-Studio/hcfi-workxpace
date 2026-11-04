@@ -194,6 +194,15 @@ export default withAuth(
       }
     }
 
+    if (req.nextUrl.pathname.startsWith('/approval-delegation')) {
+      if (!menuAccess.approvalDelegation) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+      if (req.nextUrl.pathname.includes('/new') && !activityAccess.createApprovalDelegation) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+    }
+
     return NextResponse.next();
   },
   { callbacks: { authorized: () => true } }
