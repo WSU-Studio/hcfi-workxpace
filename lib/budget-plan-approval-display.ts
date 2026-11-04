@@ -6,10 +6,13 @@ export type BudgetPlanHistoryEntry = {
     declineReason?: string | null;
     approvalNote?: string | null;
     allocationAdjustmentNote?: string | null;
+    onBehalfOfUserId?: string | null;
+    onBehalfOfName?: string | null;
     currentState?: {
       declineReason?: string | null;
       approvalNote?: string | null;
       allocationAdjustmentNote?: string | null;
+      status?: string;
     } | null;
   } | null;
   timestamp: string;
@@ -18,6 +21,18 @@ export type BudgetPlanHistoryEntry = {
   // chaining; type ini juga dipakai oleh budget-request detail page.
   user: { name: string | null } | null;
 };
+
+/** Actor line for approval progress: `Bob · menggantikan Alice` when delegated. */
+export function formatApprovalActorName(
+  actorName: string | null | undefined,
+  details?: { onBehalfOfName?: string | null } | null,
+): string | null {
+  const name = actorName?.trim() || null;
+  if (!name) return null;
+  const onBehalf = details?.onBehalfOfName?.trim();
+  if (onBehalf) return `${name} · menggantikan ${onBehalf}`;
+  return name;
+}
 
 export type ApprovalStepStatus =
   | 'Pending'
@@ -212,7 +227,10 @@ export function getRequestorSubmissionStepProgress(
     return {
       statusLabel: 'Submitted',
       timestampLabel: formatBudgetPlanHistoryDateTime(submission.timestamp),
-      actorName: submission.user?.name ?? options?.requestorName ?? null,
+      actorName: formatApprovalActorName(
+        submission.user?.name ?? options?.requestorName ?? null,
+        submission.details,
+      ),
       note: null,
     };
   }
@@ -270,7 +288,7 @@ export function getMultiStepApprovalProgress(
       return {
         statusLabel: level.levelType === 'Reviewer' ? 'Reviewed' : 'Approved',
         timestampLabel: formatBudgetPlanHistoryDateTime(completed.timestamp),
-        actorName: completed.user?.name ?? null,
+        actorName: formatApprovalActorName(completed.user?.name ?? null, completed.details),
         note: getHistoryStepNote(completed),
       };
     }
@@ -279,7 +297,10 @@ export function getMultiStepApprovalProgress(
       return {
         statusLabel: status,
         timestampLabel: formatBudgetPlanHistoryDateTime(interruptedAction.timestamp),
-        actorName: interruptedAction.user?.name ?? null,
+        actorName: formatApprovalActorName(
+          interruptedAction.user?.name ?? null,
+          interruptedAction.details,
+        ),
         note: getHistoryStepNote(interruptedAction),
       };
     }
@@ -313,7 +334,7 @@ export function getApprovalStepProgress(
     return {
       statusLabel: reviewerStatus,
       timestampLabel: formatBudgetPlanHistoryDateTime(reviewerHistory.timestamp),
-      actorName: reviewerHistory.user?.name ?? null,
+      actorName: formatApprovalActorName(reviewerHistory.user?.name ?? null, reviewerHistory.details),
       note: getHistoryStepNote(reviewerHistory),
     };
   }
@@ -332,7 +353,7 @@ export function getApprovalStepProgress(
   return {
     statusLabel: approverStatus,
     timestampLabel: formatBudgetPlanHistoryDateTime(approverHistory.timestamp),
-    actorName: approverHistory.user?.name ?? null,
+    actorName: formatApprovalActorName(approverHistory.user?.name ?? null, approverHistory.details),
     note: getHistoryStepNote(approverHistory),
   };
 }
