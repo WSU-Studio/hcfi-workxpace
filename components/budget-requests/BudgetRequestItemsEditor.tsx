@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
+import { createLocalId } from '@/lib/local-id';
 import { formatCurrency } from '@/lib/utils';
 import { Table, TableBodyRow, TableCell, TableHead, TableHeaderRow } from '@/components/ui/Table';
 
@@ -32,7 +33,7 @@ type BudgetRequestItemsEditorProps = {
 };
 
 const emptyItem = (): BudgetRequestLineItemInput => ({
-  id: crypto.randomUUID(),
+  id: createLocalId(),
   item: '',
   qty: 1,
   unitPrice: 0,

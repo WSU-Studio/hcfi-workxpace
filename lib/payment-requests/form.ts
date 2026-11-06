@@ -1,5 +1,6 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
+import { createLocalId } from '@/lib/local-id';
 import { isRichTextEmpty } from '@/lib/utils';
 import { validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
@@ -202,7 +203,7 @@ export function mapBrLineItemsToEditor(
   const mapped = (rows ?? [])
     .filter((lineItem) => String(lineItem.item ?? '').trim().length > 0)
     .map((lineItem) => ({
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       item: String(lineItem.item).trim(),
       qty: Math.max(0, Math.round(Number(lineItem.qty)) || 0),
       unitPrice: Number.isFinite(Number(lineItem.unitPrice)) ? Number(lineItem.unitPrice) : 0,

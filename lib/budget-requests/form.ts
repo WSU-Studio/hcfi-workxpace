@@ -1,5 +1,6 @@
 import type { ApprovalSchemaOption } from '@/lib/approval-schema';
 import { getCurrentFiscalYear } from '@/lib/fiscal-year';
+import { createLocalId } from '@/lib/local-id';
 import { isRichTextEmpty } from '@/lib/utils';
 import { validateRequiredSupportingDocs } from '@/lib/supporting-docs';
 import {
@@ -107,7 +108,7 @@ export function createDefaultFormValues(): BudgetRequestFormValues {
 
 export function buildEmptyLineItem(): BudgetRequestLineItemInput {
   return {
-    id: crypto.randomUUID(),
+    id: createLocalId(),
     item: '',
     qty: 1,
     unitPrice: 0,
