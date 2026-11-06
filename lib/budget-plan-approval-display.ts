@@ -8,6 +8,8 @@ export type BudgetPlanHistoryEntry = {
     allocationAdjustmentNote?: string | null;
     onBehalfOfUserId?: string | null;
     onBehalfOfName?: string | null;
+    /** Delegate's role title when acting via Approval Delegation. */
+    actorRoleName?: string | null;
     currentState?: {
       declineReason?: string | null;
       approvalNote?: string | null;
@@ -19,10 +21,16 @@ export type BudgetPlanHistoryEntry = {
   // Sengaja dilonggarkan: history mungkin punya user `null` (sistem) atau
   // `name` `null` (akun di-soft-delete). Helper sudah handle via optional
   // chaining; type ini juga dipakai oleh budget-request detail page.
-  user: { name: string | null } | null;
+  user: {
+    name: string | null;
+    role?: { roleName: string | null } | null;
+  } | null;
 };
 
-/** Actor line for approval progress: `Bob · on behalf of Alice` when delegated. */
+/**
+ * Actor line for approval progress. Stacked for narrow print columns:
+ * `Bob\non behalf of\nAlice`
+ */
 export function formatApprovalActorName(
   actorName: string | null | undefined,
   details?: { onBehalfOfName?: string | null } | null,
@@ -30,8 +38,27 @@ export function formatApprovalActorName(
   const name = actorName?.trim() || null;
   if (!name) return null;
   const onBehalf = details?.onBehalfOfName?.trim();
-  if (onBehalf) return `${name} · on behalf of ${onBehalf}`;
+  if (onBehalf) return `${name}\non behalf of\n${onBehalf}`;
   return name;
+}
+
+function historyHasDelegation(details: BudgetPlanHistoryEntry['details']): boolean {
+  if (!details) return false;
+  return Boolean(details.onBehalfOfUserId?.trim() || details.onBehalfOfName?.trim());
+}
+
+/**
+ * When the step was approved via delegation, show the *delegate* role title
+ * (not the schema / delegator step role). Returns null for non-delegated steps
+ * so the UI can fall back to the schema role name.
+ */
+export function resolveApprovalDisplayRoleName(
+  history: Pick<BudgetPlanHistoryEntry, 'details' | 'user'> | null | undefined,
+): string | null {
+  if (!history || !historyHasDelegation(history.details)) return null;
+  const fromDetails = history.details?.actorRoleName?.trim();
+  if (fromDetails) return fromDetails;
+  return history.user?.role?.roleName?.trim() || null;
 }
 
 export type ApprovalStepStatus =
@@ -73,6 +100,8 @@ export type ApprovalStepProgress = {
   timestampLabel: string;
   actorName: string | null;
   note: string | null;
+  /** Delegate role title when acting via delegation; otherwise omit / null. */
+  displayRoleName?: string | null;
 };
 
 export type RequestStatusDisplay = {
@@ -276,6 +305,7 @@ export function getMultiStepApprovalProgress(
     timestampLabel: '-',
     actorName: null,
     note: null,
+    displayRoleName: null,
   };
   const empty = orderedLevels.map(() => ({ ...pending }));
   if (!orderedLevels.length) return empty;
@@ -290,6 +320,7 @@ export function getMultiStepApprovalProgress(
         timestampLabel: formatBudgetPlanHistoryDateTime(completed.timestamp),
         actorName: formatApprovalActorName(completed.user?.name ?? null, completed.details),
         note: getHistoryStepNote(completed),
+        displayRoleName: resolveApprovalDisplayRoleName(completed),
       };
     }
     if (interruptedAction && index === completedActions.length) {
@@ -302,6 +333,7 @@ export function getMultiStepApprovalProgress(
           interruptedAction.details,
         ),
         note: getHistoryStepNote(interruptedAction),
+        displayRoleName: resolveApprovalDisplayRoleName(interruptedAction),
       };
     }
     return { ...pending };
@@ -327,7 +359,13 @@ export function getApprovalStepProgress(
       return status ? ['Reviewed', 'Revision', 'Declined'].includes(status) : false;
     });
     if (!reviewerHistory) {
-      return { statusLabel: 'Pending', timestampLabel: '-', actorName: null, note: null };
+      return {
+        statusLabel: 'Pending',
+        timestampLabel: '-',
+        actorName: null,
+        note: null,
+        displayRoleName: null,
+      };
     }
 
     const reviewerStatus = getHistoryStatus(reviewerHistory) || 'Processed';
@@ -336,6 +374,7 @@ export function getApprovalStepProgress(
       timestampLabel: formatBudgetPlanHistoryDateTime(reviewerHistory.timestamp),
       actorName: formatApprovalActorName(reviewerHistory.user?.name ?? null, reviewerHistory.details),
       note: getHistoryStepNote(reviewerHistory),
+      displayRoleName: resolveApprovalDisplayRoleName(reviewerHistory),
     };
   }
 
@@ -347,7 +386,13 @@ export function getApprovalStepProgress(
   });
 
   if (!approverHistory) {
-    return { statusLabel: 'Pending', timestampLabel: '-', actorName: null, note: null };
+    return {
+      statusLabel: 'Pending',
+      timestampLabel: '-',
+      actorName: null,
+      note: null,
+      displayRoleName: null,
+    };
   }
   const approverStatus = getHistoryStatus(approverHistory) || 'Processed';
   return {
@@ -355,5 +400,6 @@ export function getApprovalStepProgress(
     timestampLabel: formatBudgetPlanHistoryDateTime(approverHistory.timestamp),
     actorName: formatApprovalActorName(approverHistory.user?.name ?? null, approverHistory.details),
     note: getHistoryStepNote(approverHistory),
+    displayRoleName: resolveApprovalDisplayRoleName(approverHistory),
   };
 }

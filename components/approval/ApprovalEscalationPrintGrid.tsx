@@ -24,6 +24,14 @@ type StampDisplay = {
   toneClass: string;
 };
 
+type PrintColumnModel = {
+  key: string;
+  roleLabel: string;
+  progress: ApprovalStepProgress;
+  stamp: StampDisplay;
+  isLastCol: boolean;
+};
+
 function getRequestorStamp(progress: ApprovalStepProgress): StampDisplay {
   if (progress.statusLabel === 'Submitted') {
     return { label: 'Submit', toneClass: 'border-2 border-blue-400 text-blue-500' };
@@ -39,41 +47,11 @@ function getReviewerStamp(progress: ApprovalStepProgress): StampDisplay {
   return { label: '', toneClass: '' };
 }
 
-function ApprovalPrintColumn({
-  roleLabel,
-  progress,
-  stamp,
-  isLastCol,
-}: {
-  roleLabel: string;
-  progress: ApprovalStepProgress;
-  stamp: StampDisplay;
-  isLastCol: boolean;
-}) {
-  const colBorder = isLastCol ? '' : 'border-r border-gray-400';
-
-  return (
-    <div className={`flex min-w-0 flex-col text-center text-sm print:break-inside-avoid ${colBorder}`}>
-      <div className="flex h-12 items-center justify-center border-b border-gray-400 px-2 py-1 text-[12px] font-medium leading-tight text-gray-800 line-clamp-2">
-        {roleLabel}
-      </div>
-      <div className="flex h-14 items-center justify-center border-b border-gray-400 px-2 py-1.5 text-gray-700 text-[10px] line-clamp-3 leading-tight">
-        {progress.actorName ?? <span className="text-gray-300">—</span>}
-      </div>
-      <div className="flex h-20 items-center justify-center border-b border-gray-400 px-2 py-4">
-        <span
-          className={`inline-flex h-12 w-12 items-center justify-center rounded-full text-xs font-semibold tracking-narrow opacity-90 ${stamp.toneClass}`}
-        >
-          {stamp.label}
-        </span>
-      </div>
-      <div className="flex h-8 items-center justify-center px-2 py-1 text-[8px] text-gray-500 line-clamp-2 leading-tight">
-        {progress.timestampLabel}
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Row-major cells so every column shares the same row height (role / name /
+ * stamp / date). Avoids per-column `h-14` + line-clamp that truncates
+ * "on behalf of" names while keeping the grid aligned.
+ */
 export default function ApprovalEscalationPrintGrid({
   levels,
   stepProgresses,
@@ -85,7 +63,34 @@ export default function ApprovalEscalationPrintGrid({
   const showRequestorColumn = Boolean(showRequestor && requestorStepProgress);
   if (!levels.length && !showRequestorColumn) return null;
 
-  const filledCount = levels.length + (showRequestorColumn ? 1 : 0);
+  const columns: PrintColumnModel[] = [];
+  if (showRequestorColumn && requestorStepProgress) {
+    columns.push({
+      key: 'requestor',
+      roleLabel: requestorRoleLabel,
+      progress: requestorStepProgress,
+      stamp: getRequestorStamp(requestorStepProgress),
+      isLastCol: levels.length === 0,
+    });
+  }
+  levels.forEach((level, index) => {
+    const progress = stepProgresses[index] ?? {
+      statusLabel: 'Pending',
+      timestampLabel: '-',
+      actorName: null,
+      note: null,
+      displayRoleName: null,
+    };
+    columns.push({
+      key: `step-${level.stepOrder}`,
+      roleLabel: progress.displayRoleName?.trim() || level.role?.roleName || '-',
+      progress,
+      stamp: getReviewerStamp(progress),
+      isLastCol: index === levels.length - 1,
+    });
+  });
+
+  const filledCount = columns.length;
   // Each filled column occupies 1/9 of the page; unused slots stay empty to the right.
   const widthPercent = Math.min(filledCount / PRINT_COLUMN_SLOTS, 1) * 100;
   const sideLabelWidthRem = 1.75;
@@ -114,30 +119,55 @@ export default function ApprovalEscalationPrintGrid({
             gridTemplateColumns: `repeat(${filledCount}, minmax(0, 1fr))`,
           }}
         >
-          {showRequestorColumn && requestorStepProgress ? (
-            <ApprovalPrintColumn
-              roleLabel={requestorRoleLabel}
-              progress={requestorStepProgress}
-              stamp={getRequestorStamp(requestorStepProgress)}
-              isLastCol={levels.length === 0}
-            />
-          ) : null}
-
-          {levels.map((level, index) => {
-            const progress = stepProgresses[index] ?? {
-              statusLabel: 'Pending',
-              timestampLabel: '-',
-              actorName: null,
-              note: null,
-            };
+          {columns.map((col) => {
+            const colBorder = col.isLastCol ? '' : 'border-r border-gray-400';
             return (
-              <ApprovalPrintColumn
-                key={level.stepOrder}
-                roleLabel={level.role?.roleName ?? '-'}
-                progress={progress}
-                stamp={getReviewerStamp(progress)}
-                isLastCol={index === levels.length - 1}
-              />
+              <div
+                key={`role-${col.key}`}
+                className={`flex min-h-12 items-center justify-center border-b border-gray-400 px-2 py-1 text-center text-[12px] font-medium leading-tight text-gray-800 ${colBorder}`}
+              >
+                {col.roleLabel}
+              </div>
+            );
+          })}
+
+          {columns.map((col) => {
+            const colBorder = col.isLastCol ? '' : 'border-r border-gray-400';
+            return (
+              <div
+                key={`actor-${col.key}`}
+                className={`flex min-h-14 items-center justify-center border-b border-gray-400 px-2 py-1.5 text-center text-[10px] leading-tight text-gray-700 whitespace-pre-line ${colBorder}`}
+              >
+                {col.progress.actorName ?? <span className="text-gray-300">—</span>}
+              </div>
+            );
+          })}
+
+          {columns.map((col) => {
+            const colBorder = col.isLastCol ? '' : 'border-r border-gray-400';
+            return (
+              <div
+                key={`stamp-${col.key}`}
+                className={`flex h-20 items-center justify-center border-b border-gray-400 px-2 py-4 ${colBorder}`}
+              >
+                <span
+                  className={`inline-flex h-12 w-12 items-center justify-center rounded-full text-xs font-semibold tracking-narrow opacity-90 ${col.stamp.toneClass}`}
+                >
+                  {col.stamp.label}
+                </span>
+              </div>
+            );
+          })}
+
+          {columns.map((col) => {
+            const colBorder = col.isLastCol ? '' : 'border-r border-gray-400';
+            return (
+              <div
+                key={`time-${col.key}`}
+                className={`flex h-8 items-center justify-center px-2 py-1 text-center text-[8px] leading-tight text-gray-500 ${colBorder}`}
+              >
+                {col.progress.timestampLabel}
+              </div>
             );
           })}
         </div>

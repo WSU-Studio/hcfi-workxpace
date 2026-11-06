@@ -114,6 +114,15 @@ export async function remapNotificationUserIds(
   return Array.from(next);
 }
 
+/** Primary role title for the acting user (used as print header when delegated). */
+export async function getUserPrimaryRoleName(userId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: { select: { roleName: true } } },
+  });
+  return user?.role?.roleName?.trim() || null;
+}
+
 export async function findOverlappingDelegation(params: {
   delegatorUserId: string;
   startDate: Date;
