@@ -25,7 +25,7 @@ import {
   budgetPlanFormValuesFromBody,
   validateRequiredBudgetPlanWriteFields,
 } from '@/lib/budget-plans/form';
-import { loadActorDelegationContext } from '@/lib/approval-delegation';
+import { getUserPrimaryRoleName, loadActorDelegationContext } from '@/lib/approval-delegation';
 import {
   approvalLevelsOf,
   snapshotForDocumentWrite,
@@ -119,7 +119,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       }),
       prisma.activityHistory.findMany({
         where: { entityType: 'BudgetPlan', entityId: id },
-        include: { user: { select: { name: true } } },
+        include: {
+          user: {
+            select: {
+              name: true,
+              role: { select: { roleName: true } },
+            },
+          },
+        },
         orderBy: { timestamp: 'desc' },
       }),
     ]);
@@ -397,6 +404,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       // of getting stuck on step 2 like the old 2-step heuristic.
       let resolvedStatus: string = body.status;
       let onBehalfOf: { userId: string; name: string } | null = null;
+      let actorRoleName: string | null = null;
       if (REVIEW_INTENT_STATUSES.has(body.status)) {
         if (!REVIEWABLE_FROM_STATUSES.has(before.status)) {
           return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
@@ -430,6 +438,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           userRoleIds,
           ctx: delegationCtx,
         });
+        if (onBehalfOf) {
+          actorRoleName = await getUserPrimaryRoleName(session.user.id);
+        }
         if (body.status === 'Reviewed' || body.status === 'Approved') {
           // Approve intent → land on `Approved` only if this is the final
           // step; otherwise advance one rung to `Reviewed`.
@@ -606,7 +617,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             : {}),
           ...(approvalNoteForHistory !== undefined ? { approvalNote: approvalNoteForHistory } : {}),
           ...(onBehalfOf
-            ? { onBehalfOfUserId: onBehalfOf.userId, onBehalfOfName: onBehalfOf.name }
+            ? {
+                onBehalfOfUserId: onBehalfOf.userId,
+                onBehalfOfName: onBehalfOf.name,
+                ...(actorRoleName ? { actorRoleName } : {}),
+              }
             : {}),
         },
       });

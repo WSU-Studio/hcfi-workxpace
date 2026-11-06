@@ -94,7 +94,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const histories = await prisma.activityHistory.findMany({
       where: { entityType: 'PaymentRequest', entityId: id },
-      include: { user: { select: { name: true } } },
+      include: {
+        user: {
+          select: {
+            name: true,
+            role: { select: { roleName: true } },
+          },
+        },
+      },
       orderBy: { timestamp: 'desc' },
     });
 
@@ -479,7 +486,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     const histories = await prisma.activityHistory.findMany({
       where: { entityType: 'PaymentRequest', entityId: id },
-      include: { user: { select: { name: true } } },
+      include: {
+        user: {
+          select: {
+            name: true,
+            role: { select: { roleName: true } },
+          },
+        },
+      },
       orderBy: { timestamp: 'desc' },
     });
 

@@ -13,7 +13,7 @@ import type { BudgetPlanHistoryEntry } from '@/lib/budget-plan-approval-display'
 import { createPaymentRequestApprovalNotifications } from '@/lib/payment-request-notifications';
 import { canEditClassificationFields } from '@/lib/access/classification';
 import { approvalLevelsOf } from '@/lib/approval-schema-snapshot';
-import { loadActorDelegationContext } from '@/lib/approval-delegation';
+import { getUserPrimaryRoleName, loadActorDelegationContext } from '@/lib/approval-delegation';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       body?.action === 'revision' ? 'revision' : body?.action === 'decline' ? 'decline' : 'approve';
     let newStatus: string;
     let onBehalfOf: { userId: string; name: string } | null = null;
+    let actorRoleName: string | null = null;
     const nextStep = levels.length
       ? getNextApprovalStep(before.status, levels, histories)
       : null;
@@ -129,6 +130,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
+    if (onBehalfOf) {
+      actorRoleName = await getUserPrimaryRoleName(session.user.id);
+    }
+
     // Defense in depth: when the caller lacks `editClassificationSection`,
     // drop the classification fields from the body and keep the persisted
     // values (matches the read-only UI). PR uses denormalized text columns
@@ -186,7 +191,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             ? (typeof body?.approvalNote === 'string' ? body.approvalNote.trim() || null : null)
             : null,
         ...(onBehalfOf
-          ? { onBehalfOfUserId: onBehalfOf.userId, onBehalfOfName: onBehalfOf.name }
+          ? {
+              onBehalfOfUserId: onBehalfOf.userId,
+              onBehalfOfName: onBehalfOf.name,
+              ...(actorRoleName ? { actorRoleName } : {}),
+            }
           : {}),
       },
     });
