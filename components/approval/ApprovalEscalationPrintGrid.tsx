@@ -2,7 +2,7 @@ import type { ApprovalStepProgress } from '@/lib/budget-plan-approval-display';
 
 /** Print layout reserves this many equal column slots across the page width. */
 // use filledCount as default if the number of columns is not known and to be set as full page
-const PRINT_COLUMN_SLOTS = 9;
+const PRINT_COLUMN_SLOTS = 6;
 
 export type ApprovalEscalationPrintLevel = {
   stepOrder: number;
