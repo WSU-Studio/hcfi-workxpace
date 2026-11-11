@@ -11,8 +11,7 @@ const KIND_STYLES: Record<
 
 /**
  * Non-production environment notice for the login screen.
- * Renders nothing on production (or when NEXT_PUBLIC_APP_ENV is unset/prod
- * and NODE_ENV is not development).
+ * Renders nothing when NEXT_PUBLIC_APP_ENV is unset, empty, or production.
  */
 export default function EnvironmentBanner() {
   const banner = getAppEnvBanner();

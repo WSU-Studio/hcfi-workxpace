@@ -1,13 +1,12 @@
 /**
- * Login-page environment marker so local / TQA are not mistaken for production.
+ * Login-page environment marker so non-prod builds are not mistaken for production.
  *
- * Prefer `NEXT_PUBLIC_APP_ENV` (build-time, works on TQA after `next build`).
- * Fallback: `NODE_ENV=development` (local `next dev` only — TQA runs as production).
+ * Banner shows **only** when `NEXT_PUBLIC_APP_ENV` is set explicitly to a
+ * non-production value. Empty / unset / production → no banner.
+ * No `NODE_ENV` fallback (so `next dev` alone does not show a banner).
  *
  * Values:
  *   development | local | tqa | staging | production | (empty)
- *
- * Production / empty → no banner.
  */
 
 export type AppEnvKind = 'development' | 'tqa' | 'staging';
@@ -25,13 +24,14 @@ function normalizeAppEnv(raw: string | undefined): string {
 }
 
 /**
- * Resolve which non-production banner to show, or null for production.
- * Safe to call from client components (`NEXT_PUBLIC_*` + inlined `NODE_ENV`).
+ * Resolve which non-production banner to show, or null when unset / production.
+ * Safe to call from client components (`NEXT_PUBLIC_*` is inlined at build time).
  */
 export function getAppEnvBanner(): AppEnvBanner | null {
   const explicit = normalizeAppEnv(process.env.NEXT_PUBLIC_APP_ENV);
 
-  if (explicit === 'production' || explicit === 'prod') {
+  // Unset / empty / production → no banner
+  if (!explicit || explicit === 'production' || explicit === 'prod') {
     return null;
   }
 
@@ -63,14 +63,6 @@ export function getAppEnvBanner(): AppEnvBanner | null {
     };
   }
 
-  // No explicit APP_ENV: show only during next dev / NODE_ENV=development
-  if (!explicit && process.env.NODE_ENV === 'development') {
-    return {
-      kind: 'development',
-      badge: 'DEVELOPMENT',
-      detail: 'Local development — not production',
-    };
-  }
-
+  // Unknown value → treat as no banner (safe default)
   return null;
 }
